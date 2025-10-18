@@ -25,9 +25,7 @@ Directory structure:
 ================================================
 FILE: README.md
 ================================================
-# CommunityService
-Community Service Project: We will develop and implement a customized Digital Management System for a local NGO. Currently, its processes are manual and inefficient. The goal is to optimize operations and maximize its social impact through a robust and easy-to-use technological solution.
-
+Error reading file with 'cp1252': 'charmap' codec can't decode byte 0x8f in position 2199: character maps to <undefined>
 
 
 ================================================
