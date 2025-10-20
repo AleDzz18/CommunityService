@@ -64,7 +64,7 @@ TOKEN=github_pat_11BM6JGLY0toHqM3Kctuvx_O4CNe3WzK4EpDDtwcXWlZqrvuqgpaDHPLw5Tid9i
 
 SERIA:
 
-$env:GITHUB_TOKEN="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"
+$env:GITHUB_TOKEN=""
 gitingest https://github.com/AleDzz18/CommunityService
 
 Sobrescribe el contenido del archivo digest.txt existente con esta nueva salida.
