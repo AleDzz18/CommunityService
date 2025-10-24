@@ -60,8 +60,6 @@ PowerShell
 $env:GITHUB_TOKEN="github_pat_..."
 gitingest https://github.com/username/private-repo
 
-TOKEN=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
-
 SERIA:
 
 $env:GITHUB_TOKEN=""
