@@ -146,7 +146,7 @@ def index(request):
 FILE: App_Home/static/css/styles-login.css
 ================================================
 @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap');
-@import "material-theme/light.css' %}";
+@import url('material-theme/light.css');
 
 *{
     margin: 0;
@@ -795,7 +795,7 @@ FILE: App_Home/templates/layouts/base.html
     <title>Login Page | Caged coder</title>
 </head>
 
-<body>
+<body class="light"{% block body_attributes %}{% endblock %}>
     <!-- Estos nombres de etiquetas o archivos son tentativos -->
     <div class="cuerpo-base">
         <!-- Bloque de Django para insertar el contenido del navbar. -->
