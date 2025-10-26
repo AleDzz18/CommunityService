@@ -1,5 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700; 800; 900&display=swap');
 @import url('material-theme/light.css');
+
 * {
     margin: 0;
     padding: 0;
@@ -12,14 +13,16 @@ body {
     justify-content: center;
     align-items: center;
     min-height: 100vh;
-    background: linear-gradient(90deg, #e2e2e2, #c9d6ff);
+    /* Se cambia el gradiente a un color de fondo basado en el tema */
+    background: var(--md-sys-color-background);
 }
 
 .container {
     position: relative;
     width: 850px;
     height: 550px;
-    background: #fff;
+    /* Se cambia #fff por el color de superficie */
+    background: var(--md-sys-color-surface);
     border-radius: 30px;
     box-shadow: 0 0px 30px rgba(0, 0, 0, 0.2);
     margin: 20px;
@@ -31,10 +34,12 @@ body {
     right: 0;
     width: 50%;
     height: 100%;
-    background: #fff;
+    /* Se cambia #fff por el color de superficie */
+    background: var(--md-sys-color-surface);
     display: flex;
     align-items: center;
-    color: #333;
+    /* Se cambia #333 por el color de texto principal */
+    color: var(--md-sys-color-on-surface);
     text-align: center;
     padding: 40px;
     z-index: 1;
@@ -71,17 +76,20 @@ form {
 .input-box input {
     width: 100%;
     padding: 13px 50px 13px 20px;
-    background: #eee;
+    /* Se cambia #eee por un color de fondo de contenedor de superficie claro */
+    background: var(--md-sys-color-surface-container-low);
     border-radius: 8px;
     border: none;
     outline: none;
     font-size: 16px;
-    color: #333;
+    /* Se cambia #333 por el color de texto principal */
+    color: var(--md-sys-color-on-surface);
     font-weight: 500;
 }
 
 .input-box input::placeholder {
-    color: #888;
+    /* Se cambia #888 por un color de texto secundario */
+    color: var(--md-sys-color-on-surface-variant);
     font-weight: 400;
 }
 
@@ -91,7 +99,8 @@ form {
     top: 50%;
     transform: translateY(-50%);
     font-size: 20px;
-    color: #888;
+    /* Se cambia #888 por un color de texto secundario */
+    color: var(--md-sys-color-on-surface-variant);
 }
 
 .forgot-link {
@@ -100,20 +109,23 @@ form {
 
 .forgot-link a {
     font-size: 14.5px;
-    color: #333;
+    /* Se cambia #333 por el color de texto principal */
+    color: var(--md-sys-color-on-surface);
     text-decoration: none;
 }
 
 .btn {
     width: 100%;
     height: 48px;
-    background: #7494ec;
+    /* Se cambia #7494ec por el color primario */
+    background: var(--md-sys-color-primary);
     border-radius: 8px;
     box-shadow: 0 0 10px rgba(0, 0, 0, .1);
     border: none;
     cursor: pointer;
     font-size: 16px;
-    color: #fff;
+    /* Se cambia #fff por el color de texto sobre primario */
+    color: var(--md-sys-color-on-primary);
     font-weight: 600;
 }
 
@@ -130,10 +142,12 @@ form {
 .social-icons a {
     display: inline-flex;
     padding: 10px;
-    border: 2px solid #ccc;
+    /* Se cambia #ccc por un color de contorno */
+    border: 2px solid var(--md-sys-color-outline-variant);
     border-radius: 8px;
     font-size: 24px;
-    color: #333;
+    /* Se cambia #333 por el color de texto principal */
+    color: var(--md-sys-color-on-surface);
     text-decoration: none;
     margin: 0 8px;
 }
@@ -150,7 +164,8 @@ form {
     left: -250%;
     width: 300%;
     height: 100%;
-    background: #7494ec;
+    /* Se cambia #7494ec por el color primario */
+    background: var(--md-sys-color-primary);
     border-radius: 150px;
     z-index: 2;
     transition: 1.8s ease-in-out;
@@ -164,7 +179,8 @@ form {
     position: absolute;
     width: 50%;
     height: 100%;
-    color: #fff;
+    /* Se cambia #fff por el color de texto sobre primario */
+    color: var(--md-sys-color-on-primary);
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -201,7 +217,8 @@ form {
     width: 160px;
     height: 46px;
     background: transparent;
-    border: 2px solid #fff;
+    /* Se cambia #fff por el color de texto sobre primario */
+    border: 2px solid var(--md-sys-color-on-primary);
     box-shadow: none;
 }
 
@@ -266,5 +283,4 @@ form {
     .toggle-panel h1 {
         font-size: 30px;
     }
-
 }
