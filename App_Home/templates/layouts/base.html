@@ -6,27 +6,26 @@
     {% load static %}
     <!-- Configuracion basica del documento HTML -->
     <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <!--Estilos y Funciones asociados al Login-->
     <link rel="stylesheet" href="{% static 'css/styles-login.css' %}" />
-    <script src="{% static 'js/script-login.js' %}" defer></script>
+    <link rel="stylesheet" href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css">
+    <script src="{% static 'js/scripts-login.js' %}" defer></script>
     <!-- Titulo General de la Pagina -->
-    <title>Login Page | Caged coder</title>
+    <title>Responsive Login</title>
 </head>
 
-<body class="light"{% block body_attributes %}{% endblock %}>
-    <!-- Estos nombres de etiquetas o archivos son tentativos -->
-    <div class="cuerpo-base">
-        <!-- Bloque de Django para insertar el contenido del navbar. -->
-        <!-- Este bloque se define en la plantilla que extiende a esta (navbar.html). -->
-        {% block navbar %}
-        {% endblock navbar %}
+<body class="light" {% block body_attributes %}{% endblock %}>
+    <!-- Bloque de Django para insertar el contenido del navbar. -->
+    <!-- Este bloque se define en la plantilla que extiende a esta (navbar.html). -->
+    {% block navbar %}
+    {% endblock navbar %}
 
-        <!-- Bloque de Django para insertar el contenido del login. -->
-        <!-- Este bloque se define en la plantilla que extiende a esta (login.html). -->
-        {% block content %}
-        {% endblock content %}
-    </div>
+    <!-- Bloque de Django para insertar el contenido del login. -->
+    <!-- Este bloque se define en la plantilla que extiende a esta (login.html). -->
+    {% block content %}
+    {% endblock content %}
 </body>
 
 </html>
