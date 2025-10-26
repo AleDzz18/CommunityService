@@ -37,7 +37,7 @@ Directory structure:
 ================================================
 FILE: README.md
 ================================================
-Error reading file with 'cp1252': 'charmap' codec can't decode byte 0x8f in position 2199: character maps to <undefined>
+Error reading file with 'cp1252': 'charmap' codec can't decode byte 0x8f in position 2207: character maps to <undefined>
 
 
 ================================================
@@ -156,8 +156,8 @@ FILE: App_Home/static/css/styles-login.css
 }
 
 body{
-    background-color: #c9d6ff;
-    background: linear-gradient(to right, #e2e2e2, #c9d6ff);
+    background-color: var(--md-sys-color-background);
+    background: linear-gradient(to right, var(--md-sys-color-surface-container-low), var(--md-sys-color-background));
     display: flex;
     align-items: center;
     justify-content: center;
@@ -166,7 +166,7 @@ body{
 }
 
 .container{
-    background-color: #fff;
+    background-color: var(--md-sys-color-surface);
     border-radius: 30px;
     box-shadow: 0 5px 15px rgba(0, 0, 0, 0.35);
     position: relative;
@@ -188,15 +188,15 @@ body{
 }
 
 .container a{
-    color: #333;
+    color: var(--md-sys-color-on-surface);
     font-size: 13px;
     text-decoration: none;
     margin: 15px 0 10px;
 }
 
 .container button{
-    background-color: #2da0a8;
-    color: #fff;
+    background-color: var(--md-sys-color-primary);
+    color: var(--md-sys-color-on-primary);
     font-size: 12px;
     padding: 10px 45px;
     border: 1px solid transparent;
@@ -210,11 +210,11 @@ body{
 
 .container button.hidden{
     background-color: transparent;
-    border-color: #fff;
+    border-color: var(--md-sys-color-surface);
 }
 
 .container form{
-    background-color: #fff;
+    background-color: var(--md-sys-color-surface);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -224,7 +224,7 @@ body{
 }
 
 .container input{
-    background-color: #eee;
+    background-color: var(--md-sys-color-surface-container-low);
     border: none;
     margin: 8px 0;
     padding: 10px 15px;
@@ -281,7 +281,7 @@ body{
 }
 
 .social-icons a{
-    border: 1px solid #ccc;
+    border: 1px solid var(--md-sys-color-outline);
     border-radius: 20%;
     display: inline-flex;
     justify-content: center;
@@ -309,10 +309,10 @@ body{
 }
 
 .toggle{
-    background-color: #2da0a8;
+    background-color: var(--md-sys-color-primary);
     height: 100%;
-    background: linear-gradient(to right, #5c6bc0, #2da0a8);
-    color: #fff;
+    background: linear-gradient(to right, var(--md-sys-color-primary-fixed-dim), var(--md-sys-color-primary));
+    color: var(--md-sys-color-surface);
     position: relative;
     left: -100%;
     height: 100%;
@@ -780,7 +780,7 @@ FILE: App_Home/templates/index.html
 FILE: App_Home/templates/layouts/base.html
 ================================================
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 
 <head>
     <!-- Carga Archivos Estaticos -->
