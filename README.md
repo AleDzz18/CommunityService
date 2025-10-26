@@ -3,16 +3,16 @@ Community Service Project: We will develop and implement a customized Digital Ma
 
 🚀 Guía de Configuración Inicial para Colaboradores
 Para garantizar la reproducibilidad y el correcto funcionamiento del proyecto en todos los entornos, es esencial utilizar un entorno virtual de Python. Sigue los pasos a continuación para crear el entorno, activarlo e instalar todas las dependencias del proyecto.
-1. Requisitos PreviosAsegúrate de tener instalado Python 3 (la versión del proyecto es Django 5.2.7, que requiere una versión reciente de Python) y pip (el gestor de paquetes de Python) en tu sistema.
-2. Creación del Entorno VirtualNavega a la carpeta raíz del proyecto (aledzz18-communityservice/) en tu terminal y ejecuta el siguiente comando para crear el entorno virtual. Usaremos el nombre venv por convención: python -m venv venv
+1. Requisitos Previos: Asegúrate de tener instalado Python 3 (la versión del proyecto es Django 5.2.7, que requiere una versión reciente de Python) y pip (el gestor de paquetes de Python) en tu sistema.
+2. Creación del Entorno Virtual: Navega a la carpeta raíz del proyecto (aledzz18-communityservice/) en tu terminal y ejecuta el siguiente comando para crear el entorno virtual. Usaremos el nombre venv por convención: python -m venv venv
 Este comando crea un directorio llamado venv que contiene una copia aislada del intérprete de Python y pip.
-3. Activación del Entorno VirtualUna vez creado el entorno, debes activarlo. El comando varía según tu sistema operativo:
+3. Activación del Entorno Virtual: Una vez creado el entorno, debes activarlo. El comando varía según tu sistema operativo:
 Sistema Operativo       Comando de Activación
 Linux/macOS             source venv/bin/activate
 Windows (CMD)           venv\Scripts\activate
 Windows (PowerShell)    .\venv\Scripts\Activate.ps1
 Una vez activado, verás el nombre del entorno ((venv)) al inicio de la línea de comandos de tu terminal, indicando que todas las instalaciones de paquetes se harán dentro de este entorno aislado.
-4. Instalación de DependenciasCon el entorno virtual activado, utiliza el archivo requirements.txt para instalar automáticamente todas las librerías de Python y Django necesarias para el proyecto: pip install -r requirements.txt
+4. Instalación de Dependencias: Con el entorno virtual activado, utiliza el archivo requirements.txt para instalar automáticamente todas las librerías de Python y Django necesarias para el proyecto: pip install -r requirements.txt
 El archivo requirements.txt contiene todas las dependencias del proyecto, incluyendo Django.
 5. Confirmación Una vez finalizada la instalación, ya tienes todas las dependencias listas para comenzar a trabajar en el proyecto CommunityService.
 
