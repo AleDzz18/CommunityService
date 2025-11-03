@@ -1,0 +1,46 @@
+{% extends 'layouts/base.html' %}
+
+{% block content %}
+
+<div class="dashboard-container">
+    <header class="dashboard-header">
+        <h1>Balcones de Paraguana I</h1>
+    </header>
+
+    <main class="botones-grid">
+
+        <div class="dropdown">
+            <button class="boton-principal dropbtn" id="adminDropdownBtn" onclick="toggleDropdown()">
+                <i class="fas fa-chart-line"></i>
+                Administración de Ingresos y Egresos
+            </button>
+            <div class="dropdown-content" id="adminDropdownContent">
+                <a href="#condominio">Condominio</a>
+                <a href="#cuarto-basura">Cuarto de Basura</a>
+            </div>
+        </div>
+
+        <a href="#bolsa-clap" class="boton-principal">
+            <i class="fas fa-shopping-bag"></i>
+            Bolsa Clap
+        </a>
+
+        <a href="#bombona" class="boton-principal">
+            <i class="fas fa-fire"></i>
+            Bombona
+        </a>
+
+        <a href="#carta-residencia" class="boton-principal">
+            <i class="fas fa-file-alt"></i>
+            Carta de Residencia
+        </a>
+
+        <a href="{% url 'login' %}" class="boton-principal">
+            <i class="fas fa-sign-in-alt"></i>
+            Inicio de Sesión
+        </a>
+
+    </main>
+</div>
+
+{% endblock content %}

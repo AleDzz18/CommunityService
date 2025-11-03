@@ -11,10 +11,11 @@
 body {
     display: flex;
     justify-content: center;
-    align-items: center;
+    align-items: flex-start;
     min-height: 100vh;
     /* Se cambia el gradiente a un color de fondo basado en el tema */
     background: var(--md-sys-color-background);
+    padding: 20px;
 }
 
 .container {
