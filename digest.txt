@@ -7,6 +7,7 @@ Directory structure:
     │   ├── __init__.py
     │   ├── admin.py
     │   ├── apps.py
+    │   ├── forms.py
     │   ├── models.py
     │   ├── tests.py
     │   ├── urls.py
@@ -26,6 +27,7 @@ Directory structure:
     │   │       ├── scripts-HD.js
     │   │       └── scripts-login.js
     │   └── templates/
+    │       ├── completar_perfil.html
     │       ├── homeDashboard.html
     │       ├── login.html
     │       └── layouts/
@@ -87,9 +89,25 @@ FILE: App_Home/__init__.py
 FILE: App_Home/admin.py
 ================================================
 from django.contrib import admin
+from django.contrib.auth.admin import UserAdmin
+from .models import CustomUser, Tower
 
 # Register your models here.
 
+# PersonalizaciÃ³n del Administrador de Usuarios
+class AdministradorUsuario(UserAdmin):
+    # Campos adicionales para mostrar en la lista de usuarios
+    list_display = ('username', 'email', 'first_name', 'last_name', 'is_staff', 'rol', 'torre')
+    
+    # Definir la secciÃ³n de campos adicionales en el formulario de detalle del usuario
+    fieldsets = UserAdmin.fieldsets + (
+        # Nueva secciÃ³n en el formulario de ediciÃ³n de usuario para roles y permisos
+        ('Roles y AsignaciÃ³n', {'fields': ('rol', 'torre', 'es_admin_basura', 'es_admin_clap', 'es_admin_bombonas')}),
+    )
+
+# Registrar los modelos
+admin.site.register(CustomUser, AdministradorUsuario)
+admin.site.register(Tower)
 
 
 ================================================
@@ -105,12 +123,181 @@ class AppHomeConfig(AppConfig):
 
 
 ================================================
+FILE: App_Home/forms.py
+================================================
+from django.contrib.auth.forms import UserCreationForm
+from django import forms
+from django.core.exceptions import ValidationError
+from django.db.models import Count
+from .models import CustomUser, Tower 
+
+# Formulario de Registro para el PASO 1 (Solo autenticaciÃ³n)
+class FormularioCreacionUsuario(UserCreationForm):
+    class Meta:
+        model = CustomUser
+        # UserCreationForm automÃ¡ticamente aÃ±ade 'password1' y 'password2'
+        fields = ('username', 'email')
+        
+    def clean(self):
+        # Mantiene la validaciÃ³n de password del UserCreationForm
+        return super().clean()
+
+# Formulario de Perfil para el PASO 2 (Datos completos, Roles y Superusuario)
+class FormularioPerfilUsuario(forms.ModelForm):
+    
+    # Definimos la CÃ©dula (que no es parte del modelo base de Django)
+    cedula = forms.CharField(max_length=15, required=True, label='CÃ©dula de Identidad')
+    
+    # NUEVOS CAMPOS: Roles Secundarios y Superusuario (Checkboxes)
+    es_admin_basura = forms.BooleanField(required=False, label='Optar por LÃ­der de Basura')
+    es_admin_clap = forms.BooleanField(required=False, label='Optar por LÃ­der de CLAP')
+    es_admin_bombonas = forms.BooleanField(required=False, label='Optar por LÃ­der de Bombonas')
+    is_superuser_opt = forms.BooleanField(required=False, label='Optar por ser Superusuario (Admin. de Desarrollo)')
+
+
+    class Meta:
+        model = CustomUser
+        # AquÃ­ NO incluimos los booleanos, los manejamos explÃ­citamente en save()
+        fields = ('first_name', 'last_name', 'cedula', 'rol', 'torre')
+
+        widgets = {
+            'rol': forms.Select(choices=CustomUser.OPCIONES_ROLES),
+        }
+        
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        # Inicializar los checkboxes con el valor actual del usuario
+        if self.instance:
+            self.fields['es_admin_basura'].initial = self.instance.es_admin_basura
+            self.fields['es_admin_clap'].initial = self.instance.es_admin_clap
+            self.fields['es_admin_bombonas'].initial = self.instance.es_admin_bombonas
+            self.fields['is_superuser_opt'].initial = self.instance.is_superuser
+            
+        # Asegurar que los campos principales sean requeridos
+        self.fields['first_name'].required = True
+        self.fields['last_name'].required = True
+        self.fields['rol'].required = True
+
+
+    # VALIDACIÃ“N CRUCIAL: Limitar LÃ­deres Generales a 2
+    def clean_rol(self):
+        rol = self.cleaned_data.get('rol')
+        # Usar la constante definida en models.py (asumiendo que es 3)
+        ROL_LIDER_GENERAL = CustomUser.ROL_LIDER_GENERAL
+        
+        # Solo aplicamos la restricciÃ³n si el rol seleccionado es LÃ­der General (3)
+        # y si estamos creando un nuevo LG o cambiando un rol no general
+        if rol == ROL_LIDER_GENERAL and self.instance.rol != ROL_LIDER_GENERAL:
+            conteo_lideres = CustomUser.objects.filter(rol=ROL_LIDER_GENERAL).count()
+            
+            if conteo_lideres >= 2:
+                raise ValidationError("Ya existe el nÃºmero mÃ¡ximo de 2 LÃ­deres Generales permitidos. Por favor, selecciona otro rol.")
+        
+        return rol
+
+
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        
+        # Guardar los datos de los Checkboxes en el modelo
+        user.es_admin_basura = self.cleaned_data.get('es_admin_basura', user.es_admin_basura)
+        user.es_admin_clap = self.cleaned_data.get('es_admin_clap', user.es_admin_clap)
+        user.es_admin_bombonas = self.cleaned_data.get('es_admin_bombonas', user.es_admin_bombonas)
+        
+        # Guardar la opciÃ³n de Superusuario
+        user.is_superuser = self.cleaned_data.get('is_superuser_opt', user.is_superuser)
+        user.is_staff = user.is_superuser # Si es superusuario, tambiÃ©n debe ser staff
+        
+        if commit:
+            user.save()
+        return user
+
+
+================================================
 FILE: App_Home/models.py
 ================================================
 from django.db import models
+from django.contrib.auth.models import AbstractUser
+from django.db.models.signals import post_migrate
+from django.dispatch import receiver
 
 # Create your models here.
 
+# Modelo para las 24 Torres
+class Tower(models.Model):
+    nombre = models.CharField(max_length=50, unique=True, verbose_name='Nombre de la Torre')
+    
+    def __str__(self):
+        return self.nombre  # Ejemplo: 'T01'
+    
+    class Meta:
+        verbose_name = "Torre"
+        verbose_name_plural = "Torres"
+        ordering = ['nombre'] # Ordenar alfabÃ©ticamente
+
+# Modelo de Usuario Personalizado para manejar los roles
+class CustomUser(AbstractUser):
+    # DefiniciÃ³n de Roles Primarios
+    # NOTA: Los Usuarios BÃ¡sicos (espectadores) NO estÃ¡n registrados.
+    ROL_LIDER_TORRE = 2
+    ROL_LIDER_GENERAL = 3
+
+    OPCIONES_ROLES = (
+        (ROL_LIDER_TORRE, 'LÃ­der de Torre'),
+        (ROL_LIDER_GENERAL, 'LÃ­der General'),
+    )
+
+    # Campo de Rol Primario
+    rol = models.PositiveSmallIntegerField(
+        choices=OPCIONES_ROLES, 
+        default=ROL_LIDER_TORRE, 
+        verbose_name='Rol Principal'
+    )
+
+    # AsignaciÃ³n de Torre (One-to-One: solo un LÃ­der por Torre)
+    torre = models.OneToOneField(
+        Tower, 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True, 
+        verbose_name='Torre Asignada'
+    )
+
+    # Roles Secundarios (Permisos)
+    es_admin_basura = models.BooleanField(default=False, verbose_name='Administrador de Cuarto de Basura')
+    es_admin_clap = models.BooleanField(default=False, verbose_name='Administrador de Bolsas CLAP')
+    es_admin_bombonas = models.BooleanField(default=False, verbose_name='Administrador de Bombonas')
+    
+    def __str__(self):
+        return self.username
+
+    class Meta:
+        verbose_name = "Usuario Personalizado"
+        verbose_name_plural = "Usuarios Personalizados"
+
+# FunciÃ³n para inicializar las 24 torres (T01 a T24) automÃ¡ticamente
+@receiver(post_migrate)
+def crear_torres_iniciales(sender, **kwargs):
+    # Asegurarse de que el cÃ³digo se ejecute solo para esta aplicaciÃ³n
+    if sender.name == 'App_Home':
+        print("Verificando la creaciÃ³n de Torres iniciales (T01 a T24)...")
+        
+        # Generar los nombres de las 24 torres (T01, T02, ..., T24)
+        nombres_torres = [f"T{i:02d}" for i in range(1, 25)]
+        
+        torres_existentes = Tower.objects.values_list('nombre', flat=True)
+        torres_a_crear = []
+        
+        for nombre in nombres_torres:
+            if nombre not in torres_existentes:
+                torres_a_crear.append(Tower(nombre=nombre))
+        
+        if torres_a_crear:
+            Tower.objects.bulk_create(torres_a_crear)
+            print(f"Se crearon {len(torres_a_crear)} torres faltantes.")
+        else:
+            print("Todas las 24 torres ya existen en la base de datos.")
 
 
 ================================================
@@ -129,23 +316,147 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
-    path('', views.homeDashboard, name='homeDashboard'),
-    path('login/', views.login, name='login'),
+    path('', views.vista_dashboard, name='url_dashboard'),
+    path('login/', views.vista_login, name='url_login'),
+    path('logout/', views.vista_logout, name='url_logout'),
+    path('register/', views.vista_registro, name='url_registro'),
+    path('register/perfil/<int:user_id>/', views.vista_completar_perfil, name='url_completar_perfil'),
 ]
 
 
 ================================================
 FILE: App_Home/views.py
 ================================================
-from django.shortcuts import render
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth import authenticate, login as autenticar_login, logout
+from django.contrib.auth.forms import AuthenticationForm
+from django.contrib.auth.decorators import login_required 
+from django.contrib import messages
+from django.contrib.messages import get_messages # ðŸ’¡ RESTAURADO: ImportaciÃ³n necesaria
 
-# Create your views here.
+from .forms import FormularioCreacionUsuario, FormularioPerfilUsuario 
+from .models import CustomUser 
 
-def homeDashboard(request):
-    return render(request, 'homeDashboard.html')
+# ==============================================
+# VISTAS DE NAVEGACIÃ“N
+# ==============================================
 
-def login(request):
-    return render(request, 'login.html')
+def vista_dashboard(request):
+    """
+    Muestra la pÃ¡gina principal o dashboard. Permite acceso a espectadores.
+    """
+    contexto = {
+        'usuario_autenticado': request.user.is_authenticated,
+        'rol_usuario': getattr(request.user, 'rol', None) if request.user.is_authenticated else None,
+        'torre_asignada': getattr(request.user, 'torre', None) if request.user.is_authenticated else None,
+    }
+    return render(request, 'homeDashboard.html', contexto)
+
+
+# Vista para CERRAR SESIÃ“N (LOGOUT)
+@login_required 
+def vista_logout(request):
+    """
+    Cierra la sesiÃ³n del usuario y redirige al dashboard en modo espectador.
+    """
+    logout(request)
+    return redirect('url_dashboard') 
+
+# ==============================================
+# VISTAS DE AUTENTICACIÃ“N (LOGIN & REGISTRO)
+# ==============================================
+
+# Vista para INICIAR SESIÃ“N (LOGIN)
+def vista_login(request):
+    """Maneja la autenticaciÃ³n del usuario."""
+    
+    # Si el usuario ya estÃ¡ autenticado, simplemente redirigimos.
+    if request.user.is_authenticated:
+        return redirect('url_dashboard')
+
+    if request.method == 'POST':
+        formulario_login = AuthenticationForm(request, data=request.POST)
+        if formulario_login.is_valid():
+            nombre_usuario = formulario_login.cleaned_data.get('username')
+            contrasena = formulario_login.cleaned_data.get('password')
+            
+            usuario = authenticate(username=nombre_usuario, password=contrasena)
+            
+            if usuario is not None and usuario.is_active:
+                autenticar_login(request, usuario)
+                return redirect('url_dashboard') 
+            elif usuario is not None and not usuario.is_active:
+                messages.warning(request, 'Debes completar tu perfil para poder iniciar sesiÃ³n.')
+                return redirect('url_completar_perfil', user_id=usuario.pk)
+            else:
+                messages.error(request, 'Nombre de usuario o contraseÃ±a incorrectos.')
+        else:
+            messages.error(request, 'Error al procesar el formulario de inicio de sesiÃ³n. Verifique sus credenciales.')
+    else:
+        # ðŸ’¡ AJUSTE CLAVE: En la peticiÃ³n GET, consumimos y eliminamos TODOS los mensajes pendientes.
+        storage = get_messages(request)
+        for message in storage:
+            pass # Al iterar sobre el storage, se consumen y se eliminan
+        
+        formulario_login = AuthenticationForm()
+
+    formulario_registro = FormularioCreacionUsuario()
+    return render(request, 'login.html', {
+        'formulario_login': formulario_login, 
+        'formulario_registro': formulario_registro
+    })
+
+# Vista para REGISTRO (Paso 1: AutenticaciÃ³n)
+def vista_registro(request):
+    """
+    Crea el usuario bÃ¡sico y redirige a la pÃ¡gina para completar el perfil.
+    """
+    if request.method == 'POST':
+        formulario = FormularioCreacionUsuario(request.POST)
+        if formulario.is_valid():
+            user = formulario.save(commit=False)
+            user.is_active = False 
+            user.save()
+            return redirect('url_completar_perfil', user_id=user.pk) 
+        else:
+            for campo, errores in formulario.errors.items():
+                for error in errores:
+                    messages.error(request, f"Error en {campo}: {error}")
+            return redirect('url_login')
+
+    return redirect('url_login') 
+
+# NUEVA VISTA: Paso 2 (Completar Perfil y AsignaciÃ³n de Rol)
+def vista_completar_perfil(request, user_id):
+    """
+    Permite al usuario reciÃ©n creado completar sus datos (nombre, cÃ©dula, rol).
+    """
+    # Buscamos el usuario o devolvemos 404 si el ID es incorrecto
+    usuario = get_object_or_404(CustomUser, pk=user_id)
+    
+    # RestricciÃ³n: No permitir el acceso si el perfil ya estÃ¡ activo/completo
+    if usuario.is_active:
+         messages.warning(request, "Tu perfil ya estÃ¡ completo. Por favor, inicia sesiÃ³n.")
+         return redirect('url_login')
+         
+    if request.method == 'POST':
+        formulario = FormularioPerfilUsuario(request.POST, instance=usuario)
+        if formulario.is_valid():
+            formulario.save()
+            usuario.is_active = True
+            usuario.save()
+            autenticar_login(request, usuario)
+            return redirect('url_dashboard')
+        else:
+            messages.error(request, 'Por favor, corrige los errores en el formulario.')
+    
+    else:
+        formulario = FormularioPerfilUsuario(instance=usuario)
+        
+    return render(request, 'completar_perfil.html', {
+        'formulario': formulario, 
+        'usuario': usuario
+    })
 
 
 ================================================
@@ -968,6 +1279,88 @@ loginBtn.addEventListener("click", () => {
 
 
 ================================================
+FILE: App_Home/templates/completar_perfil.html
+================================================
+{% extends 'layouts/base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="perfil-container">
+    {% if messages %}
+        <div class="mensajes-django-container">
+            {% for message in messages %}
+                <div class="alerta alerta-{{ message.tags }}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <h1>Completar Datos de Perfil</h1>
+    <p>Casi terminas el registro, **{{ usuario.username }}**. Por favor, proporciona tus datos completos.</p>
+    
+    <form method="POST">
+        {% csrf_token %}
+        
+        <h2>InformaciÃ³n Personal</h2>
+        <div class="form-group">
+            {{ formulario.first_name.label_tag }}
+            {{ formulario.first_name }}
+            {{ formulario.first_name.errors }}
+        </div>
+        <div class="form-group">
+            {{ formulario.last_name.label_tag }}
+            {{ formulario.last_name }}
+            {{ formulario.last_name.errors }}
+        </div>
+        <div class="form-group">
+            {{ formulario.cedula.label_tag }}
+            {{ formulario.cedula }}
+            {{ formulario.cedula.errors }}
+        </div>
+
+        <h2>AsignaciÃ³n de Rol</h2>
+        <div class="form-group">
+            {{ formulario.rol.label_tag }}
+            {{ formulario.rol }}
+            {{ formulario.rol.errors }}
+        </div>
+        <div class="form-group">
+            {{ formulario.torre.label_tag }}
+            {{ formulario.torre }}
+            {{ formulario.torre.errors }}
+        </div>
+
+        <h2>Optar por Roles Secundarios (Opcional)</h2>
+        <p class="text-muted">Marca si deseas colaborar con roles de gestiÃ³n especÃ­ficos.</p>
+        <div class="checkbox-group">
+            <div class="form-check">
+                {{ formulario.es_admin_basura }} {{ formulario.es_admin_basura.label_tag }}
+            </div>
+            <div class="form-check">
+                {{ formulario.es_admin_clap }} {{ formulario.es_admin_clap.label_tag }}
+            </div>
+            <div class="form-check">
+                {{ formulario.es_admin_bombonas }} {{ formulario.es_admin_bombonas.label_tag }}
+            </div>
+        </div>
+
+        <h2 class="mt-4">Permisos Especiales</h2>
+        <p class="text-danger">**Â¡ADVERTENCIA!** Solo marca esta opciÃ³n si eres el administrador o desarrollador del sistema.</p>
+        <div class="checkbox-group">
+            <div class="form-check">
+                {{ formulario.is_superuser_opt }} {{ formulario.is_superuser_opt.label_tag }} 
+            </div>
+        </div>
+
+        <button type="submit" class="btn mt-4">Guardar y Acceder al Dashboard</button>
+    </form>
+    
+</div>
+{% endblock content %}
+
+
+================================================
 FILE: App_Home/templates/homeDashboard.html
 ================================================
 {% extends 'layouts/base.html' %}
@@ -977,10 +1370,25 @@ FILE: App_Home/templates/homeDashboard.html
 <div class="dashboard-container">
     <header class="dashboard-header">
         <h1>Balcones de Paraguana I</h1>
+        
+        {% if request.user.is_authenticated %}
+            <p class="user-info">
+                Bienvenido, **{{ request.user.username }}** | 
+                {% if request.user.rol == 3 %}
+                    **Rol: LÃ­der General**
+                {% elif request.user.rol == 2 and request.user.torre %}
+                    **LÃ­der de la Torre {{ request.user.torre.nombre }}**
+                {% else %}
+                    **LÃ­der (Pendiente de AsignaciÃ³n)**
+                {% endif %}
+            </p>
+        {% else %}
+            <p class="user-info">Modo Espectador</p>
+        {% endif %}
     </header>
 
     <main class="botones-grid">
-
+        
         <div class="dropdown">
             <button class="boton-principal dropbtn" id="adminDropdownBtn" onclick="toggleDropdown()">
                 <i class="fas fa-chart-line"></i>
@@ -1006,11 +1414,26 @@ FILE: App_Home/templates/homeDashboard.html
             <i class="fas fa-file-alt"></i>
             Carta de Residencia
         </a>
+        
+        {% if request.user.is_authenticated and request.user.rol == 2 or request.user.is_authenticated and request.user.rol == 3 %}
+            <a href="#censo" class="boton-principal">
+                <i class="fas fa-users"></i>
+                Censo
+            </a>
+        {% endif %}
 
-        <a href="{% url 'login' %}" class="boton-principal">
-            <i class="fas fa-sign-in-alt"></i>
-            Inicio de SesiÃ³n
-        </a>
+
+        {% if request.user.is_authenticated %}
+            <a href="{% url 'url_logout' %}" class="boton-principal logout-button">
+                <i class="fas fa-sign-out-alt"></i>
+                Cerrar SesiÃ³n
+            </a>
+        {% else %}
+            <a href="{% url 'url_login' %}" class="boton-principal login-button">
+                <i class="fas fa-sign-in-alt"></i>
+                Inicio de SesiÃ³n
+            </a>
+        {% endif %}
 
     </main>
 </div>
@@ -1022,26 +1445,42 @@ FILE: App_Home/templates/homeDashboard.html
 FILE: App_Home/templates/login.html
 ================================================
 {% extends 'layouts/base.html' %}
+{% load static %}
 
 {% block content %}
 
-<div class="container">
+    {% if messages %}
+        <div class="mensajes-django-container">
+            {% for message in messages %}
+                <div class="alerta alerta-{{ message.tags }}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+    <div class="container">
+    
     <div class="form-box login">
-        <form action="">
+        <form method="POST" action="{% url 'url_login' %}">
+            {% csrf_token %} 
             <h1>Login</h1>
+            
             <div class="input-box">
-                <input type="text" placeholder="Username" required>
+                <input type="text" placeholder="Username" required name="username">
                 <i class="bx bxs-user"></i>
             </div>
             <div class="input-box">
-                <input type="password" placeholder="Password" required>
+                <input type="password" placeholder="Password" required name="password">
                 <i class="bx bxs-lock-alt"></i>
             </div>
+            
             <div class="forgot-link">
                 <a href="#">Forgot Password?</a>
             </div>
+            
             <button type="submit" class="btn">Login</button>
             <p>or login with social platforms</p>
+            
             <div class="social-icons">
                 <a href="#" class="social-icon"><i class="bx bxl-google"></i></a>
                 <a href="#" class="social-icon"><i class="bx bxl-facebook"></i></a>
@@ -1051,23 +1490,32 @@ FILE: App_Home/templates/login.html
         </form>
     </div>
 
+    
     <div class="form-box register">
-        <form action="">
+        <form method="POST" action="{% url 'url_registro' %}">
+            {% csrf_token %}
             <h1>Registration</h1>
+            
             <div class="input-box">
-                <input type="text" placeholder="Username" required>
+                <input type="text" placeholder="Username" required name="username">
                 <i class="bx bxs-user"></i>
             </div>
             <div class="input-box">
-                <input type="email" placeholder="Email" required>
+                <input type="email" placeholder="Email" required name="email">
                 <i class="bx bxs-envelope"></i>
             </div>
             <div class="input-box">
-                <input type="password" placeholder="Password" required>
+                <input type="password" placeholder="Password" required name="password1">
                 <i class="bx bxs-lock-alt"></i>
             </div>
+             <div class="input-box">
+                <input type="password" placeholder="Confirmar Password" required name="password2">
+                <i class="bx bxs-lock-alt"></i>
+            </div>
+            
             <button type="submit" class="btn">Register</button>
             <p>or register with social platforms</p>
+            
             <div class="social-icons">
                 <a href="#" class="social-icon"><i class="bx bxl-google"></i></a>
                 <a href="#" class="social-icon"><i class="bx bxl-facebook"></i></a>
@@ -1089,6 +1537,7 @@ FILE: App_Home/templates/login.html
             <button class="btn login-btn">Login</button>
         </div>
     </div>
+    
 </div>
 
 {% endblock content %}
@@ -1291,6 +1740,16 @@ STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# ----------------------------------------------------
+# CONFIGURACIÃ“N DE AUTENTICACIÃ“N PERSONALIZADA
+# ----------------------------------------------------
+
+# Usar el modelo de usuario personalizado de App_Home
+AUTH_USER_MODEL = 'App_Home.CustomUser'
+
+# URLs de RedirecciÃ³n (Usamos los nombres de URL definidos en App_Home/urls.py)
+LOGIN_REDIRECT_URL = 'url_dashboard'  # Redirige despuÃ©s de iniciar sesiÃ³n
+LOGOUT_REDIRECT_URL = 'url_login'     # Redirige despuÃ©s de cerrar sesiÃ³n
 
 
 ================================================
