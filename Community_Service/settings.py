@@ -121,3 +121,14 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# ----------------------------------------------------
+# CONFIGURACIÓN DE AUTENTICACIÓN PERSONALIZADA
+# ----------------------------------------------------
+
+# Usar el modelo de usuario personalizado de App_Home
+AUTH_USER_MODEL = 'App_Home.CustomUser'
+
+# URLs de Redirección (Usamos los nombres de URL definidos en App_Home/urls.py)
+LOGIN_REDIRECT_URL = 'url_dashboard'  # Redirige después de iniciar sesión
+LOGOUT_REDIRECT_URL = 'url_login'     # Redirige después de cerrar sesión
