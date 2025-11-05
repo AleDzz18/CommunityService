@@ -2,76 +2,81 @@
 {% load static %}
 
 {% block content %}
-<div class="perfil-container">
-    {% if messages %}
-        <div class="mensajes-django-container">
-            {% for message in messages %}
-                <div class="alerta alerta-{{ message.tags }}">
-                    {{ message }}
-                </div>
-            {% endfor %}
-        </div>
-    {% endif %}
+<div class="perfil-container-wrapper"> 
+    <div class="perfil-container"> 
+        {% if messages %}
+            <div class="mensajes-django-container">
+                {% for message in messages %}
+                    <div class="alerta alerta-{{ message.tags }}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
 
-    <h1>Completar Datos de Perfil</h1>
-    <p>Casi terminas el registro, **{{ usuario.username }}**. Por favor, proporciona tus datos completos.</p>
-    
-    <form method="POST">
-        {% csrf_token %}
+        <h1>Completar Datos de Perfil</h1>
+        <p>Casi terminas el registro, **{{ usuario.username }}**. Por favor, proporciona tus datos completos.</p>
         
-        <h2>Información Personal</h2>
-        <div class="form-group">
-            {{ formulario.first_name.label_tag }}
-            {{ formulario.first_name }}
-            {{ formulario.first_name.errors }}
-        </div>
-        <div class="form-group">
-            {{ formulario.last_name.label_tag }}
-            {{ formulario.last_name }}
-            {{ formulario.last_name.errors }}
-        </div>
-        <div class="form-group">
-            {{ formulario.cedula.label_tag }}
-            {{ formulario.cedula }}
-            {{ formulario.cedula.errors }}
-        </div>
-
-        <h2>Asignación de Rol</h2>
-        <div class="form-group">
-            {{ formulario.rol.label_tag }}
-            {{ formulario.rol }}
-            {{ formulario.rol.errors }}
-        </div>
-        <div class="form-group">
-            {{ formulario.torre.label_tag }}
-            {{ formulario.torre }}
-            {{ formulario.torre.errors }}
-        </div>
-
-        <h2>Optar por Roles Secundarios (Opcional)</h2>
-        <p class="text-muted">Marca si deseas colaborar con roles de gestión específicos.</p>
-        <div class="checkbox-group">
-            <div class="form-check">
-                {{ formulario.es_admin_basura }} {{ formulario.es_admin_basura.label_tag }}
+        <form method="POST">
+            {% csrf_token %}
+            
+            <h2>Información Personal</h2>
+            
+            <div class="form-row"> 
+                <div class="form-group">
+                    {{ formulario.first_name.label_tag }}
+                    {{ formulario.first_name }}
+                    {{ formulario.first_name.errors }}
+                </div>
+                <div class="form-group">
+                    {{ formulario.last_name.label_tag }}
+                    {{ formulario.last_name }}
+                    {{ formulario.last_name.errors }}
+                </div>
             </div>
-            <div class="form-check">
-                {{ formulario.es_admin_clap }} {{ formulario.es_admin_clap.label_tag }}
-            </div>
-            <div class="form-check">
-                {{ formulario.es_admin_bombonas }} {{ formulario.es_admin_bombonas.label_tag }}
-            </div>
-        </div>
 
-        <h2 class="mt-4">Permisos Especiales</h2>
-        <p class="text-danger">**¡ADVERTENCIA!** Solo marca esta opción si eres el administrador o desarrollador del sistema.</p>
-        <div class="checkbox-group">
-            <div class="form-check">
-                {{ formulario.is_superuser_opt }} {{ formulario.is_superuser_opt.label_tag }} 
+            <div class="form-group">
+                {{ formulario.cedula.label_tag }}
+                {{ formulario.cedula }}
+                {{ formulario.cedula.errors }}
             </div>
-        </div>
 
-        <button type="submit" class="btn mt-4">Guardar y Acceder al Dashboard</button>
-    </form>
-    
+            <h2>Asignación de Rol</h2>
+            <div class="form-group">
+                {{ formulario.rol.label_tag }}
+                {{ formulario.rol }}
+                {{ formulario.rol.errors }}
+            </div>
+            <div class="form-group">
+                {{ formulario.torre.label_tag }}
+                {{ formulario.torre }}
+                {{ formulario.torre.errors }}
+            </div>
+
+            <h2>Optar por Roles Secundarios (Opcional)</h2>
+            <p class="text-muted">Marca si deseas colaborar con roles de gestión específicos.</p>
+            <div class="checkbox-group">
+                <div class="form-check">
+                    {{ formulario.es_admin_basura }} {{ formulario.es_admin_basura.label_tag }}
+                </div>
+                <div class="form-check">
+                    {{ formulario.es_admin_clap }} {{ formulario.es_admin_clap.label_tag }}
+                </div>
+                <div class="form-check">
+                    {{ formulario.es_admin_bombonas }} {{ formulario.es_admin_bombonas.label_tag }}
+                </div>
+            </div>
+
+            <h2 class="mt-4">Permisos Especiales</h2>
+            <p class="text-danger">**¡ADVERTENCIA!** Solo marca esta opción si eres el administrador o desarrollador del sistema.</p>
+            <div class="checkbox-group">
+                <div class="form-check">
+                    {{ formulario.is_superuser_opt }} {{ formulario.is_superuser_opt.label_tag }} 
+                </div>
+            </div>
+
+            <button type="submit" class="btn mt-4">Guardar y Acceder</button>
+        </form>
+    </div>
 </div>
 {% endblock content %}

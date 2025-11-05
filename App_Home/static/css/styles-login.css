@@ -135,24 +135,6 @@ form {
     margin: 15px 0;
 }
 
-.social-icons {
-    display: flex;
-    justify-content: center;
-}
-
-.social-icons a {
-    display: inline-flex;
-    padding: 10px;
-    /* Se cambia #ccc por un color de contorno */
-    border: 2px solid var(--md-sys-color-outline-variant);
-    border-radius: 8px;
-    font-size: 24px;
-    /* Se cambia #333 por el color de texto principal */
-    color: var(--md-sys-color-on-surface);
-    text-decoration: none;
-    margin: 0 8px;
-}
-
 .toggle-box {
     position: absolute;
     width: 100%;
@@ -221,6 +203,28 @@ form {
     /* Se cambia #fff por el color de texto sobre primario */
     border: 2px solid var(--md-sys-color-on-primary);
     box-shadow: none;
+}
+
+.form-box.login .back-link-container {
+    /* Mueve el contenedor hacia abajo para separarlo del botón */
+    margin-top: 20px; 
+    text-align: center; /* Centra el enlace */
+}
+
+.form-box.login .back-link-container a {
+    /* Quita el color morado (que es el default del navegador) */
+    color: var(--md-sys-color-secondary); 
+    /* Quita el subrayado */
+    text-decoration: none; 
+    font-weight: 500;
+    font-size: 0.9em;
+    transition: color 0.3s;
+}
+
+.form-box.login .back-link-container a:hover {
+    /* Usa el color primario al pasar el ratón para resaltar */
+    color: var(--md-sys-color-primary); 
+    text-decoration: underline; /* Agrega subrayado al pasar el ratón */
 }
 
 @media screen and (max-width:650px) {
