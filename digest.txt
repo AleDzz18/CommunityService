@@ -126,93 +126,7 @@ class AppHomeConfig(AppConfig):
 ================================================
 FILE: App_Home/forms.py
 ================================================
-from django.contrib.auth.forms import UserCreationForm
-from django import forms
-from django.core.exceptions import ValidationError
-from django.db.models import Count
-from .models import CustomUser, Tower 
-
-# Formulario de Registro para el PASO 1 (Solo autenticaciÃ³n)
-class FormularioCreacionUsuario(UserCreationForm):
-    class Meta:
-        model = CustomUser
-        # UserCreationForm automÃ¡ticamente aÃ±ade 'password1' y 'password2'
-        fields = ('username', 'email')
-        
-    def clean(self):
-        # Mantiene la validaciÃ³n de password del UserCreationForm
-        return super().clean()
-
-# Formulario de Perfil para el PASO 2 (Datos completos, Roles y Superusuario)
-class FormularioPerfilUsuario(forms.ModelForm):
-    
-    # Definimos la CÃ©dula (que no es parte del modelo base de Django)
-    cedula = forms.CharField(max_length=15, required=True, label='CÃ©dula de Identidad')
-    
-    # NUEVOS CAMPOS: Roles Secundarios y Superusuario (Checkboxes)
-    es_admin_basura = forms.BooleanField(required=False, label='Optar por LÃ­der de Basura')
-    es_admin_clap = forms.BooleanField(required=False, label='Optar por LÃ­der de CLAP')
-    es_admin_bombonas = forms.BooleanField(required=False, label='Optar por LÃ­der de Bombonas')
-    is_superuser_opt = forms.BooleanField(required=False, label='Optar por ser Superusuario (Admin. de Desarrollo)')
-
-
-    class Meta:
-        model = CustomUser
-        # AquÃ­ NO incluimos los booleanos, los manejamos explÃ­citamente en save()
-        fields = ('first_name', 'last_name', 'cedula', 'rol', 'torre')
-
-        widgets = {
-            'rol': forms.Select(choices=CustomUser.OPCIONES_ROLES),
-        }
-        
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        
-        # Inicializar los checkboxes con el valor actual del usuario
-        if self.instance:
-            self.fields['es_admin_basura'].initial = self.instance.es_admin_basura
-            self.fields['es_admin_clap'].initial = self.instance.es_admin_clap
-            self.fields['es_admin_bombonas'].initial = self.instance.es_admin_bombonas
-            self.fields['is_superuser_opt'].initial = self.instance.is_superuser
-            
-        # Asegurar que los campos principales sean requeridos
-        self.fields['first_name'].required = True
-        self.fields['last_name'].required = True
-        self.fields['rol'].required = True
-
-
-    # VALIDACIÃ“N CRUCIAL: Limitar LÃ­deres Generales a 2
-    def clean_rol(self):
-        rol = self.cleaned_data.get('rol')
-        # Usar la constante definida en models.py (asumiendo que es 3)
-        ROL_LIDER_GENERAL = CustomUser.ROL_LIDER_GENERAL
-        
-        # Solo aplicamos la restricciÃ³n si el rol seleccionado es LÃ­der General (3)
-        # y si estamos creando un nuevo LG o cambiando un rol no general
-        if rol == ROL_LIDER_GENERAL and self.instance.rol != ROL_LIDER_GENERAL:
-            conteo_lideres = CustomUser.objects.filter(rol=ROL_LIDER_GENERAL).count()
-            
-            if conteo_lideres >= 2:
-                raise ValidationError("Ya existe el nÃºmero mÃ¡ximo de 2 LÃ­deres Generales permitidos. Por favor, selecciona otro rol.")
-        
-        return rol
-
-
-    def save(self, commit=True):
-        user = super().save(commit=False)
-        
-        # Guardar los datos de los Checkboxes en el modelo
-        user.es_admin_basura = self.cleaned_data.get('es_admin_basura', user.es_admin_basura)
-        user.es_admin_clap = self.cleaned_data.get('es_admin_clap', user.es_admin_clap)
-        user.es_admin_bombonas = self.cleaned_data.get('es_admin_bombonas', user.es_admin_bombonas)
-        
-        # Guardar la opciÃ³n de Superusuario
-        user.is_superuser = self.cleaned_data.get('is_superuser_opt', user.is_superuser)
-        user.is_staff = user.is_superuser # Si es superusuario, tambiÃ©n debe ser staff
-        
-        if commit:
-            user.save()
-        return user
+Error reading file with 'cp1252': 'charmap' codec can't decode byte 0x81 in position 2358: character maps to <undefined>
 
 
 ================================================
@@ -449,7 +363,20 @@ def vista_completar_perfil(request, user_id):
             autenticar_login(request, usuario)
             return redirect('url_dashboard')
         else:
-            messages.error(request, 'Por favor, corrige los errores en el formulario.')
+            # ðŸš¨ MODIFICACIÃ“N CRUCIAL: Manejo de errores para incluir errores globales (Non-Field Errors)
+            messages.error(request, 'El formulario contiene errores. Por favor, corrÃ­gelos a continuaciÃ³n:')
+            
+            # Iterar sobre todos los errores del formulario (incluidos los globales bajo el key '__all__')
+            for field, errors in formulario.errors.items():
+                for error in errors:
+                    if field == '__all__':
+                        # Errores no relacionados con campos (Globales, como el conflicto de rol secundario)
+                        messages.error(request, f"{error}")
+                    else:
+                        # Errores de campo especÃ­ficos (como la Torre).
+                        # Usamos la etiqueta si estÃ¡ disponible, sino el nombre del campo.
+                        field_name = formulario.fields.get(field).label if field in formulario.fields else field
+                        messages.error(request, f"Error en {field_name}: {error}")
     
     else:
         formulario = FormularioPerfilUsuario(instance=usuario)
@@ -624,6 +551,62 @@ body {
     background: var(--md-sys-color-background);
     padding: 20px;
 }
+
+/* --- NUEVAS REGLAS CSS PARA MENSAJES DE ALERTA ABSOLUTOS --- */
+
+.message-container {
+    /* 1. POSICIONAMIENTO ABSOLUTO Y CENTRADO */
+    position: absolute;
+    top: 20px; /* Distancia desde el borde superior */
+    left: 50%;
+    transform: translateX(-50%); /* Centra el elemento horizontalmente */
+    width: 90%; /* Ancho mÃ¡ximo para el contenedor */
+    max-width: 450px; /* Limita el ancho en pantallas grandes */
+    z-index: 1000; /* Asegura que estÃ© por encima de todos los demÃ¡s elementos */
+}
+
+.alert {
+    /* 2. ESTILO VISUAL Y TRANSICIÃ“N */
+    padding: 15px 20px;
+    margin-bottom: 10px;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    opacity: 1;
+    /* Configura la transiciÃ³n para la opacidad y el desplazamiento */
+    transition: opacity 0.5s ease-in-out, transform 0.3s ease-in-out; 
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* Estilos de color para errores (error/danger) usando Material Design */
+.alert.error, .alert.danger {
+    color: var(--md-sys-color-on-error-container);
+    background-color: var(--md-sys-color-error-container);
+    border-color: var(--md-sys-color-error);
+}
+
+/* Estilos de color para Ã©xito (success) usando Material Design */
+.alert.success {
+    color: var(--md-sys-color-on-primary-container);
+    background-color: var(--md-sys-color-primary-container);
+    border-color: var(--md-sys-color-primary);
+}
+
+/* Estilos de color para otros mensajes (info/warning) usando Material Design */
+.alert.info, .alert.warning {
+    color: var(--md-sys-color-on-tertiary-container);
+    background-color: var(--md-sys-color-tertiary-container);
+    border-color: var(--md-sys-color-tertiary);
+}
+
+/* 3. CLASE PARA DESAPARECER (OPACIDAD Y DESPLAZAMIENTO) */
+.alert.hide {
+    opacity: 0;
+    transform: translateY(-20px);
+}
+
+/* --- FIN DE LAS NUEVAS REGLAS CSS PARA MENSAJES DE ALERTA --- */
 
 .container {
     position: relative;
@@ -1495,6 +1478,34 @@ loginBtn.addEventListener("click", () => {
     container.classList.remove("active");
 });
 
+// --- CÓDIGO DE DESAPARICIÓN ---
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Selecciona todos los mensajes de alerta dentro del contenedor
+    const alerts = document.querySelectorAll('.message-container .alert');
+    const DURATION = 9000; // 9 segundos para que el mensaje desaparezca
+    
+    // *** LÍNEA DE DEBUGGING: Abrir Consola (F12) para confirmar que se ejecuta. ***
+    console.log(`[DEBUG] Alertas encontradas: ${alerts.length}`);
+    // *************************************************************************
+
+    if (alerts.length > 0) {
+        alerts.forEach(alert => {
+            // 1. Inicia el temporizador de desaparición (5 segundos)
+            setTimeout(() => {
+                // Añade la clase 'hide' para iniciar la transición CSS (opacidad y desplazamiento)
+                alert.classList.add('hide');
+
+                // 2. Opcional: Elimina el elemento del DOM después de que termine la transición
+                // El tiempo (500ms) debe ser igual a la duración de la transición en styles-login.css
+                setTimeout(() => {
+                    alert.remove();
+                }, 500); 
+            }, DURATION); 
+        });
+    }
+});
+
 
 ================================================
 FILE: App_Home/templates/completar_perfil.html
@@ -1565,14 +1576,6 @@ FILE: App_Home/templates/completar_perfil.html
                 </div>
                 <div class="form-check">
                     {{ formulario.es_admin_bombonas }} {{ formulario.es_admin_bombonas.label_tag }}
-                </div>
-            </div>
-
-            <h2 class="mt-4">Permisos Especiales</h2>
-            <p class="text-danger">**Â¡ADVERTENCIA!** Solo marca esta opciÃ³n si eres el administrador o desarrollador del sistema.</p>
-            <div class="checkbox-group">
-                <div class="form-check">
-                    {{ formulario.is_superuser_opt }} {{ formulario.is_superuser_opt.label_tag }} 
                 </div>
             </div>
 
@@ -1672,16 +1675,16 @@ FILE: App_Home/templates/login.html
 
 {% block content %}
 
-    {% if messages %}
-        <div class="mensajes-django-container">
+    <div class="message-container">
+        {% if messages %}
             {% for message in messages %}
-                <div class="alerta alerta-{{ message.tags }}">
+                <div id="msg-{{ forloop.counter }}" class="alert alert-{{ message.tags }}">
                     {{ message }}
                 </div>
             {% endfor %}
-        </div>
-    {% endif %}
-    <div class="container">
+        {% endif %}
+    </div>
+    <div class="container" id="container">
     
     <div class="form-box login">
         <form method="POST" action="{% url 'url_login' %}">
