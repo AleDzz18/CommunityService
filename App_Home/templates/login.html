@@ -3,16 +3,16 @@
 
 {% block content %}
 
-    {% if messages %}
-        <div class="mensajes-django-container">
+    <div class="message-container">
+        {% if messages %}
             {% for message in messages %}
-                <div class="alerta alerta-{{ message.tags }}">
+                <div id="msg-{{ forloop.counter }}" class="alert alert-{{ message.tags }}">
                     {{ message }}
                 </div>
             {% endfor %}
-        </div>
-    {% endif %}
-    <div class="container">
+        {% endif %}
+    </div>
+    <div class="container" id="container">
     
     <div class="form-box login">
         <form method="POST" action="{% url 'url_login' %}">

@@ -18,6 +18,62 @@ body {
     padding: 20px;
 }
 
+/* --- NUEVAS REGLAS CSS PARA MENSAJES DE ALERTA ABSOLUTOS --- */
+
+.message-container {
+    /* 1. POSICIONAMIENTO ABSOLUTO Y CENTRADO */
+    position: absolute;
+    top: 20px; /* Distancia desde el borde superior */
+    left: 50%;
+    transform: translateX(-50%); /* Centra el elemento horizontalmente */
+    width: 90%; /* Ancho máximo para el contenedor */
+    max-width: 450px; /* Limita el ancho en pantallas grandes */
+    z-index: 1000; /* Asegura que esté por encima de todos los demás elementos */
+}
+
+.alert {
+    /* 2. ESTILO VISUAL Y TRANSICIÓN */
+    padding: 15px 20px;
+    margin-bottom: 10px;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    opacity: 1;
+    /* Configura la transición para la opacidad y el desplazamiento */
+    transition: opacity 0.5s ease-in-out, transform 0.3s ease-in-out; 
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* Estilos de color para errores (error/danger) usando Material Design */
+.alert.error, .alert.danger {
+    color: var(--md-sys-color-on-error-container);
+    background-color: var(--md-sys-color-error-container);
+    border-color: var(--md-sys-color-error);
+}
+
+/* Estilos de color para éxito (success) usando Material Design */
+.alert.success {
+    color: var(--md-sys-color-on-primary-container);
+    background-color: var(--md-sys-color-primary-container);
+    border-color: var(--md-sys-color-primary);
+}
+
+/* Estilos de color para otros mensajes (info/warning) usando Material Design */
+.alert.info, .alert.warning {
+    color: var(--md-sys-color-on-tertiary-container);
+    background-color: var(--md-sys-color-tertiary-container);
+    border-color: var(--md-sys-color-tertiary);
+}
+
+/* 3. CLASE PARA DESAPARECER (OPACIDAD Y DESPLAZAMIENTO) */
+.alert.hide {
+    opacity: 0;
+    transform: translateY(-20px);
+}
+
+/* --- FIN DE LAS NUEVAS REGLAS CSS PARA MENSAJES DE ALERTA --- */
+
 .container {
     position: relative;
     width: 850px;

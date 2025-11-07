@@ -16,6 +16,7 @@ Directory structure:
     │   │   ├── css/
     │   │   │   ├── styles-HD.css
     │   │   │   ├── styles-login.css
+    │   │   │   ├── styles-perfil.css
     │   │   │   └── material-theme/
     │   │   │       ├── dark-hc.css
     │   │   │       ├── dark-mc.css
@@ -741,24 +742,6 @@ form {
     margin: 15px 0;
 }
 
-.social-icons {
-    display: flex;
-    justify-content: center;
-}
-
-.social-icons a {
-    display: inline-flex;
-    padding: 10px;
-    /* Se cambia #ccc por un color de contorno */
-    border: 2px solid var(--md-sys-color-outline-variant);
-    border-radius: 8px;
-    font-size: 24px;
-    /* Se cambia #333 por el color de texto principal */
-    color: var(--md-sys-color-on-surface);
-    text-decoration: none;
-    margin: 0 8px;
-}
-
 .toggle-box {
     position: absolute;
     width: 100%;
@@ -829,6 +812,28 @@ form {
     box-shadow: none;
 }
 
+.form-box.login .back-link-container {
+    /* Mueve el contenedor hacia abajo para separarlo del botÃ³n */
+    margin-top: 20px; 
+    text-align: center; /* Centra el enlace */
+}
+
+.form-box.login .back-link-container a {
+    /* Quita el color morado (que es el default del navegador) */
+    color: var(--md-sys-color-secondary); 
+    /* Quita el subrayado */
+    text-decoration: none; 
+    font-weight: 500;
+    font-size: 0.9em;
+    transition: color 0.3s;
+}
+
+.form-box.login .back-link-container a:hover {
+    /* Usa el color primario al pasar el ratÃ³n para resaltar */
+    color: var(--md-sys-color-primary); 
+    text-decoration: underline; /* Agrega subrayado al pasar el ratÃ³n */
+}
+
 @media screen and (max-width:650px) {
     .container {
         height: calc(100vh - 40px);
@@ -890,6 +895,219 @@ form {
     .toggle-panel h1 {
         font-size: 30px;
     }
+}
+
+
+================================================
+FILE: App_Home/static/css/styles-perfil.css
+================================================
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap');
+@import url('material-theme/light.css'); 
+
+/* ------------------------------------------- */
+/* 1. Contenedor de la PÃ¡gina y el Formulario (Layout General) */
+/* ------------------------------------------- */
+
+/* Wrapper: Define el fondo de la pÃ¡gina y centra el formulario */
+.perfil-container-wrapper {
+    display: flex;
+    justify-content: center;
+    /* Alinea arriba en pantallas largas, para que el scroll inicie desde arriba */
+    align-items: flex-start; 
+    padding: 20px;
+    min-height: 100vh;
+    /* Usa el color de fondo de Material Design */
+    background: var(--md-sys-color-background); 
+}
+
+/* Contenedor: La "tarjeta" del formulario (el estilo de card) */
+.perfil-container {
+    width: 100%;
+    max-width: 650px; /* Ancho cÃ³modo para formularios verticales */
+    /* Usa el color de superficie de Material Design */
+    background: var(--md-sys-color-surface); 
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    padding: 30px;
+    margin: 20px 0; /* Asegura un margen vertical si hay mucho contenido */
+    color: var(--md-sys-color-on-surface);
+}
+
+.perfil-container h1 {
+    text-align: center;
+    margin-bottom: 5px;
+    font-size: 32px;
+    color: var(--md-sys-color-primary);
+}
+
+.perfil-container > p {
+    text-align: center;
+    margin-bottom: 25px;
+    color: var(--md-sys-color-on-surface-variant);
+    font-weight: 500;
+}
+
+/* ------------------------------------------- */
+/* 2. Estilos de Formulario (TÃ­tulos, Grupos, Inputs) */
+/* ------------------------------------------- */
+
+.perfil-container h2 {
+    margin-top: 30px;
+    margin-bottom: 15px;
+    padding-bottom: 5px;
+    border-bottom: 2px solid var(--md-sys-color-secondary);
+    font-size: 24px;
+    font-weight: 600;
+    color: var(--md-sys-color-on-surface);
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+    font-size: 1em;
+    color: var(--md-sys-color-on-surface);
+}
+
+/* Estilos para inputs (text, email, password) y selects (select) */
+.perfil-container input:not([type="checkbox"]),
+.perfil-container select {
+    width: 100%;
+    padding: 12px 15px;
+    /* Usa un color de superficie mÃ¡s bajo para simular el campo de texto */
+    background: var(--md-sys-color-surface-container-low); 
+    border-radius: 8px;
+    /* Usa un color de contorno variante */
+    border: 1px solid var(--md-sys-color-outline-variant); 
+    outline: none;
+    font-size: 16px;
+    color: var(--md-sys-color-on-surface);
+    transition: border-color 0.3s, box-shadow 0.3s;
+    min-height: 48px; /* Altura estÃ¡ndar para accesibilidad tÃ¡ctil */
+}
+
+.perfil-container input:focus,
+.perfil-container select:focus {
+    border-color: var(--md-sys-color-primary);
+    /* Sombra para efecto de enfoque de Material Design */
+    box-shadow: 0 0 0 2px var(--md-sys-color-primary-container);
+}
+
+/* ------------------------------------------- */
+/* 3. Layout Responsivo para Filas (.form-row) */
+/* ------------------------------------------- */
+
+.form-row {
+    display: grid;
+    /* Por defecto, una columna para dispositivos mÃ³viles (responsive) */
+    grid-template-columns: 1fr; 
+    gap: 20px;
+}
+
+/* Media Query para Escritorio y Tablets (2 columnas) */
+@media (min-width: 600px) {
+    .form-row {
+        /* En pantallas mÃ¡s grandes, establece 2 columnas de igual ancho */
+        grid-template-columns: 1fr 1fr; 
+    }
+}
+
+/* ------------------------------------------- */
+/* 4. Estilos de Checkboxes y Botones */
+/* ------------------------------------------- */
+
+.checkbox-group {
+    padding: 15px;
+    border: 1px dashed var(--md-sys-color-outline);
+    border-radius: 8px;
+    background: var(--md-sys-color-surface-container-low);
+}
+
+.form-check {
+    display: flex;
+    align-items: flex-start; 
+    margin-bottom: 10px;
+    font-size: 1em;
+}
+
+.form-check label {
+    margin-bottom: 0; /* Elimina el margen inferior predeterminado del label */
+    margin-left: 5px;
+    font-weight: 400;
+}
+
+.form-check input[type="checkbox"] {
+    /* Ajusta el checkbox para que se alinee con el texto */
+    width: auto;
+    height: 1.2em;
+    min-height: unset;
+    margin-right: 10px;
+    margin-top: 3px; 
+}
+
+/* Estilo del BotÃ³n (Similar a styles-login.css) */
+.btn {
+    width: 100%;
+    height: 48px;
+    background: var(--md-sys-color-primary);
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    font-size: 16px;
+    color: var(--md-sys-color-on-primary);
+    font-weight: 600;
+    transition: background-color 0.3s;
+    margin-top: 20px !important; /* Fuerza el margen superior */
+}
+
+.btn:hover {
+    background: var(--md-sys-color-primary-container);
+    color: var(--md-sys-color-on-primary-container);
+}
+
+/* ------------------------------------------- */
+/* 5. Estilos de Mensajes/Alertas de Django */
+/* ------------------------------------------- */
+
+.mensajes-django-container {
+    margin-bottom: 20px;
+}
+
+.alerta {
+    padding: 15px;
+    margin-bottom: 10px;
+    border-radius: 8px;
+    font-size: 1em;
+    font-weight: 500;
+}
+
+/* Colores de Alertas (Adaptados a Material Design) */
+.alerta-success { /* tags='success' */
+    background-color: var(--md-sys-color-success-container); 
+    color: var(--md-sys-color-on-success-container);
+    border: 1px solid var(--md-sys-color-success);
+}
+
+.alerta-error { /* tags='error' */
+    background-color: var(--md-sys-color-error-container);
+    color: var(--md-sys-color-on-error-container);
+    border: 1px solid var(--md-sys-color-error);
+}
+
+.alerta-warning { /* tags='warning' */
+    background-color: var(--md-sys-color-warning-container); 
+    color: var(--md-sys-color-on-warning-container);
+    border: 1px solid var(--md-sys-color-warning);
+}
+
+.alerta-info { /* tags='info' o default */
+    background-color: var(--md-sys-color-info-container); 
+    color: var(--md-sys-color-on-info-container);
+    border: 1px solid var(--md-sys-color-info);
 }
 
 
@@ -1285,77 +1503,82 @@ FILE: App_Home/templates/completar_perfil.html
 {% load static %}
 
 {% block content %}
-<div class="perfil-container">
-    {% if messages %}
-        <div class="mensajes-django-container">
-            {% for message in messages %}
-                <div class="alerta alerta-{{ message.tags }}">
-                    {{ message }}
-                </div>
-            {% endfor %}
-        </div>
-    {% endif %}
+<div class="perfil-container-wrapper"> 
+    <div class="perfil-container"> 
+        {% if messages %}
+            <div class="mensajes-django-container">
+                {% for message in messages %}
+                    <div class="alerta alerta-{{ message.tags }}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
 
-    <h1>Completar Datos de Perfil</h1>
-    <p>Casi terminas el registro, **{{ usuario.username }}**. Por favor, proporciona tus datos completos.</p>
-    
-    <form method="POST">
-        {% csrf_token %}
+        <h1>Completar Datos de Perfil</h1>
+        <p>Casi terminas el registro, **{{ usuario.username }}**. Por favor, proporciona tus datos completos.</p>
         
-        <h2>InformaciÃ³n Personal</h2>
-        <div class="form-group">
-            {{ formulario.first_name.label_tag }}
-            {{ formulario.first_name }}
-            {{ formulario.first_name.errors }}
-        </div>
-        <div class="form-group">
-            {{ formulario.last_name.label_tag }}
-            {{ formulario.last_name }}
-            {{ formulario.last_name.errors }}
-        </div>
-        <div class="form-group">
-            {{ formulario.cedula.label_tag }}
-            {{ formulario.cedula }}
-            {{ formulario.cedula.errors }}
-        </div>
-
-        <h2>AsignaciÃ³n de Rol</h2>
-        <div class="form-group">
-            {{ formulario.rol.label_tag }}
-            {{ formulario.rol }}
-            {{ formulario.rol.errors }}
-        </div>
-        <div class="form-group">
-            {{ formulario.torre.label_tag }}
-            {{ formulario.torre }}
-            {{ formulario.torre.errors }}
-        </div>
-
-        <h2>Optar por Roles Secundarios (Opcional)</h2>
-        <p class="text-muted">Marca si deseas colaborar con roles de gestiÃ³n especÃ­ficos.</p>
-        <div class="checkbox-group">
-            <div class="form-check">
-                {{ formulario.es_admin_basura }} {{ formulario.es_admin_basura.label_tag }}
+        <form method="POST">
+            {% csrf_token %}
+            
+            <h2>InformaciÃ³n Personal</h2>
+            
+            <div class="form-row"> 
+                <div class="form-group">
+                    {{ formulario.first_name.label_tag }}
+                    {{ formulario.first_name }}
+                    {{ formulario.first_name.errors }}
+                </div>
+                <div class="form-group">
+                    {{ formulario.last_name.label_tag }}
+                    {{ formulario.last_name }}
+                    {{ formulario.last_name.errors }}
+                </div>
             </div>
-            <div class="form-check">
-                {{ formulario.es_admin_clap }} {{ formulario.es_admin_clap.label_tag }}
-            </div>
-            <div class="form-check">
-                {{ formulario.es_admin_bombonas }} {{ formulario.es_admin_bombonas.label_tag }}
-            </div>
-        </div>
 
-        <h2 class="mt-4">Permisos Especiales</h2>
-        <p class="text-danger">**Â¡ADVERTENCIA!** Solo marca esta opciÃ³n si eres el administrador o desarrollador del sistema.</p>
-        <div class="checkbox-group">
-            <div class="form-check">
-                {{ formulario.is_superuser_opt }} {{ formulario.is_superuser_opt.label_tag }} 
+            <div class="form-group">
+                {{ formulario.cedula.label_tag }}
+                {{ formulario.cedula }}
+                {{ formulario.cedula.errors }}
             </div>
-        </div>
 
-        <button type="submit" class="btn mt-4">Guardar y Acceder al Dashboard</button>
-    </form>
-    
+            <h2>AsignaciÃ³n de Rol</h2>
+            <div class="form-group">
+                {{ formulario.rol.label_tag }}
+                {{ formulario.rol }}
+                {{ formulario.rol.errors }}
+            </div>
+            <div class="form-group">
+                {{ formulario.torre.label_tag }}
+                {{ formulario.torre }}
+                {{ formulario.torre.errors }}
+            </div>
+
+            <h2>Optar por Roles Secundarios (Opcional)</h2>
+            <p class="text-muted">Marca si deseas colaborar con roles de gestiÃ³n especÃ­ficos.</p>
+            <div class="checkbox-group">
+                <div class="form-check">
+                    {{ formulario.es_admin_basura }} {{ formulario.es_admin_basura.label_tag }}
+                </div>
+                <div class="form-check">
+                    {{ formulario.es_admin_clap }} {{ formulario.es_admin_clap.label_tag }}
+                </div>
+                <div class="form-check">
+                    {{ formulario.es_admin_bombonas }} {{ formulario.es_admin_bombonas.label_tag }}
+                </div>
+            </div>
+
+            <h2 class="mt-4">Permisos Especiales</h2>
+            <p class="text-danger">**Â¡ADVERTENCIA!** Solo marca esta opciÃ³n si eres el administrador o desarrollador del sistema.</p>
+            <div class="checkbox-group">
+                <div class="form-check">
+                    {{ formulario.is_superuser_opt }} {{ formulario.is_superuser_opt.label_tag }} 
+                </div>
+            </div>
+
+            <button type="submit" class="btn mt-4">Guardar y Acceder</button>
+        </form>
+    </div>
 </div>
 {% endblock content %}
 
@@ -1479,13 +1702,8 @@ FILE: App_Home/templates/login.html
             </div>
             
             <button type="submit" class="btn">Login</button>
-            <p>or login with social platforms</p>
-            
-            <div class="social-icons">
-                <a href="#" class="social-icon"><i class="bx bxl-google"></i></a>
-                <a href="#" class="social-icon"><i class="bx bxl-facebook"></i></a>
-                <a href="#" class="social-icon"><i class="bx bxl-github"></i></a>
-                <a href="#" class="social-icon"><i class="bx bxl-linkedin"></i></a>
+            <div class="back-link-container"> 
+                <a href="{% url 'url_dashboard' %}">Volver al Inicio</a>
             </div>
         </form>
     </div>
@@ -1512,16 +1730,7 @@ FILE: App_Home/templates/login.html
                 <input type="password" placeholder="Confirmar Password" required name="password2">
                 <i class="bx bxs-lock-alt"></i>
             </div>
-            
             <button type="submit" class="btn">Register</button>
-            <p>or register with social platforms</p>
-            
-            <div class="social-icons">
-                <a href="#" class="social-icon"><i class="bx bxl-google"></i></a>
-                <a href="#" class="social-icon"><i class="bx bxl-facebook"></i></a>
-                <a href="#" class="social-icon"><i class="bx bxl-github"></i></a>
-                <a href="#" class="social-icon"><i class="bx bxl-linkedin"></i></a>
-            </div>
         </form>
     </div>
 
@@ -1566,6 +1775,8 @@ FILE: App_Home/templates/layouts/base.html
         integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA=="
         crossorigin="anonymous" referrerpolicy="no-referrer" />
     <script src="{% static 'js/scripts-HD.js' %}" defer></script>
+    <!-- Estilos y Funciones asociados al completar perfil -->
+    <link rel="stylesheet" href="{% static 'css/styles-perfil.css' %}">
     <!-- Titulo General de la Pagina -->
     <title>Balcones de Paraguana I</title>
 </head>
