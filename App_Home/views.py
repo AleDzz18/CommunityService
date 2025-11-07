@@ -119,7 +119,20 @@ def vista_completar_perfil(request, user_id):
             autenticar_login(request, usuario)
             return redirect('url_dashboard')
         else:
-            messages.error(request, 'Por favor, corrige los errores en el formulario.')
+            # 🚨 MODIFICACIÓN CRUCIAL: Manejo de errores para incluir errores globales (Non-Field Errors)
+            messages.error(request, 'El formulario contiene errores. Por favor, corrígelos a continuación:')
+            
+            # Iterar sobre todos los errores del formulario (incluidos los globales bajo el key '__all__')
+            for field, errors in formulario.errors.items():
+                for error in errors:
+                    if field == '__all__':
+                        # Errores no relacionados con campos (Globales, como el conflicto de rol secundario)
+                        messages.error(request, f"{error}")
+                    else:
+                        # Errores de campo específicos (como la Torre).
+                        # Usamos la etiqueta si está disponible, sino el nombre del campo.
+                        field_name = formulario.fields.get(field).label if field in formulario.fields else field
+                        messages.error(request, f"Error en {field_name}: {error}")
     
     else:
         formulario = FormularioPerfilUsuario(instance=usuario)
