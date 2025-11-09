@@ -15,6 +15,7 @@ Directory structure:
     │   ├── static/
     │   │   ├── css/
     │   │   │   ├── styles-HD.css
+    │   │   │   ├── styles-listado.css
     │   │   │   ├── styles-login.css
     │   │   │   ├── styles-perfil.css
     │   │   │   └── material-theme/
@@ -31,6 +32,8 @@ Directory structure:
     │       ├── completar_perfil.html
     │       ├── homeDashboard.html
     │       ├── login.html
+    │       ├── finanzas/
+    │       │   └── listado_movimientos.html
     │       └── layouts/
     │           └── base.html
     └── Community_Service/
@@ -151,6 +154,44 @@ class Tower(models.Model):
         verbose_name_plural = "Torres"
         ordering = ['nombre'] # Ordenar alfabÃ©ticamente
 
+# --- MODELO AÃ‘ADIDO: MOVIMIENTO FINANCIERO ---
+class MovimientoFinanciero(models.Model):
+    # Opciones de CategorÃ­a: Condominio General o Cuarto de Basura
+    CATEGORIAS = [
+        ('CON', 'Condominio'),
+        ('BAS', 'Cuarto de Basura'),
+    ]
+    # Opciones de Tipo: Ingreso o Egreso
+    TIPOS = [
+        ('ING', 'Ingreso'),
+        ('EGR', 'Egreso'),
+    ]
+
+    fecha = models.DateField(verbose_name='Fecha del Movimiento')
+    descripcion = models.CharField(max_length=255, verbose_name='DescripciÃ³n')
+    
+    # Campos separados para mejor manejo en consultas
+    ingreso = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name='Monto Ingreso')
+    egreso = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name='Monto Egreso')
+    
+    tipo = models.CharField(max_length=3, choices=TIPOS, verbose_name='Tipo')
+    categoria = models.CharField(max_length=3, choices=CATEGORIAS, verbose_name='CategorÃ­a')
+    
+    # RelaciÃ³n con la Torre (Puede ser NULL si es un movimiento general, ej. Egreso de Basura Global)
+    torre = models.ForeignKey(Tower, on_delete=models.SET_NULL, null=True, blank=True, verbose_name='Torre Asociada')
+    
+    # Campo para registrar quÃ© usuario (LÃ­der) lo creÃ³ (serÃ¡ Ãºtil en fases posteriores)
+    # creador = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, blank=True, verbose_name='Registrado por')
+    
+    class Meta:
+        verbose_name = "Movimiento Financiero"
+        verbose_name_plural = "Movimientos Financieros"
+        ordering = ['fecha', 'id'] # Ordenar por fecha y luego por ID para mantener el orden de registro
+
+    def __str__(self):
+        return f"[{self.get_categoria_display()}] {self.get_tipo_display()} - {self.descripcion} ({self.fecha})"
+# --------------------------------------------------------
+
 # Modelo de Usuario Personalizado para manejar los roles
 class CustomUser(AbstractUser):
     # DefiniciÃ³n de Roles Primarios
@@ -170,14 +211,19 @@ class CustomUser(AbstractUser):
         verbose_name='Rol Principal'
     )
 
-    # AsignaciÃ³n de Torre (One-to-One: solo un LÃ­der por Torre)
-    torre = models.OneToOneField(
+    # AsignaciÃ³n de Torre (Para LÃ­deres)
+    torre = models.ForeignKey(
         Tower, 
         on_delete=models.SET_NULL, 
         null=True, 
         blank=True, 
         verbose_name='Torre Asignada'
     )
+
+    # Datos adicionales
+    cedula = models.CharField(max_length=15, unique=True, null=True, blank=True, verbose_name='CÃ©dula de Identidad')
+    # Ejemplo de formato: T01-P1-A
+    apartamento = models.CharField(max_length=10, null=True, blank=True, verbose_name='UbicaciÃ³n de Apartamento')
 
     # Roles Secundarios (Permisos)
     es_admin_basura = models.BooleanField(default=False, verbose_name='Administrador de Cuarto de Basura')
@@ -207,12 +253,12 @@ def crear_torres_iniciales(sender, **kwargs):
         for nombre in nombres_torres:
             if nombre not in torres_existentes:
                 torres_a_crear.append(Tower(nombre=nombre))
-        
+                
         if torres_a_crear:
             Tower.objects.bulk_create(torres_a_crear)
-            print(f"Se crearon {len(torres_a_crear)} torres faltantes.")
+            print(f"Se crearon {len(torres_a_crear)} torres nuevas.")
         else:
-            print("Todas las 24 torres ya existen en la base de datos.")
+            print("Todas las torres (T01 a T24) ya existen.")
 
 
 ================================================
@@ -236,155 +282,20 @@ urlpatterns = [
     path('logout/', views.vista_logout, name='url_logout'),
     path('register/', views.vista_registro, name='url_registro'),
     path('register/perfil/<int:user_id>/', views.vista_completar_perfil, name='url_completar_perfil'),
+    
+    # --- NUEVAS URLS: ADMINISTRACIÃ“N DE INGRESOS Y EGRESOS ---
+    # Ejemplo de uso: /finanzas/condominio/ o /finanzas/basura/
+    path('finanzas/<str:categoria_slug>/', views.ver_ingresos_egresos, name='ver_finanzas'),
+    
+    # URL para descargar el archivo PDF (ejemplo: /finanzas/condominio/descargar/)
+    path('finanzas/<str:categoria_slug>/descargar/', views.descargar_pdf, name='descargar_pdf'),
 ]
 
 
 ================================================
 FILE: App_Home/views.py
 ================================================
-from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth import authenticate, login as autenticar_login, logout
-from django.contrib.auth.forms import AuthenticationForm
-from django.contrib.auth.decorators import login_required 
-from django.contrib import messages
-from django.contrib.messages import get_messages # ðŸ’¡ RESTAURADO: ImportaciÃ³n necesaria
-
-from .forms import FormularioCreacionUsuario, FormularioPerfilUsuario 
-from .models import CustomUser 
-
-# ==============================================
-# VISTAS DE NAVEGACIÃ“N
-# ==============================================
-
-def vista_dashboard(request):
-    """
-    Muestra la pÃ¡gina principal o dashboard. Permite acceso a espectadores.
-    """
-    contexto = {
-        'usuario_autenticado': request.user.is_authenticated,
-        'rol_usuario': getattr(request.user, 'rol', None) if request.user.is_authenticated else None,
-        'torre_asignada': getattr(request.user, 'torre', None) if request.user.is_authenticated else None,
-    }
-    return render(request, 'homeDashboard.html', contexto)
-
-
-# Vista para CERRAR SESIÃ“N (LOGOUT)
-@login_required 
-def vista_logout(request):
-    """
-    Cierra la sesiÃ³n del usuario y redirige al dashboard en modo espectador.
-    """
-    logout(request)
-    return redirect('url_dashboard') 
-
-# ==============================================
-# VISTAS DE AUTENTICACIÃ“N (LOGIN & REGISTRO)
-# ==============================================
-
-# Vista para INICIAR SESIÃ“N (LOGIN)
-def vista_login(request):
-    """Maneja la autenticaciÃ³n del usuario."""
-    
-    # Si el usuario ya estÃ¡ autenticado, simplemente redirigimos.
-    if request.user.is_authenticated:
-        return redirect('url_dashboard')
-
-    if request.method == 'POST':
-        formulario_login = AuthenticationForm(request, data=request.POST)
-        if formulario_login.is_valid():
-            nombre_usuario = formulario_login.cleaned_data.get('username')
-            contrasena = formulario_login.cleaned_data.get('password')
-            
-            usuario = authenticate(username=nombre_usuario, password=contrasena)
-            
-            if usuario is not None and usuario.is_active:
-                autenticar_login(request, usuario)
-                return redirect('url_dashboard') 
-            elif usuario is not None and not usuario.is_active:
-                messages.warning(request, 'Debes completar tu perfil para poder iniciar sesiÃ³n.')
-                return redirect('url_completar_perfil', user_id=usuario.pk)
-            else:
-                messages.error(request, 'Nombre de usuario o contraseÃ±a incorrectos.')
-        else:
-            messages.error(request, 'Error al procesar el formulario de inicio de sesiÃ³n. Verifique sus credenciales.')
-    else:
-        # ðŸ’¡ AJUSTE CLAVE: En la peticiÃ³n GET, consumimos y eliminamos TODOS los mensajes pendientes.
-        storage = get_messages(request)
-        for message in storage:
-            pass # Al iterar sobre el storage, se consumen y se eliminan
-        
-        formulario_login = AuthenticationForm()
-
-    formulario_registro = FormularioCreacionUsuario()
-    return render(request, 'login.html', {
-        'formulario_login': formulario_login, 
-        'formulario_registro': formulario_registro
-    })
-
-# Vista para REGISTRO (Paso 1: AutenticaciÃ³n)
-def vista_registro(request):
-    """
-    Crea el usuario bÃ¡sico y redirige a la pÃ¡gina para completar el perfil.
-    """
-    if request.method == 'POST':
-        formulario = FormularioCreacionUsuario(request.POST)
-        if formulario.is_valid():
-            user = formulario.save(commit=False)
-            user.is_active = False 
-            user.save()
-            return redirect('url_completar_perfil', user_id=user.pk) 
-        else:
-            for campo, errores in formulario.errors.items():
-                for error in errores:
-                    messages.error(request, f"Error en {campo}: {error}")
-            return redirect('url_login')
-
-    return redirect('url_login') 
-
-# NUEVA VISTA: Paso 2 (Completar Perfil y AsignaciÃ³n de Rol)
-def vista_completar_perfil(request, user_id):
-    """
-    Permite al usuario reciÃ©n creado completar sus datos (nombre, cÃ©dula, rol).
-    """
-    # Buscamos el usuario o devolvemos 404 si el ID es incorrecto
-    usuario = get_object_or_404(CustomUser, pk=user_id)
-    
-    # RestricciÃ³n: No permitir el acceso si el perfil ya estÃ¡ activo/completo
-    if usuario.is_active:
-         messages.warning(request, "Tu perfil ya estÃ¡ completo. Por favor, inicia sesiÃ³n.")
-         return redirect('url_login')
-         
-    if request.method == 'POST':
-        formulario = FormularioPerfilUsuario(request.POST, instance=usuario)
-        if formulario.is_valid():
-            formulario.save()
-            usuario.is_active = True
-            usuario.save()
-            autenticar_login(request, usuario)
-            return redirect('url_dashboard')
-        else:
-            # ðŸš¨ MODIFICACIÃ“N CRUCIAL: Manejo de errores para incluir errores globales (Non-Field Errors)
-            messages.error(request, 'El formulario contiene errores. Por favor, corrÃ­gelos a continuaciÃ³n:')
-            
-            # Iterar sobre todos los errores del formulario (incluidos los globales bajo el key '__all__')
-            for field, errors in formulario.errors.items():
-                for error in errors:
-                    if field == '__all__':
-                        # Errores no relacionados con campos (Globales, como el conflicto de rol secundario)
-                        messages.error(request, f"{error}")
-                    else:
-                        # Errores de campo especÃ­ficos (como la Torre).
-                        # Usamos la etiqueta si estÃ¡ disponible, sino el nombre del campo.
-                        field_name = formulario.fields.get(field).label if field in formulario.fields else field
-                        messages.error(request, f"Error en {field_name}: {error}")
-    
-    else:
-        formulario = FormularioPerfilUsuario(instance=usuario)
-        
-    return render(request, 'completar_perfil.html', {
-        'formulario': formulario, 
-        'usuario': usuario
-    })
+Error reading file with 'cp1252': 'charmap' codec can't decode byte 0x81 in position 6754: character maps to <undefined>
 
 
 ================================================
@@ -525,6 +436,124 @@ FILE: App_Home/static/css/styles-HD.css
 @media (min-width: 900px) {
     .botones-grid {
         grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+
+================================================
+FILE: App_Home/static/css/styles-listado.css
+================================================
+/* CAMBIO CLAVE 1: Importar la paleta de colores Material Design */
+@import url('material-theme/light.css');
+
+/* Contenedor principal */
+.container.mt-5 {
+    padding: 20px;
+    background-color: var(--md-sys-color-surface); /* Fondo blanco/claro */
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+/* TÃ­tulo */
+h2.mb-4 {
+    /* CAMBIO 2: Usar el color Primario del tema */
+    color: var(--md-sys-color-primary);
+    border-bottom: 2px solid var(--md-sys-color-outline-variant);
+    padding-bottom: 10px;
+    margin-bottom: 20px !important;
+}
+
+/* Formulario de Filtros */
+.row.g-3.mb-4 {
+    padding: 15px;
+    background-color: var(--md-sys-color-surface-container-low); /* Contenedor de filtros */
+    border-radius: 6px;
+    margin-bottom: 30px !important;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+}
+
+.form-label {
+    font-weight: 600;
+    color: var(--md-sys-color-on-surface-variant);
+}
+
+/* Botones de acciÃ³n */
+/* CAMBIO 3: Usar variables para los botones (Primario para aplicar, Error para PDF) */
+.btn-primary {
+    background-color: var(--md-sys-color-primary);
+    border-color: var(--md-sys-color-primary);
+    color: var(--md-sys-color-on-primary);
+}
+
+.btn-primary:hover {
+    background-color: var(--md-sys-color-primary-dark); /* Asumiendo un hover mÃ¡s oscuro */
+    border-color: var(--md-sys-color-primary-dark);
+}
+
+.btn-danger {
+    background-color: var(--md-sys-color-error);
+    border-color: var(--md-sys-color-error);
+    color: var(--md-sys-color-on-error);
+}
+
+.btn-danger:hover {
+    background-color: var(--md-sys-color-error-dark); /* Asumiendo un hover mÃ¡s oscuro */
+    border-color: var(--md-sys-color-error-dark);
+}
+
+/* Tabla de Movimientos */
+.table-responsive {
+    overflow-x: auto;
+    margin-top: 20px;
+}
+
+.table {
+    min-width: 700px;
+    margin-bottom: 0;
+}
+
+.table-dark th {
+    /* Usar un color secundario para el encabezado de la tabla, o un fondo oscuro */
+    background-color: var(--md-sys-color-primary-container);
+    color: var(--md-sys-color-on-primary-container);
+    font-weight: 600;
+}
+
+/* Estilos para Ingresos y Egresos */
+/* CAMBIO 4: Usar colores de Ã©xito y peligro para los montos */
+.text-success {
+    color: var(--md-sys-color-success) !important; /* Ingresos en verde (Definido en tu theme si existe) */
+    font-weight: 500;
+}
+
+.text-danger {
+    color: var(--md-sys-color-error) !important; /* Egresos en rojo */
+    font-weight: 500;
+}
+
+/* Columna Saldo */
+.table tbody tr td:last-child {
+    font-weight: 700;
+    color: var(--md-sys-color-on-surface);
+}
+
+/* Responsive Design para la tabla */
+@media (max-width: 768px) {
+    .row.g-3.mb-4 .col-md-4 {
+        margin-bottom: 15px;
+    }
+    .row.g-3.mb-4 .col-md-4:last-child {
+        display: block !important;
+        text-align: center;
+    }
+    .row.g-3.mb-4 .col-md-4 .btn {
+        width: 100%;
+        margin-bottom: 10px;
+    }
+    
+    .table-responsive {
+        border: 1px solid var(--md-sys-color-outline-variant);
+        border-radius: 6px;
     }
 }
 
@@ -1440,25 +1469,57 @@ FILE: App_Home/static/css/material-theme/light.css
 FILE: App_Home/static/js/scripts-HD.js
 ================================================
 function toggleDropdown() {
-    const dropdownContent = document.getElementById("adminDropdownContent");
+    var content = document.getElementById("adminDropdownContent");
+    var btn = document.getElementById("adminDropdownBtn");
     
-    // Verifica si el menÃº estÃ¡ actualmente visible (tiene la clase 'show')
-    if (dropdownContent.classList.contains("show")) {
-        // Si estÃ¡ visible, lo oculta
-        dropdownContent.classList.remove("show");
+    // 1. Cierra todos los dropdowns abiertos primero y remueve el estado 'active' del botÃ³n
+    document.querySelectorAll('.dropdown-content.show').forEach(function(el) {
+        if (el !== content) {
+            el.classList.remove('show');
+            el.style.height = '0'; // Cierra con animaciÃ³n
+            // Busca el botÃ³n asociado para remover la clase 'active'
+            const parentDropdown = el.closest('.dropdown');
+            if (parentDropdown) {
+                const associatedBtn = parentDropdown.querySelector('.dropbtn');
+                if (associatedBtn) {
+                    associatedBtn.classList.remove('active');
+                }
+            }
+        }
+    });
+
+    // 2. Toggle del dropdown actual
+    if (content.classList.contains('show')) {
+        // Ocultar: Remueve las clases y pone la altura a 0
+        content.classList.remove('show');
+        content.style.height = '0';
+        btn.classList.remove('active');
     } else {
-        // Si estÃ¡ oculto, lo muestra
-        dropdownContent.classList.add("show");
+        // Mostrar: AÃ±ade clases, calcula la altura y activa el botÃ³n
+        content.classList.add('show');
+        // Calcula la altura para que la animaciÃ³n funcione correctamente
+        content.style.height = content.scrollHeight + 'px'; 
+        btn.classList.add('active');
     }
 }
 
 // Opcional: Cerrar el menÃº si se hace clic fuera de Ã©l
 window.onclick = function(event) {
+    // CAMBIO: Se asegura que si se hace clic fuera, todos los dropdowns se cierren
     if (!event.target.matches('.dropbtn') && !event.target.matches('.dropbtn i')) {
-        const dropdownContent = document.getElementById("adminDropdownContent");
-        if (dropdownContent.classList.contains("show")) {
-            dropdownContent.classList.remove("show");
-        }
+        document.querySelectorAll('.dropdown-content.show').forEach(function(content) {
+            content.classList.remove("show");
+            content.style.height = '0';
+            
+            // Busca el botÃ³n asociado para remover la clase 'active'
+            const parentDropdown = content.closest('.dropdown');
+            if (parentDropdown) {
+                const associatedBtn = parentDropdown.querySelector('.dropbtn');
+                if (associatedBtn) {
+                    associatedBtn.classList.remove('active');
+                }
+            }
+        });
     }
 }
 
@@ -1590,7 +1651,7 @@ FILE: App_Home/templates/completar_perfil.html
 FILE: App_Home/templates/homeDashboard.html
 ================================================
 {% extends 'layouts/base.html' %}
-
+{% load static %}
 {% block content %}
 
 <div class="dashboard-container">
@@ -1604,7 +1665,7 @@ FILE: App_Home/templates/homeDashboard.html
                     **Rol: LÃ­der General**
                 {% elif request.user.rol == 2 and request.user.torre %}
                     **LÃ­der de la Torre {{ request.user.torre.nombre }}**
-                {% else %}
+                {% else %}\
                     **LÃ­der (Pendiente de AsignaciÃ³n)**
                 {% endif %}
             </p>
@@ -1621,8 +1682,8 @@ FILE: App_Home/templates/homeDashboard.html
                 AdministraciÃ³n de Ingresos y Egresos
             </button>
             <div class="dropdown-content" id="adminDropdownContent">
-                <a href="#condominio">Condominio</a>
-                <a href="#cuarto-basura">Cuarto de Basura</a>
+                <a href="{% url 'ver_finanzas' categoria_slug='condominio' %}">Condominio</a>
+                <a href="{% url 'ver_finanzas' categoria_slug='basura' %}">Cuarto de Basura</a>
             </div>
         </div>
 
@@ -1655,15 +1716,13 @@ FILE: App_Home/templates/homeDashboard.html
                 Cerrar SesiÃ³n
             </a>
         {% else %}
-            <a href="{% url 'url_login' %}" class="boton-principal login-button">
+            <a href="{% url 'url_login' %}" class="boton-principal">
                 <i class="fas fa-sign-in-alt"></i>
-                Inicio de SesiÃ³n
+                Iniciar SesiÃ³n
             </a>
         {% endif %}
-
     </main>
 </div>
-
 {% endblock content %}
 
 
@@ -1756,6 +1815,78 @@ FILE: App_Home/templates/login.html
 
 
 ================================================
+FILE: App_Home/templates/finanzas/listado_movimientos.html
+================================================
+{% extends "layouts/base.html" %}
+{% load static %}
+
+{% block content %}
+    <div class="container mt-5">
+        <h2 class="mb-4">{{ titulo }}</h2>
+
+        <form method="GET" class="row g-3 mb-4" action="{% url 'ver_finanzas' categoria_slug=categoria_slug %}">
+            <div class="col-md-4">
+                <label for="tipo_filtro" class="form-label">Filtrar por Tipo</label>
+                <select id="tipo_filtro" name="tipo" class="form-select">
+                    <option value="AMBOS" {% if tipo_seleccionado == 'AMBOS' %}selected{% endif %}>Ingresos y Egresos</option>
+                    <option value="INGRESOS" {% if tipo_seleccionado == 'INGRESOS' %}selected{% endif %}>Solo Ingresos</option>
+                    <option value="EGRESOS" {% if tipo_seleccionado == 'EGRESOS' %}selected{% endif %}>Solo Egresos</option>
+                </select>
+            </div>
+
+            <div class="col-md-4">
+                <label for="torre_filtro" class="form-label">Filtrar por Torre</label>
+                <select id="torre_filtro" name="torre" class="form-select">
+                    <option value="">Todas las Torres</option>
+                    {% for torre in torres %}
+                        <option value="{{ torre.id }}" {% if torre.id|stringformat:"s" == torre_seleccionada_id %}selected{% endif %}>Torre {{ torre.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="col-md-4 d-flex align-items-end justify-content-end">
+                <button type="submit" class="btn btn-primary me-2 flex-fill">Aplicar Filtros</button>
+                <a href="{% url 'descargar_pdf' categoria_slug=categoria_slug %}{{ request.GET.urlencode|default:'' }}" class="btn btn-danger flex-fill">Descargar PDF</a>
+            </div>
+        </form>
+
+        {% if movimientos %}
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Fecha</th>
+                            <th>DescripciÃ³n</th>
+                            <th>Ingresos (Bs)</th>
+                            <th>Egresos (Bs)</th>
+                            <th>Torre</th>
+                            <th>Saldo Acumulado (Bs)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for mov in movimientos %}
+                            <tr>
+                                <td>{{ mov.fecha|date:"Y-m-d" }}</td>
+                                <td>{{ mov.descripcion }}</td>
+                                <td class="text-success">{{ mov.ingreso|default_if_none:"" }}</td>
+                                <td class="text-danger">{{ mov.egreso|default_if_none:"" }}</td>
+                                <td>{{ mov.torre }}</td>
+                                <td>{{ mov.saldo }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="alert alert-info" role="alert">
+                No se encontraron movimientos financieros con los filtros aplicados.
+            </div>
+        {% endif %}
+    </div>
+{% endblock content %}
+
+
+================================================
 FILE: App_Home/templates/layouts/base.html
 ================================================
 <!DOCTYPE html>
@@ -1780,6 +1911,8 @@ FILE: App_Home/templates/layouts/base.html
     <script src="{% static 'js/scripts-HD.js' %}" defer></script>
     <!-- Estilos y Funciones asociados al completar perfil -->
     <link rel="stylesheet" href="{% static 'css/styles-perfil.css' %}">
+    <!-- Estilos y Funciones asociados a Condominio y Cuarto de Basura -->
+    <link rel="stylesheet" href="{% static 'css/styles-listado.css' %}">
     <!-- Titulo General de la Pagina -->
     <title>Balcones de Paraguana I</title>
 </head>
