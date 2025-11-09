@@ -1,0 +1,113 @@
+/* CAMBIO CLAVE 1: Importar la paleta de colores Material Design */
+@import url('material-theme/light.css');
+
+/* Contenedor principal */
+.container.mt-5 {
+    padding: 20px;
+    background-color: var(--md-sys-color-surface); /* Fondo blanco/claro */
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+/* Título */
+h2.mb-4 {
+    /* CAMBIO 2: Usar el color Primario del tema */
+    color: var(--md-sys-color-primary);
+    border-bottom: 2px solid var(--md-sys-color-outline-variant);
+    padding-bottom: 10px;
+    margin-bottom: 20px !important;
+}
+
+/* Formulario de Filtros */
+.row.g-3.mb-4 {
+    padding: 15px;
+    background-color: var(--md-sys-color-surface-container-low); /* Contenedor de filtros */
+    border-radius: 6px;
+    margin-bottom: 30px !important;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+}
+
+.form-label {
+    font-weight: 600;
+    color: var(--md-sys-color-on-surface-variant);
+}
+
+/* Botones de acción */
+/* CAMBIO 3: Usar variables para los botones (Primario para aplicar, Error para PDF) */
+.btn-primary {
+    background-color: var(--md-sys-color-primary);
+    border-color: var(--md-sys-color-primary);
+    color: var(--md-sys-color-on-primary);
+}
+
+.btn-primary:hover {
+    background-color: var(--md-sys-color-primary-dark); /* Asumiendo un hover más oscuro */
+    border-color: var(--md-sys-color-primary-dark);
+}
+
+.btn-danger {
+    background-color: var(--md-sys-color-error);
+    border-color: var(--md-sys-color-error);
+    color: var(--md-sys-color-on-error);
+}
+
+.btn-danger:hover {
+    background-color: var(--md-sys-color-error-dark); /* Asumiendo un hover más oscuro */
+    border-color: var(--md-sys-color-error-dark);
+}
+
+/* Tabla de Movimientos */
+.table-responsive {
+    overflow-x: auto;
+    margin-top: 20px;
+}
+
+.table {
+    min-width: 700px;
+    margin-bottom: 0;
+}
+
+.table-dark th {
+    /* Usar un color secundario para el encabezado de la tabla, o un fondo oscuro */
+    background-color: var(--md-sys-color-primary-container);
+    color: var(--md-sys-color-on-primary-container);
+    font-weight: 600;
+}
+
+/* Estilos para Ingresos y Egresos */
+/* CAMBIO 4: Usar colores de éxito y peligro para los montos */
+.text-success {
+    color: var(--md-sys-color-success) !important; /* Ingresos en verde (Definido en tu theme si existe) */
+    font-weight: 500;
+}
+
+.text-danger {
+    color: var(--md-sys-color-error) !important; /* Egresos en rojo */
+    font-weight: 500;
+}
+
+/* Columna Saldo */
+.table tbody tr td:last-child {
+    font-weight: 700;
+    color: var(--md-sys-color-on-surface);
+}
+
+/* Responsive Design para la tabla */
+@media (max-width: 768px) {
+    .row.g-3.mb-4 .col-md-4 {
+        margin-bottom: 15px;
+    }
+    .row.g-3.mb-4 .col-md-4:last-child {
+        display: block !important;
+        text-align: center;
+    }
+    .row.g-3.mb-4 .col-md-4 .btn {
+        width: 100%;
+        margin-bottom: 10px;
+    }
+    
+    .table-responsive {
+        border: 1px solid var(--md-sys-color-outline-variant);
+        border-radius: 6px;
+    }
+}

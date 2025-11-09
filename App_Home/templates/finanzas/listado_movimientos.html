@@ -1,0 +1,67 @@
+{% extends "layouts/base.html" %}
+{% load static %}
+
+{% block content %}
+    <div class="container mt-5">
+        <h2 class="mb-4">{{ titulo }}</h2>
+
+        <form method="GET" class="row g-3 mb-4" action="{% url 'ver_finanzas' categoria_slug=categoria_slug %}">
+            <div class="col-md-4">
+                <label for="tipo_filtro" class="form-label">Filtrar por Tipo</label>
+                <select id="tipo_filtro" name="tipo" class="form-select">
+                    <option value="AMBOS" {% if tipo_seleccionado == 'AMBOS' %}selected{% endif %}>Ingresos y Egresos</option>
+                    <option value="INGRESOS" {% if tipo_seleccionado == 'INGRESOS' %}selected{% endif %}>Solo Ingresos</option>
+                    <option value="EGRESOS" {% if tipo_seleccionado == 'EGRESOS' %}selected{% endif %}>Solo Egresos</option>
+                </select>
+            </div>
+
+            <div class="col-md-4">
+                <label for="torre_filtro" class="form-label">Filtrar por Torre</label>
+                <select id="torre_filtro" name="torre" class="form-select">
+                    <option value="">Todas las Torres</option>
+                    {% for torre in torres %}
+                        <option value="{{ torre.id }}" {% if torre.id|stringformat:"s" == torre_seleccionada_id %}selected{% endif %}>Torre {{ torre.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="col-md-4 d-flex align-items-end justify-content-end">
+                <button type="submit" class="btn btn-primary me-2 flex-fill">Aplicar Filtros</button>
+                <a href="{% url 'descargar_pdf' categoria_slug=categoria_slug %}{{ request.GET.urlencode|default:'' }}" class="btn btn-danger flex-fill">Descargar PDF</a>
+            </div>
+        </form>
+
+        {% if movimientos %}
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Descripción</th>
+                            <th>Ingresos (Bs)</th>
+                            <th>Egresos (Bs)</th>
+                            <th>Torre</th>
+                            <th>Saldo Acumulado (Bs)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for mov in movimientos %}
+                            <tr>
+                                <td>{{ mov.fecha|date:"Y-m-d" }}</td>
+                                <td>{{ mov.descripcion }}</td>
+                                <td class="text-success">{{ mov.ingreso|default_if_none:"" }}</td>
+                                <td class="text-danger">{{ mov.egreso|default_if_none:"" }}</td>
+                                <td>{{ mov.torre }}</td>
+                                <td>{{ mov.saldo }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="alert alert-info" role="alert">
+                No se encontraron movimientos financieros con los filtros aplicados.
+            </div>
+        {% endif %}
+    </div>
+{% endblock content %}
