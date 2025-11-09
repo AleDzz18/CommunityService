@@ -7,4 +7,11 @@ urlpatterns = [
     path('logout/', views.vista_logout, name='url_logout'),
     path('register/', views.vista_registro, name='url_registro'),
     path('register/perfil/<int:user_id>/', views.vista_completar_perfil, name='url_completar_perfil'),
+    
+    # --- NUEVAS URLS: ADMINISTRACIÓN DE INGRESOS Y EGRESOS ---
+    # Ejemplo de uso: /finanzas/condominio/ o /finanzas/basura/
+    path('finanzas/<str:categoria_slug>/', views.ver_ingresos_egresos, name='ver_finanzas'),
+    
+    # URL para descargar el archivo PDF (ejemplo: /finanzas/condominio/descargar/)
+    path('finanzas/<str:categoria_slug>/descargar/', views.descargar_pdf, name='descargar_pdf'),
 ]

@@ -72,7 +72,6 @@ class FormularioPerfilUsuario(forms.ModelForm):
                     query = query.exclude(pk=self.instance.pk)
 
                 if query.exists():
-                    # 💡 SOLUCIÓN 1: Muestra un mensaje GLOBAL (non-field error)
                     self.add_error(None, f"Error de Permisos: El rol secundario '{role_name}' ya está asignado a otro usuario. Solo se permite un líder por gestión.")
         
         # --- 2. VALIDACIÓN DE ASIGNACIÓN DE TORRE PARA LÍDERES DE TORRE ---
@@ -81,7 +80,6 @@ class FormularioPerfilUsuario(forms.ModelForm):
         
         ROL_LIDER_TORRE = CustomUser.ROL_LIDER_TORRE 
         
-        # 💡 SOLUCIÓN 2: Si el rol es Líder de Torre y NO se ha seleccionado torre
         if rol == ROL_LIDER_TORRE and not torre:
             # Añadir un error al campo 'torre'
             self.add_error('torre', "Debes seleccionar una Torre obligatoriamente para ser Líder de Torre.")
@@ -113,11 +111,11 @@ class FormularioPerfilUsuario(forms.ModelForm):
         
         # ASIGNAR PERMISOS DE LÍDER GENERAL (Lógica del paso anterior)
         if user.rol == CustomUser.ROL_LIDER_GENERAL:
-             user.is_superuser = True
-             user.is_staff = True 
+            user.is_superuser = True
+            user.is_staff = True 
         else:
-             user.is_superuser = False
-             user.is_staff = False
+            user.is_superuser = False
+            user.is_staff = False
         
         if commit:
             user.save()

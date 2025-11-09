@@ -1,5 +1,5 @@
 {% extends 'layouts/base.html' %}
-
+{% load static %}
 {% block content %}
 
 <div class="dashboard-container">
@@ -13,7 +13,7 @@
                     **Rol: Líder General**
                 {% elif request.user.rol == 2 and request.user.torre %}
                     **Líder de la Torre {{ request.user.torre.nombre }}**
-                {% else %}
+                {% else %}\
                     **Líder (Pendiente de Asignación)**
                 {% endif %}
             </p>
@@ -30,8 +30,8 @@
                 Administración de Ingresos y Egresos
             </button>
             <div class="dropdown-content" id="adminDropdownContent">
-                <a href="#condominio">Condominio</a>
-                <a href="#cuarto-basura">Cuarto de Basura</a>
+                <a href="{% url 'ver_finanzas' categoria_slug='condominio' %}">Condominio</a>
+                <a href="{% url 'ver_finanzas' categoria_slug='basura' %}">Cuarto de Basura</a>
             </div>
         </div>
 
@@ -64,13 +64,11 @@
                 Cerrar Sesión
             </a>
         {% else %}
-            <a href="{% url 'url_login' %}" class="boton-principal login-button">
+            <a href="{% url 'url_login' %}" class="boton-principal">
                 <i class="fas fa-sign-in-alt"></i>
-                Inicio de Sesión
+                Iniciar Sesión
             </a>
         {% endif %}
-
     </main>
 </div>
-
 {% endblock content %}
