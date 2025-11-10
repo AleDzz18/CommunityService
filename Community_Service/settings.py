@@ -1,3 +1,5 @@
+# "Community_Service/settings.py" (Fragmento completo que incluye las configuraciones de autenticación)
+
 """
 Django settings for Community_Service project.
 
@@ -38,8 +40,9 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'App_Home',
-    'App_LiderTorre',
-    'App_LiderGeneral',
+    'App_LiderTorre', # Asumo que ya la tienes instalada
+    'App_LiderGeneral', # Asumo que ya la tienes instalada
+    # ... otras apps si las tienes
 ]
 
 MIDDLEWARE = [
@@ -57,10 +60,11 @@ ROOT_URLCONF = 'Community_Service.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR / 'templates'],
+        'DIRS': [BASE_DIR / 'templates'], # Asumo que tienes una carpeta de templates global
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
+                'django.template.context_processors.debug',
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
@@ -105,9 +109,8 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
-
-TIME_ZONE = 'UTC'
+LANGUAGE_CODE = 'es-ve' # Establecido a Venezuela por contexto
+TIME_ZONE = 'America/Caracas' # Establecido a Caracas por contexto
 
 USE_I18N = True
 
@@ -128,9 +131,14 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # CONFIGURACIÓN DE AUTENTICACIÓN PERSONALIZADA
 # ----------------------------------------------------
 
-# Usar el modelo de usuario personalizado de App_Home
+# El modelo de usuario personalizado que se usa en el proyecto
 AUTH_USER_MODEL = 'App_Home.CustomUser'
 
-# URLs de Redirección (Usamos los nombres de URL definidos en App_Home/urls.py)
-LOGIN_REDIRECT_URL = 'url_dashboard'  # Redirige después de iniciar sesión
-LOGOUT_REDIRECT_URL = 'url_login'     # Redirige después de cerrar sesión
+# URL a la que se redirige cuando se requiere inicio de sesión (debe ser la misma que tu path en urls.py)
+LOGIN_URL = '/login/' # <--- ¡CORRECCIÓN!
+
+# URL a la que se redirige a los usuarios después de iniciar sesión con éxito
+LOGIN_REDIRECT_URL = '/' 
+
+# URL a la que se redirige a los usuarios después de cerrar sesión (puedes ajustarla)
+LOGOUT_REDIRECT_URL = '/login/'

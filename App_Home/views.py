@@ -17,6 +17,20 @@ def vista_dashboard(request):
     """
     Muestra la página principal o dashboard. Permite acceso a espectadores.
     """
+    
+    # 🔑 LÓGICA CRÍTICA: REDIRECCIÓN FORZOSA A COMPLETAR PERFIL
+    if request.user.is_authenticated:
+        usuario = request.user
+        
+        # Utilizamos la Cédula (cedula) como el indicador principal de Perfil Incompleto.
+        # Si está logueado y NO tiene cédula, lo enviamos a completar perfil.
+        # Se usa getattr para seguridad en caso de que el campo no exista o sea None.
+        if not getattr(usuario, 'cedula', None):
+            messages.warning(request, "Debe completar su perfil para acceder al sistema.")
+            return redirect('url_completar_perfil', user_id=usuario.id)
+            
+    # -------------------------------------------------------------------
+    
     contexto = {
         'usuario_autenticado': request.user.is_authenticated,
         'rol_usuario': getattr(request.user, 'rol', None) if request.user.is_authenticated else None,
@@ -46,13 +60,15 @@ def vista_login(request):
             password = formulario.cleaned_data.get('password')
             usuario = authenticate(username=username, password=password)
             if usuario is not None:
-                if usuario.is_active: # Verificar si el perfil fue completado (is_active=True)
-                    autenticar_login(request, usuario)
-                    return redirect('url_dashboard') # Redirección al Dashboard
-                else:
-                    # El usuario existe, pero no ha completado el perfil
-                    messages.warning(request, 'Su cuenta está pendiente de activación. Por favor, complete su perfil.')
+                # 🔑 MODIFICACIÓN AQUÍ: Usar 'cedula' para forzar la redirección a completar perfil, 
+                # en lugar de 'is_active', si el login fue exitoso.
+                if not getattr(usuario, 'cedula', None):
+                    messages.warning(request, 'Su perfil está incompleto. Por favor, complete sus datos.')
                     return redirect('url_completar_perfil', user_id=usuario.id)
+                
+                # Si todo está completo, inicia sesión y redirige al dashboard
+                autenticar_login(request, usuario)
+                return redirect('url_dashboard') 
             else:
                 messages.error(request, 'Nombre de usuario o contraseña incorrectos.')
         else:
@@ -67,8 +83,6 @@ def vista_login(request):
 
 def vista_registro(request):
     """Maneja la creación de nuevos usuarios."""
-    # Los usuarios sin rol especial no se registran; solo Líderes.
-    # Por defecto, se registrará como ROL_LIDER_TORRE.
     if request.user.is_authenticated:
         return redirect('url_dashboard')
 
@@ -76,10 +90,19 @@ def vista_registro(request):
         formulario = FormularioCreacionUsuario(request.POST)
         if formulario.is_valid():
             usuario = formulario.save(commit=False)
-            usuario.is_active = False # El usuario estará inactivo hasta que complete el perfil
-            usuario.save()
+            
+            # ❌ LÍNEA ELIMINADA: usuario.is_active = False 
+            # El usuario DEBE estar activo (True) para que autenticar_login funcione.
+            # Por defecto, Django lo guarda como is_active=True.
+            usuario.save() 
+            
+            # 🔑 PASO CRÍTICO: Iniciar sesión y redirigir al perfil.
+            autenticar_login(request, usuario) 
+            
             messages.success(request, f'Cuenta creada exitosamente para {usuario.username}. Por favor, complete su perfil.')
-            return redirect('url_completar_perfil', user_id=usuario.id)
+            
+            # Redirigir directamente al perfil para evitar el bucle inicial del dashboard.
+            return redirect('url_completar_perfil', user_id=usuario.id) 
         else:
             # Mostrar errores de validación del formulario de registro
             for field, errors in formulario.errors.items():
@@ -103,17 +126,22 @@ def vista_completar_perfil(request, user_id):
         messages.error(request, 'No tiene permisos para editar el perfil de otro usuario.')
         return redirect('url_dashboard')
     
-    # Si ya está activo, no debería estar en esta página (redirigir)
-    if usuario.is_active:
+    # 🔑 MODIFICACIÓN: Si el usuario tiene Cédula (perfil completo), lo redirigimos
+    if getattr(usuario, 'cedula', None):
+        messages.info(request, "Su perfil ya está completo.")
         return redirect('url_dashboard')
+    
+    # ❌ LÍNEA ELIMINADA: Ya no verificamos if usuario.is_active, sino la cédula.
 
     if request.method == 'POST':
         formulario = FormularioPerfilUsuario(request.POST, instance=usuario)
         if formulario.is_valid():
             formulario.save()
-            usuario.is_active = True
-            usuario.save()
-            autenticar_login(request, usuario)
+            
+            # NO ES NECESARIO SETEAR is_active=True NI HACER login de nuevo
+            # ya que el usuario siempre estuvo activo y logueado, solo que incompleto.
+            
+            messages.success(request, 'Perfil completado con éxito. ¡Bienvenido a la comunidad!')
             return redirect('url_dashboard')
         else:
             messages.error(request, 'El formulario contiene errores. Por favor, corrígelos a continuación:')
@@ -122,11 +150,8 @@ def vista_completar_perfil(request, user_id):
             for field, errors in formulario.errors.items():
                 for error in errors:
                     if field == '__all__':
-                        # Errores no relacionados con campos (Globales, como el conflicto de rol secundario)
                         messages.error(request, f"{error}")
                     else:
-                        # Errores de campo específicos (como la Torre).
-                        # Usamos la etiqueta si está disponible, sino el nombre del campo.
                         field_name = formulario.fields.get(field).label if field in formulario.fields else field
                         messages.error(request, f"Error en {field_name}: {error}")
     
