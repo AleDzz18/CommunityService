@@ -30,10 +30,13 @@ class FormularioPerfilUsuario(forms.ModelForm):
 
     class Meta:
         model = CustomUser
-        fields = ('first_name', 'last_name', 'cedula', 'rol', 'torre')
+        # CORRECCIÓN 1: 'torre' cambia a 'tower' para coincidir con el modelo.
+        # Se añade 'apartamento' para completar el perfil.
+        fields = ('first_name', 'last_name', 'cedula', 'rol', 'tower', 'apartamento') 
 
         widgets = {
-            'rol': forms.Select(choices=CustomUser.OPCIONES_ROLES),
+            # CORRECCIÓN 2: OPCIONES_ROLES cambia a ROLES para coincidir con el modelo.
+            'rol': forms.Select(choices=CustomUser.ROLES),
         }
         
     def __init__(self, *args, **kwargs):
@@ -49,6 +52,7 @@ class FormularioPerfilUsuario(forms.ModelForm):
         self.fields['first_name'].required = True
         self.fields['last_name'].required = True
         self.fields['rol'].required = True
+        self.fields['tower'].required = False
 
 
     # VALIDACIÓN PRINCIPAL: Limitar Líderes Generales (2) y Roles Secundarios (1)
@@ -78,13 +82,32 @@ class FormularioPerfilUsuario(forms.ModelForm):
         
         # --- 2. VALIDACIÓN DE ASIGNACIÓN DE TORRE PARA LÍDERES DE TORRE ---
         rol = cleaned_data.get('rol')
-        torre = cleaned_data.get('torre')
+        tower = cleaned_data.get('tower') # Corregido a 'tower'
         
         ROL_LIDER_TORRE = CustomUser.ROL_LIDER_TORRE 
         
-        if rol == ROL_LIDER_TORRE and not torre:
-            # Añadir un error al campo 'torre'
-            self.add_error('torre', "Debes seleccionar una Torre obligatoriamente para ser Líder de Torre.")
+        if rol == ROL_LIDER_TORRE:
+            
+            # Validación A: La Torre no puede ser nula (lógica existente)
+            if not tower:
+                self.add_error('tower', "Debes seleccionar una Torre obligatoriamente para ser Líder de Torre.")
+            else:
+                # Validación B: Solo un Líder por Torre (Lógica CRÍTICA)
+                # Buscamos si existe otro Líder de Torre (LDT) en la torre seleccionada, excluyendo al usuario actual.
+                query = CustomUser.objects.filter(
+                    rol=ROL_LIDER_TORRE,
+                    tower=tower
+                ).exclude(pk=self.instance.pk if self.instance and self.instance.pk else None)
+                
+                if query.exists():
+                    # Usamos 'nombre' del objeto tower si está disponible para el mensaje de error
+                    tower_name = getattr(tower, 'nombre', 'seleccionada') 
+                    self.add_error('tower', f"La Torre {tower_name} ya tiene un Líder de Torre asignado. Por favor, selecciona otra Torre o Rol.")
+        
+        # Limpieza: Si el rol NO es Líder de Torre, el campo 'tower' se anula en la data limpia.
+        # Esto previene errores de base de datos si cambian de Líder de Torre a Líder General.
+        elif 'tower' in cleaned_data: 
+            cleaned_data['tower'] = None 
             
         return cleaned_data
         

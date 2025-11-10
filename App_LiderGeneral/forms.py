@@ -1,0 +1,71 @@
+# App_LiderGeneral/forms.py
+
+from django import forms
+from django.core.exceptions import ValidationError
+# Importamos los modelos desde la aplicación base
+from App_Home.models import CustomUser, Tower 
+from django.db.models import Count
+
+class FormularioAdminUsuario(forms.ModelForm):
+    """
+    Formulario para la Administración de Usuarios (CRUD), usado 
+    por el Líder General. Incluye campos de edición de perfil, roles 
+    y permisos avanzados.
+    """
+    
+    # CAMPOS BASE AÑADIDOS (Permiten al administrador editar datos básicos)
+    username = forms.CharField(max_length=150, required=True, label='Nombre de Usuario')
+    email = forms.EmailField(required=True, label='Correo Electrónico')
+    cedula = forms.CharField(max_length=15, required=True, label='Cédula de Identidad')
+    
+    # Roles Secundarios (Se definen como BooleanField para los Checkboxes)
+    es_admin_basura = forms.BooleanField(required=False, label='Administrador de Basura')
+    es_admin_clap = forms.BooleanField(required=False, label='Administrador de CLAP')
+    es_admin_bombonas = forms.BooleanField(required=False, label='Administrador de Bombonas')
+
+    class Meta:
+        model = CustomUser
+        # Incluimos TODOS los campos que un administrador puede editar
+        fields = [
+            'username', 'email', 'cedula', 
+            'first_name', 'last_name', 'apartamento', 'tower', 'rol',
+            'is_active', 'is_staff', 'is_superuser', # Permisos avanzados de Django
+            'es_admin_basura', 'es_admin_clap', 'es_admin_bombonas'
+        ]
+        
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    # LÓGICA DE VALIDACIÓN CRÍTICA: Limitar Líderes Generales a 2
+    def clean_rol(self):
+        rol = self.cleaned_data.get('rol')
+        ROL_LIDER_GENERAL = CustomUser.ROL_LIDER_GENERAL 
+        
+        # Validar si el rol es Líder General y si el rol está cambiando
+        if rol == ROL_LIDER_GENERAL:
+            if self.instance.pk is None or self.instance.rol != ROL_LIDER_GENERAL:
+                
+                # Contamos a todos los líderes, excluyendo la instancia actual (para ediciones)
+                conteo_lideres = CustomUser.objects.filter(rol=ROL_LIDER_GENERAL).exclude(pk=self.instance.pk).count()
+                
+                if conteo_lideres >= 2:
+                    raise ValidationError("Ya existe el número máximo de 2 Líderes Generales permitidos. Por favor, selecciona otro rol.")
+        
+        return rol
+
+
+    def save(self, commit=True):
+        """Asegura el guardado correcto de permisos y roles secundarios."""
+        user = super().save(commit=False)
+        
+        # 1. Guardar los datos de los Checkboxes de Roles Secundarios
+        user.es_admin_basura = self.cleaned_data.get('es_admin_basura', user.es_admin_basura)
+        user.es_admin_clap = self.cleaned_data.get('es_admin_clap', user.es_admin_clap)
+        user.es_admin_bombonas = self.cleaned_data.get('es_admin_bombonas', user.es_admin_bombonas)
+        
+        # 2. Asignar is_staff automáticamente al ser Líder General
+        user.is_staff = (user.rol == user.ROL_LIDER_GENERAL)
+
+        if commit:
+            user.save()
+        return user

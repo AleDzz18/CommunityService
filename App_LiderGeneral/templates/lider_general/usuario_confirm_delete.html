@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+
+{% block title %}Confirmar Eliminación{% endblock %}
+
+{% block content %}
+<div class="card p-4 shadow mx-auto" style="max-width: 600px;">
+    <h2>Confirmar Eliminación</h2>
+    <hr>
+    
+    <div class="alert alert-warning" role="alert">
+        <h4 class="alert-heading">¡Advertencia!</h4>
+        <p>Estás a punto de eliminar al usuario **{{ usuario.username }}** (`{{ usuario.get_rol_display }}`). Esta acción es **irreversible**.</p>
+    </div>
+    
+    <p>¿Estás seguro de que deseas eliminar a **{{ usuario.first_name }} {{ usuario.last_name }}**?</p>
+    
+    <form method="post" style="display: inline;">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-danger me-2">
+            <i class="fas fa-trash"></i> Confirmar Eliminación
+        </button>
+    </form>
+    
+    <a href="{% url 'lider_general:lista_usuarios' %}" class="btn btn-secondary">
+        <i class="fas fa-times"></i> Cancelar
+    </a>
+</div>
+{% endblock %}

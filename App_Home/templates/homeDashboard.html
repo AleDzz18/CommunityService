@@ -9,10 +9,10 @@
         {% if request.user.is_authenticated %}
             <p class="user-info">
                 Bienvenido, **{{ request.user.username }}** | 
-                {% if request.user.rol == 3 %}
+                {% if request.user.rol == 'LDG' %}
                     **Rol: Líder General**
-                {% elif request.user.rol == 2 and request.user.torre %}
-                    **Líder de la Torre {{ request.user.torre.nombre }}**
+                {% elif request.user.rol == 'LDT' and request.user.tower %}
+                    **Líder de la Torre {{ request.user.tower.nombre }}**
                 {% else %}\
                     **Líder (Pendiente de Asignación)**
                 {% endif %}
