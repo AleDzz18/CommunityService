@@ -36,6 +36,28 @@ Directory structure:
     │       │   └── listado_movimientos.html
     │       └── layouts/
     │           └── base.html
+    ├── App_LiderGeneral/
+    │   ├── __init__.py
+    │   ├── admin.py
+    │   ├── apps.py
+    │   ├── forms.py
+    │   ├── models.py
+    │   ├── tests.py
+    │   ├── urls.py
+    │   ├── views.py
+    │   └── templates/
+    │       └── lider_general/
+    │           ├── lista_usuarios.html
+    │           ├── usuario_confirm_delete.html
+    │           └── usuario_form.html
+    ├── App_LiderTorre/
+    │   ├── __init__.py
+    │   ├── admin.py
+    │   ├── apps.py
+    │   ├── models.py
+    │   ├── tests.py
+    │   ├── urls.py
+    │   └── views.py
     └── Community_Service/
         ├── __init__.py
         ├── asgi.py
@@ -92,26 +114,99 @@ FILE: App_Home/__init__.py
 ================================================
 FILE: App_Home/admin.py
 ================================================
+# App_Home/admin.py
+
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import CustomUser, Tower
+from django.db.models import Sum, F
+from django.utils.html import format_html
+from .models import CustomUser, Tower, MovimientoFinanciero
 
-# Register your models here.
 
-# PersonalizaciÃ³n del Administrador de Usuarios
+# Clase de administrador personalizada para CustomUser
 class AdministradorUsuario(UserAdmin):
-    # Campos adicionales para mostrar en la lista de usuarios
-    list_display = ('username', 'email', 'first_name', 'last_name', 'is_staff', 'rol', 'torre')
+    # Campos que se mostrarÃ¡n en la lista de usuarios del Admin
+    list_display = (
+        'username', 'email', 'first_name', 'last_name', 'is_staff', 
+        'rol', 'tower', # <--- Â¡CORREGIDO! De 'torre' a 'tower'
+        'is_active', 'mostrar_roles_secundarios'
+    )
     
-    # Definir la secciÃ³n de campos adicionales en el formulario de detalle del usuario
+    # Campos que se podrÃ¡n editar/filtrar
+    list_filter = ('is_staff', 'is_active', 'rol', 'tower', 'es_admin_basura', 'es_admin_clap', 'es_admin_bombonas')
+    search_fields = ('username', 'first_name', 'last_name', 'email', 'cedula')
+    ordering = ('username',)
+
+    # Campos de roles secundarios combinados
+    def mostrar_roles_secundarios(self, obj):
+        roles = []
+        if obj.es_admin_basura:
+            roles.append("Basura")
+        if obj.es_admin_clap:
+            roles.append("CLAP")
+        if obj.es_admin_bombonas:
+            roles.append("Bombonas")
+        
+        if roles:
+            return format_html('<span style="color: blue;">{}</span>', ", ".join(roles))
+        return "-"
+    mostrar_roles_secundarios.short_description = 'Roles Secundarios'
+    
+    # DefiniciÃ³n de Fieldsets (cÃ³mo se agrupan los campos en la vista de ediciÃ³n)
     fieldsets = UserAdmin.fieldsets + (
-        # Nueva secciÃ³n en el formulario de ediciÃ³n de usuario para roles y permisos
-        ('Roles y AsignaciÃ³n', {'fields': ('rol', 'torre', 'es_admin_basura', 'es_admin_clap', 'es_admin_bombonas')}),
+        ('InformaciÃ³n Personal Adicional', {'fields': ('cedula', 'apartamento', 'tower')}),
+        ('Roles en la Comunidad', {'fields': ('rol', 'es_admin_basura', 'es_admin_clap', 'es_admin_bombonas')}),
     )
 
-# Registrar los modelos
+# ----------------------------------------------------
+# Administrador para el modelo Tower
+# ----------------------------------------------------
+class AdministradorTower(admin.ModelAdmin):
+    list_display = ('nombre', 'saldo_condominio', 'saldo_basura')
+    search_fields = ('nombre',)
+    ordering = ('nombre',)
+    
+    # AÃ±adir campos de saldo calculado
+    def saldo_condominio(self, obj):
+        return MovimientoFinanciero.calcular_saldo_condominio(tower=obj)
+    saldo_condominio.short_description = 'Saldo Condominio'
+
+    def saldo_basura(self, obj):
+        return MovimientoFinanciero.calcular_saldo_basura(tower=obj)
+    saldo_basura.short_description = 'Saldo Basura'
+    
+# ----------------------------------------------------
+# Administrador para MovimientoFinanciero
+# ----------------------------------------------------
+class AdministradorMovimientoFinanciero(admin.ModelAdmin):
+    list_display = ('fecha', 'descripcion', 'tipo', 'categoria', 'monto_total', 'tower', 'creado_por')
+    list_filter = ('tipo', 'categoria', 'tower', 'creado_por')
+    search_fields = ('descripcion',)
+    date_hierarchy = 'fecha'
+    ordering = ('-fecha',)
+    
+    # AÃ±adir una funciÃ³n para mostrar el monto total (suma de condominio y basura)
+    def monto_total(self, obj):
+        return obj.monto_condominio + obj.monto_basura
+    monto_total.short_description = 'Monto Total'
+    
+    # Personalizar el formulario de ediciÃ³n/creaciÃ³n
+    fieldsets = (
+        (None, {'fields': ('fecha', 'descripcion', 'tipo', 'categoria', 'tower', 'creado_por')}),
+        ('Montos', {'fields': ('monto_condominio', 'monto_basura')}),
+    )
+    
+    # Auto-llenar el campo 'creado_por' con el usuario actual
+    def save_model(self, request, obj, form, change):
+        if not change:
+            obj.creado_por = request.user
+        super().save_model(request, obj, form, change)
+
+
+# Registro de modelos en el administrador de Django
 admin.site.register(CustomUser, AdministradorUsuario)
-admin.site.register(Tower)
+admin.site.register(Tower, AdministradorTower)
+admin.site.register(MovimientoFinanciero, AdministradorMovimientoFinanciero)
 
 
 ================================================
@@ -129,18 +224,20 @@ class AppHomeConfig(AppConfig):
 ================================================
 FILE: App_Home/forms.py
 ================================================
-Error reading file with 'cp1252': 'charmap' codec can't decode byte 0x81 in position 2358: character maps to <undefined>
+Error reading file with 'cp1252': 'charmap' codec can't decode byte 0x81 in position 2667: character maps to <undefined>
 
 
 ================================================
 FILE: App_Home/models.py
 ================================================
+# App_Home/models.py
+
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.db.models.signals import post_migrate
 from django.dispatch import receiver
-
-# Create your models here.
+from django.db.models import Sum # Necesario para la funciÃ³n de saldo
+from django.db.utils import OperationalError # ImportaciÃ³n clave para manejar el error
 
 # Modelo para las 24 Torres
 class Tower(models.Model):
@@ -171,61 +268,67 @@ class MovimientoFinanciero(models.Model):
     descripcion = models.CharField(max_length=255, verbose_name='DescripciÃ³n')
     
     # Campos separados para mejor manejo en consultas
-    ingreso = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name='Monto Ingreso')
-    egreso = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name='Monto Egreso')
+    monto_condominio = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name='Monto Condominio')
+    monto_basura = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name='Monto Basura')
     
-    tipo = models.CharField(max_length=3, choices=TIPOS, verbose_name='Tipo')
+    tipo = models.CharField(max_length=3, choices=TIPOS, verbose_name='Tipo de Movimiento')
     categoria = models.CharField(max_length=3, choices=CATEGORIAS, verbose_name='CategorÃ­a')
     
-    # RelaciÃ³n con la Torre (Puede ser NULL si es un movimiento general, ej. Egreso de Basura Global)
-    torre = models.ForeignKey(Tower, on_delete=models.SET_NULL, null=True, blank=True, verbose_name='Torre Asociada')
+    # RelaciÃ³n con la Torre (Si es un ingreso/egreso de una torre especÃ­fica)
+    tower = models.ForeignKey(Tower, on_delete=models.CASCADE, null=True, blank=True, verbose_name='Torre Asociada')
     
-    # Campo para registrar quÃ© usuario (LÃ­der) lo creÃ³ (serÃ¡ Ãºtil en fases posteriores)
-    # creador = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, blank=True, verbose_name='Registrado por')
+    creado_por = models.ForeignKey('CustomUser', on_delete=models.SET_NULL, null=True, blank=True, verbose_name='Registrado por')
+
+    def __str__(self):
+        return f"{self.get_tipo_display()} - {self.get_categoria_display()} ({self.fecha})"
     
     class Meta:
         verbose_name = "Movimiento Financiero"
         verbose_name_plural = "Movimientos Financieros"
-        ordering = ['fecha', 'id'] # Ordenar por fecha y luego por ID para mantener el orden de registro
+        ordering = ['-fecha', '-id']
 
-    def __str__(self):
-        return f"[{self.get_categoria_display()}] {self.get_tipo_display()} - {self.descripcion} ({self.fecha})"
-# --------------------------------------------------------
+    @staticmethod
+    def calcular_saldo_condominio(tower=None):
+        """Calcula el saldo total de Condominio, opcionalmente filtrado por Torre."""
+        qs = MovimientoFinanciero.objects.filter(categoria='CON')
+        if tower:
+            qs = qs.filter(tower=tower)
 
-# Modelo de Usuario Personalizado para manejar los roles
+        ingresos = qs.filter(tipo='ING').aggregate(total=Sum('monto_condominio'))['total'] or 0
+        egresos = qs.filter(tipo='EGR').aggregate(total=Sum('monto_condominio'))['total'] or 0
+        return ingresos - egresos
+
+    @staticmethod
+    def calcular_saldo_basura(tower=None):
+        """Calcula el saldo total de Basura, opcionalmente filtrado por Torre."""
+        qs = MovimientoFinanciero.objects.filter(categoria='BAS')
+        if tower:
+            qs = qs.filter(tower=tower)
+
+        ingresos = qs.filter(tipo='ING').aggregate(total=Sum('monto_basura'))['total'] or 0
+        egresos = qs.filter(tipo='EGR').aggregate(total=Sum('monto_basura'))['total'] or 0
+        return ingresos - egresos
+
+
+# --- MODELO PRINCIPAL: USUARIO PERSONALIZADO ---
 class CustomUser(AbstractUser):
-    # DefiniciÃ³n de Roles Primarios
-    # NOTA: Los Usuarios BÃ¡sicos (espectadores) NO estÃ¡n registrados.
-    ROL_LIDER_TORRE = 2
-    ROL_LIDER_GENERAL = 3
-
-    OPCIONES_ROLES = (
+    
+    # OPCIONES DE ROL
+    ROL_LIDER_TORRE = 'LDT'
+    ROL_LIDER_GENERAL = 'LDG'
+    
+    ROLES = [
         (ROL_LIDER_TORRE, 'LÃ­der de Torre'),
         (ROL_LIDER_GENERAL, 'LÃ­der General'),
-    )
+    ]
 
-    # Campo de Rol Primario
-    rol = models.PositiveSmallIntegerField(
-        choices=OPCIONES_ROLES, 
-        default=ROL_LIDER_TORRE, 
-        verbose_name='Rol Principal'
-    )
-
-    # AsignaciÃ³n de Torre (Para LÃ­deres)
-    torre = models.ForeignKey(
-        Tower, 
-        on_delete=models.SET_NULL, 
-        null=True, 
-        blank=True, 
-        verbose_name='Torre Asignada'
-    )
-
-    # Datos adicionales
+    # CAMPOS PERSONALIZADOS
     cedula = models.CharField(max_length=15, unique=True, null=True, blank=True, verbose_name='CÃ©dula de Identidad')
-    # Ejemplo de formato: T01-P1-A
-    apartamento = models.CharField(max_length=10, null=True, blank=True, verbose_name='UbicaciÃ³n de Apartamento')
+    rol = models.CharField(max_length=3, choices=ROLES, default=ROL_LIDER_TORRE, verbose_name='Rol en la Comunidad')
+    tower = models.ForeignKey(Tower, on_delete=models.SET_NULL, null=True, blank=True, verbose_name='Torre Asignada')
+    apartamento = models.CharField(max_length=10, null=True, blank=True, verbose_name='Apartamento (Ej: P1-A)')
 
-    # Roles Secundarios (Permisos)
+    # Campos de Roles Secundarios (Permisos)
     es_admin_basura = models.BooleanField(default=False, verbose_name='Administrador de Cuarto de Basura')
     es_admin_clap = models.BooleanField(default=False, verbose_name='Administrador de Bolsas CLAP')
     es_admin_bombonas = models.BooleanField(default=False, verbose_name='Administrador de Bombonas')
@@ -237,28 +340,51 @@ class CustomUser(AbstractUser):
         verbose_name = "Usuario Personalizado"
         verbose_name_plural = "Usuarios Personalizados"
 
-# FunciÃ³n para inicializar las 24 torres (T01 a T24) automÃ¡ticamente
+# ----------------------------------------------------
+# SEÃ‘AL PARA CREAR TORRES INICIALES (CORREGIDA)
+# ----------------------------------------------------
 @receiver(post_migrate)
-def crear_torres_iniciales(sender, **kwargs):
+def crear_torres_iniciales(sender, apps, **kwargs): # AÃ±adimos 'apps' como argumento
     # Asegurarse de que el cÃ³digo se ejecute solo para esta aplicaciÃ³n
     if sender.name == 'App_Home':
         print("Verificando la creaciÃ³n de Torres iniciales (T01 a T24)...")
         
-        # Generar los nombres de las 24 torres (T01, T02, ..., T24)
+        # Obtenemos el modelo de Tower del estado actual de la BD
+        try:
+            Tower = apps.get_model('App_Home', 'Tower')
+        except LookupError:
+            return
+
+        # Generar los nombres de las 24 torres (T01 a T24)
         nombres_torres = [f"T{i:02d}" for i in range(1, 25)]
         
-        torres_existentes = Tower.objects.values_list('nombre', flat=True)
-        torres_a_crear = []
+        try:
+            # LÃ³gica de creaciÃ³n de torres, envuelta en try-except
+            torres_existentes = Tower.objects.values_list('nombre', flat=True)
+            torres_a_crear = []
+            
+            for nombre in nombres_torres:
+                if nombre not in torres_existentes:
+                    torres_a_crear.append(Tower(nombre=nombre))
+            
+            if torres_a_crear:
+                Tower.objects.bulk_create(torres_a_crear)
+                print(f"Se crearon {len(torres_a_crear)} torres faltantes.")
+            else:
+                print("Todas las torres ya existen.")
         
-        for nombre in nombres_torres:
-            if nombre not in torres_existentes:
-                torres_a_crear.append(Tower(nombre=nombre))
-                
-        if torres_a_crear:
-            Tower.objects.bulk_create(torres_a_crear)
-            print(f"Se crearon {len(torres_a_crear)} torres nuevas.")
-        else:
-            print("Todas las torres (T01 a T24) ya existen.")
+        except OperationalError as e:
+            # Capturamos el error especÃ­fico de tabla no existente y salimos limpiamente
+            if 'no such table' in str(e):
+                print(f"ADVERTENCIA: La tabla 'App_Home_tower' aÃºn no existe. La creaciÃ³n de torres se pospone hasta que se complete la migraciÃ³n.")
+            else:
+                raise e # Re-lanzar cualquier otro error
+        except Exception as e:
+            # Capturamos otros posibles errores de Django
+            if 'no such table' in str(e):
+                print(f"ADVERTENCIA: La tabla 'App_Home_tower' aÃºn no existe. La creaciÃ³n de torres se pospone hasta que se complete la migraciÃ³n.")
+            else:
+                raise e
 
 
 ================================================
@@ -295,7 +421,280 @@ urlpatterns = [
 ================================================
 FILE: App_Home/views.py
 ================================================
-Error reading file with 'cp1252': 'charmap' codec can't decode byte 0x81 in position 6754: character maps to <undefined>
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth import authenticate, login as autenticar_login, logout
+from django.contrib.auth.forms import AuthenticationForm
+from django.contrib.auth.decorators import login_required 
+from django.contrib import messages
+from django.contrib.messages import get_messages
+from django.http import HttpResponse # Importación para manejar la respuesta de PDF
+from django.utils import timezone # Importación para manejar la fecha/hora actual
+# Importaciones para generar PDF (Reportlab)
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import letter
+
+from .forms import FormularioCreacionUsuario, FormularioPerfilUsuario 
+from .models import CustomUser, Tower, MovimientoFinanciero # Importación de los nuevos modelos
+
+def vista_dashboard(request):
+    """
+    Muestra la página principal o dashboard. Permite acceso a espectadores.
+    """
+    
+    # 🔑 LÓGICA CRÍTICA: REDIRECCIÓN FORZOSA A COMPLETAR PERFIL
+    if request.user.is_authenticated:
+        usuario = request.user
+        
+        # Utilizamos la Cédula (cedula) como el indicador principal de Perfil Incompleto.
+        # Si está logueado y NO tiene cédula, lo enviamos a completar perfil.
+        # Se usa getattr para seguridad en caso de que el campo no exista o sea None.
+        if not getattr(usuario, 'cedula', None):
+            messages.warning(request, "Debe completar su perfil para acceder al sistema.")
+            return redirect('url_completar_perfil', user_id=usuario.id)
+            
+    # -------------------------------------------------------------------
+    
+    contexto = {
+        'usuario_autenticado': request.user.is_authenticated,
+        'rol_usuario': getattr(request.user, 'rol', None) if request.user.is_authenticated else None,
+        'torre_asignada': getattr(request.user, 'torre', None) if request.user.is_authenticated else None,
+    }
+    return render(request, 'homeDashboard.html', contexto)
+
+@login_required 
+def vista_logout(request):
+    """
+    Cierra la sesión del usuario y redirige al dashboard en modo espectador.
+    """
+    logout(request)
+    return redirect('url_dashboard') 
+
+def vista_login(request):
+    """Maneja la autenticación del usuario."""
+    
+    # Si el usuario ya está autenticado, simplemente se redirige.
+    if request.user.is_authenticated:
+        return redirect('url_dashboard')
+    
+    if request.method == 'POST':
+        formulario = AuthenticationForm(request, data=request.POST)
+        if formulario.is_valid():
+            username = formulario.cleaned_data.get('username')
+            password = formulario.cleaned_data.get('password')
+            usuario = authenticate(username=username, password=password)
+            if usuario is not None:
+                # 🔑 MODIFICACIÓN AQUÍ: Usar 'cedula' para forzar la redirección a completar perfil, 
+                # en lugar de 'is_active', si el login fue exitoso.
+                if not getattr(usuario, 'cedula', None):
+                    messages.warning(request, 'Su perfil está incompleto. Por favor, complete sus datos.')
+                    return redirect('url_completar_perfil', user_id=usuario.id)
+                
+                # Si todo está completo, inicia sesión y redirige al dashboard
+                autenticar_login(request, usuario)
+                return redirect('url_dashboard') 
+            else:
+                messages.error(request, 'Nombre de usuario o contraseña incorrectos.')
+        else:
+            messages.error(request, 'Error en la forma de autenticación.')
+    
+    formulario = AuthenticationForm()
+    
+    # Obtener mensajes existentes para mostrarlos
+    storage = get_messages(request)
+    
+    return render(request, 'login.html', {'formulario': formulario, 'messages': storage})
+
+def vista_registro(request):
+    """Maneja la creación de nuevos usuarios."""
+    if request.user.is_authenticated:
+        return redirect('url_dashboard')
+
+    if request.method == 'POST':
+        formulario = FormularioCreacionUsuario(request.POST)
+        if formulario.is_valid():
+            usuario = formulario.save(commit=False)
+            
+            # ❌ LÍNEA ELIMINADA: usuario.is_active = False 
+            # El usuario DEBE estar activo (True) para que autenticar_login funcione.
+            # Por defecto, Django lo guarda como is_active=True.
+            usuario.save() 
+            
+            # 🔑 PASO CRÍTICO: Iniciar sesión y redirigir al perfil.
+            autenticar_login(request, usuario) 
+            
+            messages.success(request, f'Cuenta creada exitosamente para {usuario.username}. Por favor, complete su perfil.')
+            
+            # Redirigir directamente al perfil para evitar el bucle inicial del dashboard.
+            return redirect('url_completar_perfil', user_id=usuario.id) 
+        else:
+            # Mostrar errores de validación del formulario de registro
+            for field, errors in formulario.errors.items():
+                for error in errors:
+                    field_name = formulario.fields.get(field).label if field in formulario.fields and formulario.fields.get(field).label else field
+                    messages.error(request, f"Error en {field_name}: {error}")
+
+    formulario = FormularioCreacionUsuario()
+    return render(request, 'register.html', {'formulario': formulario})
+
+@login_required
+def vista_completar_perfil(request, user_id):
+    """
+    Permite a un nuevo usuario (Líder) completar sus datos de perfil (Torre, Cédula, etc.)
+    y activar su cuenta.
+    """
+    usuario = get_object_or_404(CustomUser, pk=user_id)
+    
+    # Asegurar que solo el propio usuario pueda completar su perfil
+    if request.user.id != usuario.id:
+        messages.error(request, 'No tiene permisos para editar el perfil de otro usuario.')
+        return redirect('url_dashboard')
+    
+    # 🔑 MODIFICACIÓN: Si el usuario tiene Cédula (perfil completo), lo redirigimos
+    if getattr(usuario, 'cedula', None):
+        messages.info(request, "Su perfil ya está completo.")
+        return redirect('url_dashboard')
+    
+    # ❌ LÍNEA ELIMINADA: Ya no verificamos if usuario.is_active, sino la cédula.
+
+    if request.method == 'POST':
+        formulario = FormularioPerfilUsuario(request.POST, instance=usuario)
+        if formulario.is_valid():
+            formulario.save()
+            
+            # NO ES NECESARIO SETEAR is_active=True NI HACER login de nuevo
+            # ya que el usuario siempre estuvo activo y logueado, solo que incompleto.
+            
+            messages.success(request, 'Perfil completado con éxito. ¡Bienvenido a la comunidad!')
+            return redirect('url_dashboard')
+        else:
+            messages.error(request, 'El formulario contiene errores. Por favor, corrígelos a continuación:')
+            
+            # Iterar sobre todos los errores del formulario (incluidos los globales bajo el key '__all__')
+            for field, errors in formulario.errors.items():
+                for error in errors:
+                    if field == '__all__':
+                        messages.error(request, f"{error}")
+                    else:
+                        field_name = formulario.fields.get(field).label if field in formulario.fields else field
+                        messages.error(request, f"Error en {field_name}: {error}")
+    
+    else:
+        formulario = FormularioPerfilUsuario(instance=usuario)
+        
+    return render(request, 'completar_perfil.html', {
+        'formulario': formulario, 
+        'usuario': usuario
+    })
+
+
+# ------------------------------------------------------------------
+# --- NUEVAS VISTAS: ADMINISTRACIÓN DE INGRESOS Y EGRESOS (USUARIO BÁSICO) ---
+# ------------------------------------------------------------------
+
+def ver_ingresos_egresos(request, categoria_slug):
+    """
+    Muestra la lista de movimientos financieros para Condominio o Cuarto de Basura.
+    Accesible por usuarios NO autenticados (Usuario Básico).
+    """
+    # 1. Definir la categoría y el título basados en el slug de la URL
+    if categoria_slug == 'condominio':
+        categoria_filtro = 'CON'
+        titulo = 'Administración de Ingresos y Egresos - Condominio'
+    elif categoria_slug == 'basura':
+        categoria_filtro = 'BAS'
+        titulo = 'Administración de Ingresos y Egresos - Cuarto de Basura'
+    else:
+        # Si la URL es inválida, se redirige al dashboard.
+        return redirect('url_dashboard') 
+
+    # 2. Obtener opciones de filtro (Todas las Torres)
+    torres = Tower.objects.all().order_by('nombre')
+    
+    # 3. Aplicar filtros iniciales y ordenar
+    movimientos_query = MovimientoFinanciero.objects.filter(categoria=categoria_filtro).order_by('fecha', 'id')
+
+    # Filtro por tipo (Ingreso, Egreso, Ambos)
+    tipo_filtro = request.GET.get('tipo', 'AMBOS')
+    if tipo_filtro == 'INGRESOS':
+        movimientos_query = movimientos_query.filter(tipo='ING')
+    elif tipo_filtro == 'EGRESOS':
+        movimientos_query = movimientos_query.filter(tipo='EGR')
+
+    # Filtro por torre 
+    torre_id = request.GET.get('torre')
+    if torre_id and torre_id.isdigit(): 
+        movimientos_query = movimientos_query.filter(torre__id=int(torre_id))
+        
+    # 4. Cálculo del Saldo Acumulado
+    movimientos_con_saldo = []
+    saldo_acumulado = 0
+    
+    for mov in movimientos_query:
+        # Sumar o restar al saldo acumulado
+        if mov.tipo == 'ING':
+            saldo_acumulado += mov.ingreso
+        elif mov.tipo == 'EGR': # EGR
+            saldo_acumulado -= mov.egreso
+            
+        # Preparar los datos para la plantilla
+        movimientos_con_saldo.append({
+            'fecha': mov.fecha,
+            'descripcion': mov.descripcion,
+            # Mostrar solo el monto en la columna correcta (None si no aplica o es cero)
+            'ingreso': mov.ingreso if mov.tipo == 'ING' and mov.ingreso > 0 else None, 
+            'egreso': mov.egreso if mov.tipo == 'EGR' and mov.egreso > 0 else None,
+            'torre': mov.torre.nombre if mov.torre else 'General', # Mostrar 'General' si no hay torre
+            'saldo': round(saldo_acumulado, 2), # Redondear a dos decimales
+        })
+        
+    context = {
+        'titulo': titulo,
+        'movimientos': movimientos_con_saldo,
+        'torres': torres,
+        'tipo_seleccionado': tipo_filtro,
+        'torre_seleccionada_id': torre_id,
+        'categoria_slug': categoria_slug, # Para el botón de descarga
+    }
+
+    return render(request, 'finanzas/listado_movimientos.html', context)
+
+
+def descargar_pdf(request, categoria_slug):
+    """
+    Genera y descarga el archivo PDF con la información financiera filtrada.
+    NOTA: Esta función es un esqueleto (placeholder). Necesitará la lógica
+    para generar la tabla de datos completa en Reportlab.
+    """
+    
+    # Aquí debería replicarse la lógica de filtrado de 'ver_ingresos_egresos' 
+    # para que el PDF refleje los filtros aplicados por el usuario.
+    
+    if categoria_slug == 'condominio':
+        titulo = 'Reporte Financiero - Condominio'
+    elif categoria_slug == 'basura':
+        titulo = 'Reporte Financiero - Cuarto de Basura'
+    else:
+        return redirect('url_dashboard') 
+        
+    response = HttpResponse(content_type='application/pdf')
+    # Añadir fecha al nombre del archivo
+    response['Content-Disposition'] = f'attachment; filename="Reporte_{categoria_slug}_{timezone.now().strftime("%Y%m%d")}.pdf"'
+
+    p = canvas.Canvas(response, pagesize=letter)
+    width, height = letter
+    
+    # Contenido Básico del PDF
+    p.setFont("Helvetica-Bold", 16)
+    p.drawString(50, height - 50, titulo)
+    
+    p.setFont("Helvetica", 12)
+    p.drawString(50, height - 70, f"Fecha de Generación: {timezone.now().strftime('%d/%m/%Y %H:%M')}")
+    p.drawString(50, height - 90, "¡IMPORTANTE! Los datos filtrados irán aquí.")
+    p.drawString(50, height - 110, "Lógica pendiente: Generación de la tabla de movimientos.")
+
+    p.showPage()
+    p.save()
+    return response
 
 
 ================================================
@@ -1621,9 +2020,9 @@ FILE: App_Home/templates/completar_perfil.html
                 {{ formulario.rol.errors }}
             </div>
             <div class="form-group">
-                {{ formulario.torre.label_tag }}
-                {{ formulario.torre }}
-                {{ formulario.torre.errors }}
+                {{ formulario.tower.label_tag }}
+                {{ formulario.tower }}
+                {{ formulario.tower.errors }}
             </div>
 
             <h2>Optar por Roles Secundarios (Opcional)</h2>
@@ -1661,10 +2060,10 @@ FILE: App_Home/templates/homeDashboard.html
         {% if request.user.is_authenticated %}
             <p class="user-info">
                 Bienvenido, **{{ request.user.username }}** | 
-                {% if request.user.rol == 3 %}
+                {% if request.user.rol == 'LDG' %}
                     **Rol: LÃ­der General**
-                {% elif request.user.rol == 2 and request.user.torre %}
-                    **LÃ­der de la Torre {{ request.user.torre.nombre }}**
+                {% elif request.user.rol == 'LDT' and request.user.tower %}
+                    **LÃ­der de la Torre {{ request.user.tower.nombre }}**
                 {% else %}\
                     **LÃ­der (Pendiente de AsignaciÃ³n)**
                 {% endif %}
@@ -1933,6 +2332,401 @@ FILE: App_Home/templates/layouts/base.html
 
 
 ================================================
+FILE: App_LiderGeneral/__init__.py
+================================================
+[Empty file]
+
+
+================================================
+FILE: App_LiderGeneral/admin.py
+================================================
+from django.contrib import admin
+
+# Register your models here.
+
+
+
+================================================
+FILE: App_LiderGeneral/apps.py
+================================================
+from django.apps import AppConfig
+
+
+class AppLidergeneralConfig(AppConfig):
+    default_auto_field = 'django.db.models.BigAutoField'
+    name = 'App_LiderGeneral'
+
+
+
+================================================
+FILE: App_LiderGeneral/forms.py
+================================================
+Error reading file with 'cp1252': 'charmap' codec can't decode byte 0x8d in position 1723: character maps to <undefined>
+
+
+================================================
+FILE: App_LiderGeneral/models.py
+================================================
+from django.db import models
+
+# Create your models here.
+
+
+
+================================================
+FILE: App_LiderGeneral/tests.py
+================================================
+from django.test import TestCase
+
+# Create your tests here.
+
+
+
+================================================
+FILE: App_LiderGeneral/urls.py
+================================================
+# App_LiderGeneral/urls.py
+
+from django.urls import path
+from . import views
+
+# Define un 'namespace' para evitar conflictos de nombres de rutas
+app_name = 'lider_general'
+
+urlpatterns = [
+    # 1. LISTADO DE USUARIOS (RUTA PRINCIPAL)
+    path('usuarios/', views.ListaUsuariosView.as_view(), name='lista_usuarios'),
+    
+    # 2. CREACIÃ“N DE USUARIOS
+    path('usuarios/crear/', views.CrearUsuarioView.as_view(), name='crear_usuario'),
+    
+    # 3. EDICIÃ“N DE USUARIOS
+    path('usuarios/editar/<int:pk>/', views.EditarUsuarioView.as_view(), name='editar_usuario'),
+    
+    # 4. ELIMINACIÃ“N DE USUARIOS
+    path('usuarios/eliminar/<int:pk>/', views.EliminarUsuarioView.as_view(), name='eliminar_usuario'),
+]
+
+
+================================================
+FILE: App_LiderGeneral/views.py
+================================================
+# App_LiderGeneral/views.py
+
+from django.contrib.auth.mixins import AccessMixin, LoginRequiredMixin
+from django.views.generic import ListView, CreateView, UpdateView, DeleteView
+from django.urls import reverse_lazy
+from App_Home.models import CustomUser
+from .forms import FormularioAdminUsuario
+from django.shortcuts import redirect
+from django.contrib import messages
+from django.contrib.auth import get_user_model
+
+# Create your views here.
+
+# ******************************************************************
+# MIXIN DE AUTORIZACIÃ“N: Restringe el acceso solo a LÃ­deres Generales
+# ******************************************************************
+class LiderGeneralRequiredMixin(AccessMixin):
+    """Verifica que el usuario actual tenga el rol de Lider General."""
+    def dispatch(self, request, *args, **kwargs):
+        # Aseguramos que el usuario estÃ© autenticado
+        if not request.user.is_authenticated:
+            return self.handle_no_permission()
+        
+        # Usamos la constante del modelo para la comparaciÃ³n
+        if request.user.rol != CustomUser.ROL_LIDER_GENERAL:
+            messages.error(request, "No tienes permiso para acceder a esta secciÃ³n administrativa.")
+            # Redirigir al dashboard si no tiene el rol
+            return redirect('homeDashboard') 
+            
+        return super().dispatch(request, *args, **kwargs)
+
+# ******************************************************************
+# 1. LISTADO DE USUARIOS (READ)
+# ******************************************************************
+class ListaUsuariosView(LoginRequiredMixin, LiderGeneralRequiredMixin, ListView):
+    model = CustomUser
+    template_name = 'lider_general/lista_usuarios.html' 
+    context_object_name = 'usuarios'
+    ordering = ['username'] 
+
+# ******************************************************************
+# 2. CREACIÃ“N DE USUARIOS (CREATE)
+# Nota: La creaciÃ³n de usuarios por aquÃ­ requiere asignar una contraseÃ±a.
+# Si prefieres que se registren por App_Home, puedes omitir esta vista.
+# AquÃ­ se usa un modelo simple sin manejo de contraseÃ±a.
+# ******************************************************************
+class CrearUsuarioView(LoginRequiredMixin, LiderGeneralRequiredMixin, CreateView):
+    model = CustomUser
+    form_class = FormularioAdminUsuario 
+    template_name = 'lider_general/usuario_form.html'
+    success_url = reverse_lazy('lider_general:lista_usuarios')
+    
+    def form_valid(self, form):
+        # RecomendaciÃ³n: Si quieres crear el usuario con contraseÃ±a, 
+        # debes usar un formulario de creaciÃ³n de usuario adecuado (ej: UserCreationForm)
+        # o establecer una contraseÃ±a temporal hasheada aquÃ­.
+        messages.success(self.request, f"Usuario '{form.instance.username}' creado con Ã©xito.")
+        return super().form_valid(form)
+
+# ******************************************************************
+# 3. EDICIÃ“N DE USUARIOS (UPDATE)
+# ******************************************************************
+class EditarUsuarioView(LoginRequiredMixin, LiderGeneralRequiredMixin, UpdateView):
+    model = CustomUser
+    form_class = FormularioAdminUsuario 
+    template_name = 'lider_general/usuario_form.html'
+    success_url = reverse_lazy('lider_general:lista_usuarios')
+    
+    def form_valid(self, form):
+        messages.success(self.request, f"Usuario '{form.instance.username}' editado con Ã©xito.")
+        return super().form_valid(form)
+
+# ******************************************************************
+# 4. ELIMINACIÃ“N DE USUARIOS (DELETE)
+# ******************************************************************
+class EliminarUsuarioView(LoginRequiredMixin, LiderGeneralRequiredMixin, DeleteView):
+    model = CustomUser
+    template_name = 'lider_general/usuario_confirm_delete.html'
+    success_url = reverse_lazy('lider_general:lista_usuarios')
+    context_object_name = 'usuario'
+
+    def form_valid(self, form):
+        messages.success(self.request, f"Usuario '{self.object.username}' eliminado con Ã©xito.")
+        return super().form_valid(form)
+
+
+================================================
+FILE: App_LiderGeneral/templates/lider_general/lista_usuarios.html
+================================================
+{% extends 'base.html' %} {# AsegÃºrate de que tu 'base.html' sea correcto #}
+
+{% block title %}AdministraciÃ³n de Usuarios{% endblock %}
+
+{% block content %}
+<div class="card p-4 shadow">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>GestiÃ³n de Usuarios</h2>
+        <a href="{% url 'lider_general:crear_usuario' %}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> Crear Nuevo Usuario
+        </a>
+    </div>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="table-responsive">
+        <table class="table table-striped table-hover">
+            <thead>
+                <tr>
+                    <th>Usuario</th>
+                    <th>Nombre Completo</th>
+                    <th>Rol Principal</th>
+                    <th>Torre</th>
+                    <th>Activo</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for usuario in usuarios %}
+                <tr>
+                    <td>{{ usuario.username }}</td>
+                    <td>{{ usuario.get_full_name|default:'N/A' }}</td>
+                    <td>{{ usuario.get_rol_display }}</td>
+                    <td>{{ usuario.tower.nombre|default:'N/A' }}</td>
+                    <td>
+                        {% if usuario.is_active %}
+                            <span class="badge bg-success">SÃ­</span>
+                        {% else %}
+                            <span class="badge bg-danger">No</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a href="{% url 'lider_general:editar_usuario' usuario.pk %}" class="btn btn-sm btn-info" title="Editar">
+                            <i class="fas fa-edit"></i>
+                        </a>
+                        <a href="{% url 'lider_general:eliminar_usuario' usuario.pk %}" class="btn btn-sm btn-danger" title="Eliminar">
+                            <i class="fas fa-trash"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="text-center">No hay usuarios registrados.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+
+================================================
+FILE: App_LiderGeneral/templates/lider_general/usuario_confirm_delete.html
+================================================
+{% extends 'base.html' %}
+
+{% block title %}Confirmar EliminaciÃ³n{% endblock %}
+
+{% block content %}
+<div class="card p-4 shadow mx-auto" style="max-width: 600px;">
+    <h2>Confirmar EliminaciÃ³n</h2>
+    <hr>
+    
+    <div class="alert alert-warning" role="alert">
+        <h4 class="alert-heading">Â¡Advertencia!</h4>
+        <p>EstÃ¡s a punto de eliminar al usuario **{{ usuario.username }}** (`{{ usuario.get_rol_display }}`). Esta acciÃ³n es **irreversible**.</p>
+    </div>
+    
+    <p>Â¿EstÃ¡s seguro de que deseas eliminar a **{{ usuario.first_name }} {{ usuario.last_name }}**?</p>
+    
+    <form method="post" style="display: inline;">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-danger me-2">
+            <i class="fas fa-trash"></i> Confirmar EliminaciÃ³n
+        </button>
+    </form>
+    
+    <a href="{% url 'lider_general:lista_usuarios' %}" class="btn btn-secondary">
+        <i class="fas fa-times"></i> Cancelar
+    </a>
+</div>
+{% endblock %}
+
+
+================================================
+FILE: App_LiderGeneral/templates/lider_general/usuario_form.html
+================================================
+{% extends 'base.html' %}
+
+{% block title %}
+    {% if form.instance.pk %}Editar Usuario: {{ form.instance.username }}{% else %}Crear Nuevo Usuario{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="card p-4 shadow mx-auto" style="max-width: 800px;">
+    <h2>
+        {% if form.instance.pk %}Editar Usuario: {{ form.instance.username }}{% else %}Crear Nuevo Usuario{% endif %}
+    </h2>
+    <hr>
+    
+    <form method="post">
+        {% csrf_token %}
+
+        {% if form.non_field_errors %}
+            <div class="alert alert-danger">
+                {% for error in form.non_field_errors %}
+                    <p>{{ error }}</p>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        {# Grid de 2 columnas para los campos #}
+        <div class="row g-3">
+            {% for field in form %}
+            <div class="col-md-6">
+                <div class="form-group">
+                    <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+                    {{ field }}
+                    {% for error in field.errors %}
+                        <div class="text-danger small">{{ error }}</div>
+                    {% endfor %}
+                    {% if field.help_text %}
+                        <small class="form-text text-muted">{{ field.help_text }}</small>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="mt-4">
+            <button type="submit" class="btn btn-success me-2">
+                <i class="fas fa-save"></i> Guardar Cambios
+            </button>
+            <a href="{% url 'lider_general:lista_usuarios' %}" class="btn btn-secondary">
+                <i class="fas fa-times"></i> Cancelar
+            </a>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+
+================================================
+FILE: App_LiderTorre/__init__.py
+================================================
+[Empty file]
+
+
+================================================
+FILE: App_LiderTorre/admin.py
+================================================
+from django.contrib import admin
+
+# Register your models here.
+
+
+
+================================================
+FILE: App_LiderTorre/apps.py
+================================================
+from django.apps import AppConfig
+
+
+class AppLidertorreConfig(AppConfig):
+    default_auto_field = 'django.db.models.BigAutoField'
+    name = 'App_LiderTorre'
+
+
+
+================================================
+FILE: App_LiderTorre/models.py
+================================================
+from django.db import models
+
+# Create your models here.
+
+
+
+================================================
+FILE: App_LiderTorre/tests.py
+================================================
+from django.test import TestCase
+
+# Create your tests here.
+
+
+
+================================================
+FILE: App_LiderTorre/urls.py
+================================================
+# App_LiderTorre/urls.py
+
+from django.urls import path
+
+# Espacio de nombres para App_LiderTorre
+app_name = 'lider_torre'
+
+urlpatterns = [
+    # Las rutas de LÃ­der de Torre se agregarÃ¡n en la Fase II
+]
+
+
+================================================
+FILE: App_LiderTorre/views.py
+================================================
+from django.shortcuts import render
+
+# Create your views here.
+
+
+
+================================================
 FILE: Community_Service/__init__.py
 ================================================
 [Empty file]
@@ -1963,6 +2757,8 @@ application = get_asgi_application()
 ================================================
 FILE: Community_Service/settings.py
 ================================================
+# "Community_Service/settings.py" (Fragmento completo que incluye las configuraciones de autenticaciÃ³n)
+
 """
 Django settings for Community_Service project.
 
@@ -2003,6 +2799,9 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'App_Home',
+    'App_LiderTorre', # Asumo que ya la tienes instalada
+    'App_LiderGeneral', # Asumo que ya la tienes instalada
+    # ... otras apps si las tienes
 ]
 
 MIDDLEWARE = [
@@ -2020,10 +2819,11 @@ ROOT_URLCONF = 'Community_Service.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR / 'templates'],
+        'DIRS': [BASE_DIR / 'templates'], # Asumo que tienes una carpeta de templates global
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
+                'django.template.context_processors.debug',
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
@@ -2068,9 +2868,8 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
-
-TIME_ZONE = 'UTC'
+LANGUAGE_CODE = 'es-ve' # Establecido a Venezuela por contexto
+TIME_ZONE = 'America/Caracas' # Establecido a Caracas por contexto
 
 USE_I18N = True
 
@@ -2091,12 +2890,17 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # CONFIGURACIÃ“N DE AUTENTICACIÃ“N PERSONALIZADA
 # ----------------------------------------------------
 
-# Usar el modelo de usuario personalizado de App_Home
+# El modelo de usuario personalizado que se usa en el proyecto
 AUTH_USER_MODEL = 'App_Home.CustomUser'
 
-# URLs de RedirecciÃ³n (Usamos los nombres de URL definidos en App_Home/urls.py)
-LOGIN_REDIRECT_URL = 'url_dashboard'  # Redirige despuÃ©s de iniciar sesiÃ³n
-LOGOUT_REDIRECT_URL = 'url_login'     # Redirige despuÃ©s de cerrar sesiÃ³n
+# URL a la que se redirige cuando se requiere inicio de sesiÃ³n (debe ser la misma que tu path en urls.py)
+LOGIN_URL = '/login/' # <--- Â¡CORRECCIÃ“N!
+
+# URL a la que se redirige a los usuarios despuÃ©s de iniciar sesiÃ³n con Ã©xito
+LOGIN_REDIRECT_URL = '/' 
+
+# URL a la que se redirige a los usuarios despuÃ©s de cerrar sesiÃ³n (puedes ajustarla)
+LOGOUT_REDIRECT_URL = '/login/'
 
 
 ================================================
@@ -2124,6 +2928,8 @@ from django.urls import include, path
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', include('App_Home.urls')),
+    path('lider/', include('App_LiderTorre.urls')),
+    path('general/', include('App_LiderGeneral.urls')),
 ]
 
 
