@@ -19,8 +19,31 @@ class Tower(models.Model):
         verbose_name_plural = "Torres"
         ordering = ['nombre'] # Ordenar alfabéticamente
 
+class MovimientoFinancieroManager(models.Manager):
+    def calcular_saldo_torre(self, tower, categoria):
+        """Calcula el saldo actual para una torre y categoría específica."""
+        
+        # Determina el campo de monto a usar basado en la categoría
+        monto_field = 'monto_condominio' if categoria == 'CON' else 'monto_basura'
+        
+        # Filtra por torre y categoría
+        qs = self.filter(
+            tower=tower, 
+            categoria=categoria
+        )
+
+        # Suma los ingresos
+        ingresos = qs.filter(tipo='ING').aggregate(total=Sum(monto_field))['total'] or 0.0
+        
+        # Suma los egresos
+        egresos = qs.filter(tipo='EGR').aggregate(total=Sum(monto_field))['total'] or 0.0
+
+        return ingresos - egresos
+
 # --- MODELO AÑADIDO: MOVIMIENTO FINANCIERO ---
 class MovimientoFinanciero(models.Model):
+
+    objects = MovimientoFinancieroManager()  # Asignar el Manager personalizado
     # Opciones de Categoría: Condominio General o Cuarto de Basura
     CATEGORIAS = [
         ('CON', 'Condominio'),

@@ -2,7 +2,7 @@
 {% load static %}
 
 {% block content %}
-    <div class="container mt-5">
+    <div class="dashboard-container">
         <h2 class="mb-4">{{ titulo }}</h2>
 
         <form method="GET" class="row g-3 mb-4" action="{% url 'ver_finanzas' categoria_slug=categoria_slug %}">
@@ -63,5 +63,50 @@
                 No se encontraron movimientos financieros con los filtros aplicados.
             </div>
         {% endif %}
+        {# --- BLOQUE DE BOTONES DE ACCIÓN (SOLO LDT/LDG) --- #}
+        {% if request.user.is_authenticated and request.user.rol == 'LDT' or request.user.is_authenticated and request.user.rol == 'LDG' %}
+            
+            <div class="action-buttons-container">
+                <h3 class="action-buttons-title">
+                    <i class="fas fa-screwdriver-wrench"></i> 
+                    Acciones de Administración ({{ request.user.tower.nombre|default:'Sin Torre' }})
+                </h3>
+                
+                <div class="action-buttons-grid">
+                    
+                    {% comment %} Lógica para Condominio (categoria_slug='condominio') {% endcomment %}
+                    {% if categoria_slug == 'condominio' %}
+                        <a href="{% url 'lider_torre:ingresar_condominio' %}" class="action-button btn-ingreso">
+                            <i class="fas fa-plus-circle"></i>
+                            Registrar Ingreso de Condominio
+                        </a>
+                        
+                        <a href="{% url 'lider_torre:egresar_condominio' %}" class="action-button btn-egreso">
+                            <i class="fas fa-minus-circle"></i>
+                            Registrar Egreso de Condominio
+                        </a>
+                        
+                    {% comment %} Lógica para Cuarto de Basura (categoria_slug='basura') {% endcomment %}
+                    {% elif categoria_slug == 'basura' %}
+                        <a href="{% url 'lider_torre:ingresar_basura' %}" class="action-button btn-ingreso">
+                            <i class="fas fa-plus-circle"></i>
+                            Registrar Ingreso Cuarto de Basura
+                        </a>
+                        
+                        {# El egreso de basura se restringe al Lider General (LDG) o a un proceso especial, lo desactivamos para LDT #}
+                        <a href="#" class="action-button btn-egreso btn-disabled" title="Esta acción requiere permiso de Líder General.">
+                            <i class="fas fa-minus-circle"></i>
+                            Registrar Egreso Cuarto de Basura
+                        </a>
+                        
+                    {% else %}
+                        <p class="text-warning small">Selecciona una categoría para ver las acciones disponibles.</p>
+                    {% endif %}
+
+                </div>
+            </div>
+            
+        {% endif %}
+        {# --- FIN BLOQUE DE BOTONES DE ACCIÓN --- #}
     </div>
 {% endblock content %}
