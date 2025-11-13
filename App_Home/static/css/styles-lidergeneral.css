@@ -1,0 +1,199 @@
+/* App_Home/static/css/styles-lidergeneral.css */
+
+/* 1. Importar la paleta de colores Material Design Light */
+@import url('material-theme/light.css');
+
+/* 2. Contenedor General (Mismo estilo que el dashboard) */
+.user-container {
+    width: 100%;
+    max-width: 1200px;
+    padding: 20px;
+    background-color: var(--md-sys-color-surface); /* Blanco claro */
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    margin: 20px auto; /* Centrar el contenedor */
+}
+
+/* 3. Estilos de Tabla: Lista de Usuarios (lista_usuarios.html) */
+
+.table-responsive {
+    overflow-x: auto; /* Hace la tabla responsive en pantallas pequeñas */
+}
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+    font-size: 0.9em;
+}
+
+.table thead th {
+    background-color: var(--md-sys-color-primary);
+    color: var(--md-sys-color-on-primary); /* Texto blanco */
+    padding: 12px 15px;
+    text-align: left;
+    white-space: nowrap; /* Evita que los encabezados se envuelvan */
+}
+
+.table tbody tr:nth-child(even) {
+    background-color: var(--md-sys-color-surface-variant); /* Raya par */
+}
+
+.table tbody tr:hover {
+    background-color: var(--md-sys-color-secondary-container); /* Resaltar al pasar el mouse */
+}
+
+.table tbody td {
+    padding: 10px 15px;
+    border-bottom: 1px solid var(--md-sys-color-outline-variant);
+}
+
+/* Estilos para badges (Activo/Inactivo) */
+.badge {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.75em;
+    font-weight: 600;
+}
+.bg-success {
+    background-color: var(--md-sys-color-tertiary);
+    color: var(--md-sys-color-on-tertiary);
+}
+.bg-danger {
+    background-color: var(--md-sys-color-error);
+    color: var(--md-sys-color-on-error);
+}
+
+/* 4. Estilos de Formulario (usuario_form.html) */
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-label {
+    font-weight: 600;
+    color: var(--md-sys-color-on-surface);
+    display: block;
+    margin-bottom: 5px;
+}
+
+/* Estilo para inputs (Select, Text, etc.) */
+.form-group input:not([type="checkbox"]), 
+.form-group select,
+.form-group textarea {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid var(--md-sys-color-outline);
+    border-radius: 4px;
+    transition: border-color 0.3s;
+    background-color: var(--md-sys-color-surface);
+}
+
+.form-group input:focus, 
+.form-group select:focus,
+.form-group textarea:focus {
+    border-color: var(--md-sys-color-primary); /* Resaltar al enfocar */
+    outline: none;
+}
+
+/* Estilo de la grid responsiva (col-md-6) */
+.row.g-3 {
+    display: flex;
+    flex-wrap: wrap;
+    margin: -8px; /* Ajuste para el padding interno de col-md-6 */
+}
+.row.g-3 > .col-md-6 {
+    padding: 8px; /* Espaciado entre columnas */
+    flex: 0 0 100%; /* Por defecto 100% en móvil */
+    max-width: 100%;
+}
+@media (min-width: 768px) { /* Tablet y Desktop */
+    .row.g-3 > .col-md-6 {
+        flex: 0 0 50%; /* Dos columnas en desktop */
+        max-width: 50%;
+    }
+}
+
+/* 5. Estilos de Botones (Botones de acción en formularios/listas) */
+
+.btn {
+    padding: 10px 15px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 600;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    justify-content: center;
+}
+
+.btn-primary {
+    background-color: var(--md-sys-color-primary);
+    color: var(--md-sys-color-on-primary);
+}
+.btn-primary:hover {
+    background-color: var(--md-sys-color-primary-container);
+    color: var(--md-sys-color-on-primary-container);
+}
+
+.btn-success {
+    background-color: #388e3c; /* Tonalidad de éxito */
+    color: white;
+}
+.btn-success:hover {
+    background-color: #4caf50;
+}
+
+.btn-info {
+    background-color: var(--md-sys-color-secondary);
+    color: var(--md-sys-color-on-secondary);
+}
+.btn-info:hover {
+    background-color: var(--md-sys-color-secondary-container);
+    color: var(--md-sys-color-on-secondary-container);
+}
+
+.btn-danger {
+    background-color: var(--md-sys-color-error);
+    color: var(--md-sys-color-on-error);
+}
+.btn-danger:hover {
+    background-color: #cf6679; /* Tono de error más claro */
+}
+
+.btn-secondary {
+    background-color: var(--md-sys-color-outline);
+    color: var(--md-sys-color-on-surface);
+}
+.btn-secondary:hover {
+    background-color: var(--md-sys-color-surface-variant);
+}
+
+
+/* 6. Estilos de Alertas (usuario_confirm_delete.html y usuario_form.html) */
+
+.alert {
+    padding: 15px;
+    margin-bottom: 20px;
+    border: 1px solid transparent;
+    border-radius: 4px;
+}
+
+.alert-danger {
+    background-color: rgba(244, 67, 54, 0.1); /* Error claro */
+    color: var(--md-sys-color-error);
+    border-color: var(--md-sys-color-error);
+}
+
+.alert-warning {
+    background-color: rgba(255, 152, 0, 0.1); /* Advertencia claro */
+    color: #ff9800;
+    border-color: #ff9800;
+}
+
+.alert-heading {
+    font-weight: 700;
+    margin-bottom: 5px;
+}
