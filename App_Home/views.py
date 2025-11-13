@@ -177,18 +177,99 @@ def ver_ingresos_egresos(request, categoria_slug):
     if categoria_slug == 'condominio':
         categoria_filtro = 'CON'
         titulo = 'Administración de Ingresos y Egresos - Condominio'
+        monto_field = 'monto_condominio' # Campo de monto dinámico
     elif categoria_slug == 'basura':
         categoria_filtro = 'BAS'
         titulo = 'Administración de Ingresos y Egresos - Cuarto de Basura'
+        monto_field = 'monto_basura' # Campo de monto dinámico
     else:
         # Si la URL es inválida, se redirige al dashboard.
         return redirect('url_dashboard') 
+        
+    # =========================================================================
+    # LÓGICA DE MANEJO DE POST (REGISTRO DE MOVIMIENTO)
+    # Resuelve: 1. Saldo Negativo, 2. Restricción por Torre, 3. Registro/Redirección
+    # =========================================================================
+    if request.method == 'POST':
+        # 1. Validar y Obtener datos del formulario POST
+        try:
+            fecha = request.POST['fecha']
+            descripcion = request.POST['descripcion']
+            tipo = request.POST['tipo'] # 'ING' o 'EGR'
+            
+            # Asegurar que el monto es un número positivo
+            monto = float(request.POST['monto'])
+            if monto <= 0: 
+                raise ValueError("El monto debe ser una cantidad positiva.")
+                
+        except (KeyError, ValueError) as e:
+            # Mensaje de error mejorado para el formulario
+            messages.error(request, f'Error en los datos del movimiento. Verifique la fecha, descripción, tipo y monto. Detalle: {e}.')
+            return redirect('ver_finanzas', categoria_slug=categoria_slug)
+            
+        # 2. Restricción por Torre (Se mantiene la lógica)
+        if not request.user.is_authenticated or request.user.rol != 'LDT' or not request.user.tower:
+            messages.error(request, 'Operación denegada. Solo los Líderes de Torre asignados pueden registrar movimientos.')
+            return redirect('ver_finanzas', categoria_slug=categoria_slug)
+            
+        torre_asignada = request.user.tower
+        
+        # 3. **Prevenir Saldo Negativo (Problema 1 - REFORZADO)**
+        if tipo == 'EGR':
+            # Usa el Manager para calcular el saldo de la categoría correcta
+            saldo_actual = MovimientoFinanciero.objects.calcular_saldo_torre(
+                tower=torre_asignada, 
+                categoria=categoria_filtro
+            )
+            
+            # VALIDACIÓN CRÍTICA:
+            if saldo_actual - monto < 0:
+                messages.error(request, f'Operación denegada. Saldo insuficiente para este egreso. Saldo actual: Bs. {saldo_actual:.2f}')
+                return redirect('ver_finanzas', categoria_slug=categoria_slug) # Redirección a la página actual
+
+        # 4. Crear la instancia del Movimiento (aún sin guardar en DB)
+        movimiento = MovimientoFinanciero(
+            fecha=fecha,
+            descripcion=descripcion,
+            tipo=tipo,
+            categoria=categoria_filtro, 
+            creado_por=request.user,
+            tower=torre_asignada,
+        )
+        
+        # 5. **Asignar el Monto Correcto (Problema 2 - Registro de Basura)**
+        # Se asigna el monto al campo correspondiente a la categoría.
+        if categoria_filtro == 'CON':
+            movimiento.monto_condominio = monto
+            movimiento.monto_basura = 0.00 
+        else: # categoria_filtro == 'BAS'
+            movimiento.monto_basura = monto
+            movimiento.monto_condominio = 0.00 
+
+        # 6. Guardar la instancia (Una sola vez)
+        try:
+            movimiento.save() 
+            messages.success(request, f'Movimiento de {movimiento.get_tipo_display()} registrado con éxito en {movimiento.get_categoria_display()}.')
+        except Exception as e:
+            # Capturar cualquier error inesperado de DB o modelo
+            messages.error(request, f'Error inesperado al guardar el movimiento. Por favor, intente de nuevo. Detalle: {e}')
+        
+        # **Redirección Correcta (Problema 2 - Redirección)**
+        # Redirecciona a la página con el slug correcto ('condominio' o 'basura')
+        return redirect('ver_finanzas', categoria_slug=categoria_slug)
+
+
+    # =========================================================================
+    # LÓGICA DE MANEJO DE GET (LISTADO Y FILTROS)
+    # =========================================================================
 
     # 2. Obtener opciones de filtro (Todas las Torres)
     torres = Tower.objects.all().order_by('nombre')
     
     # 3. Aplicar filtros iniciales y ordenar
-    movimientos_query = MovimientoFinanciero.objects.filter(categoria=categoria_filtro).order_by('fecha', 'id')
+    # --- CORRECCIÓN 1: Usar select_related('tower') para optimizar la consulta y cargar el objeto 'tower' ---
+    # Nota: El código original usaba 'torre', lo ajusto a 'tower' para seguir la convención del modelo.
+    movimientos_query = MovimientoFinanciero.objects.filter(categoria=categoria_filtro).select_related('tower').order_by('fecha', 'id')
 
     # Filtro por tipo (Ingreso, Egreso, Ambos)
     tipo_filtro = request.GET.get('tipo', 'AMBOS')
@@ -200,27 +281,45 @@ def ver_ingresos_egresos(request, categoria_slug):
     # Filtro por torre 
     torre_id = request.GET.get('torre')
     if torre_id and torre_id.isdigit(): 
-        movimientos_query = movimientos_query.filter(torre__id=int(torre_id))
+        movimientos_query = movimientos_query.filter(tower__id=int(torre_id))
         
     # 4. Cálculo del Saldo Acumulado
     movimientos_con_saldo = []
     saldo_acumulado = 0
     
     for mov in movimientos_query:
+        # --- CORRECCIÓN 2 (Del turno anterior): Obtener el monto correcto del objeto ---
+        monto = getattr(mov, monto_field)
+        
+        # Inicializar ingreso/egreso para el diccionario final
+        ingreso_monto = None
+        egreso_monto = None
+
         # Sumar o restar al saldo acumulado
         if mov.tipo == 'ING':
-            saldo_acumulado += mov.ingreso
+            saldo_acumulado += monto
+            ingreso_monto = monto
         elif mov.tipo == 'EGR': # EGR
-            saldo_acumulado -= mov.egreso
+            saldo_acumulado -= monto
+            egreso_monto = monto
+            
+        # --- CORRECCIÓN 3: Manejar el AttributeError para 'tower' ---
+        # 1. Comprueba si el atributo 'tower' existe en el objeto (hasattr).
+        # 2. Si existe y tiene un valor (es decir, no es None), usa el nombre de la torre.
+        # 3. Si no existe o es None, usa 'General'.
+        if hasattr(mov, 'tower') and mov.tower:
+            nombre_torre = mov.tower.nombre
+        else:
+            nombre_torre = 'General'
             
         # Preparar los datos para la plantilla
         movimientos_con_saldo.append({
             'fecha': mov.fecha,
             'descripcion': mov.descripcion,
-            # Mostrar solo el monto en la columna correcta (None si no aplica o es cero)
-            'ingreso': mov.ingreso if mov.tipo == 'ING' and mov.ingreso > 0 else None, 
-            'egreso': mov.egreso if mov.tipo == 'EGR' and mov.egreso > 0 else None,
-            'torre': mov.torre.nombre if mov.torre else 'General', # Mostrar 'General' si no hay torre
+            # Mostrar solo el monto en la columna correcta 
+            'ingreso': ingreso_monto if ingreso_monto and ingreso_monto > 0 else None, 
+            'egreso': egreso_monto if egreso_monto and egreso_monto > 0 else None,
+            'torre': nombre_torre, # Usar la variable segura
             'saldo': round(saldo_acumulado, 2), # Redondear a dos decimales
         })
         
@@ -234,7 +333,6 @@ def ver_ingresos_egresos(request, categoria_slug):
     }
 
     return render(request, 'finanzas/listado_movimientos.html', context)
-
 
 def descargar_pdf(request, categoria_slug):
     """
