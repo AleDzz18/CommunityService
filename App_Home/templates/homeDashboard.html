@@ -50,10 +50,17 @@
             Carta de Residencia
         </a>
         
-        {% if request.user.is_authenticated and request.user.rol == 2 or request.user.is_authenticated and request.user.rol == 3 %}
+        {% if request.user.is_authenticated and request.user.rol == 'LDT' or request.user.is_authenticated and request.user.rol == 'LDG' %}
             <a href="#censo" class="boton-principal">
                 <i class="fas fa-users"></i>
                 Censo
+            </a>
+        {% endif %}
+
+        {% if request.user.is_authenticated and request.user.rol == 'LDG' %}
+            <a href="{% url 'lider_general:lista_usuarios' %}" class="boton-principal">
+                <i class="fas fa-user-cog"></i>
+                Gestión de Usuarios
             </a>
         {% endif %}
 
