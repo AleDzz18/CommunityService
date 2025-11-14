@@ -1,0 +1,53 @@
+{% extends 'layouts/base.html' %} 
+{% block navbar %} 
+{% load static %}
+
+<!-- Barra de Navegación -->
+<nav id="bottom-navbar">
+    
+    <a href="{% url 'url_dashboard' %}" class="nav-item" title="Inicio">
+        <span class="icon">🏠</span>
+        <span class="label">Inicio</span>
+    </a>
+    
+    <a href="{% url 'ver_finanzas' categoria_slug='condominio' %}" class="nav-item" title="Condominio">
+        <span class="icon">🏢</span>
+        <span class="label">Condominio</span>
+    </a>
+    
+    <a href="{% url 'ver_finanzas' categoria_slug='basura' %}" class="nav-item" title="Basura">
+        <span class="icon">🗑️</span>
+        <span class="label">Basura</span>
+    </a>
+
+    <a href="#" class="nav-item" title="CLAP">
+        <span class="icon">📦</span>
+        <span class="label">CLAP</span>
+    </a>
+
+    <a href="#" class="nav-item" title="Bombona">
+        <span class="icon">🔥</span>
+        <span class="label">Gas</span>
+    </a>
+
+    {% if request.user.is_authenticated and request.user.rol == 'LDT' or request.user.is_authenticated and request.user.rol == 'LDG' %}
+        <a href="#" class="nav-item" title="Censo">
+            <span class="icon">👥</span>
+            <span class="label">Censo</span>
+        </a>
+    {% endif %}
+
+    {% if request.user.is_authenticated and request.user.rol == 'LDG' %}
+        <a href="{% url 'lider_general:lista_usuarios' %}" class="nav-item" title="Usuarios">
+            <span class="icon">👤</span>
+            <span class="label">Usuarios</span>
+        </a>
+    {% endif %}
+</nav>
+
+
+<!-- Contenedor principal del contenido de la página -->
+{% block main %} 
+{% endblock main %} 
+
+{% endblock navbar %}
