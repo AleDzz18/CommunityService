@@ -9,9 +9,9 @@ from django.utils import timezone # Importación para manejar la fecha/hora actu
 # Importaciones para generar PDF (Reportlab)
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
-
 from .forms import FormularioCreacionUsuario, FormularioPerfilUsuario 
 from .models import CustomUser, Tower, MovimientoFinanciero # Importación de los nuevos modelos
+from decimal import Decimal
 
 def vista_dashboard(request):
     """
@@ -196,6 +196,12 @@ def ver_ingresos_egresos(request, categoria_slug):
             fecha = request.POST['fecha']
             descripcion = request.POST['descripcion']
             tipo = request.POST['tipo'] # 'ING' o 'EGR'
+
+            # --- AGREGADO: Extraer Tasa BCV ---
+            tasa_bcv = Decimal(request.POST['tasa_bcv']) # Usar Decimal para precisión
+            if tasa_bcv <= 0:
+                raise ValueError("La Tasa BCV debe ser un valor positivo.")
+            # ----------------------------------
             
             # Asegurar que el monto es un número positivo
             monto = float(request.POST['monto'])
@@ -231,6 +237,7 @@ def ver_ingresos_egresos(request, categoria_slug):
         movimiento = MovimientoFinanciero(
             fecha=fecha,
             descripcion=descripcion,
+            tasa_bcv=tasa_bcv,
             tipo=tipo,
             categoria=categoria_filtro, 
             creado_por=request.user,
@@ -316,6 +323,7 @@ def ver_ingresos_egresos(request, categoria_slug):
         movimientos_con_saldo.append({
             'fecha': mov.fecha,
             'descripcion': mov.descripcion,
+            'tasa_bcv': mov.tasa_bcv,
             # Mostrar solo el monto en la columna correcta 
             'ingreso': ingreso_monto if ingreso_monto and ingreso_monto > 0 else None, 
             'egreso': egreso_monto if egreso_monto and egreso_monto > 0 else None,

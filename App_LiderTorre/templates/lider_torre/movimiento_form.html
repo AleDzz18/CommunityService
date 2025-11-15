@@ -45,9 +45,9 @@
                 {% endif %}
             {% endfor %}
 
-            {# Campo de Monto (Mitad de ancho en desktop) #}
+            {# Campo de Tasa BCV y Montos (Mitad de ancho en desktop) #}
             {% for field in form %}
-                {% if field.name != 'fecha' and field.name != 'descripcion' %}
+                {% if field.name == 'tasa_bcv' or field.name == 'monto_condominio' or field.name == 'monto_basura' %}
                     <div class="col-md-6">
                         <div class="form-group">
                             <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>

@@ -6,6 +6,7 @@ from django.db.models.signals import post_migrate
 from django.dispatch import receiver
 from django.db.models import Sum # Necesario para la función de saldo
 from django.db.utils import OperationalError # Importación clave para manejar el error
+from decimal import Decimal
 
 # Modelo para las 24 Torres
 class Tower(models.Model):
@@ -33,10 +34,10 @@ class MovimientoFinancieroManager(models.Manager):
         )
 
         # Suma los ingresos
-        ingresos = qs.filter(tipo='ING').aggregate(total=Sum(monto_field))['total'] or 0.0
+        ingresos = qs.filter(tipo='ING').aggregate(total=Sum(monto_field))['total'] or Decimal('0.00')
         
         # Suma los egresos
-        egresos = qs.filter(tipo='EGR').aggregate(total=Sum(monto_field))['total'] or 0.0
+        egresos = qs.filter(tipo='EGR').aggregate(total=Sum(monto_field))['total'] or Decimal('0.00')
 
         return ingresos - egresos
 
@@ -58,6 +59,16 @@ class MovimientoFinanciero(models.Model):
     fecha = models.DateField(verbose_name='Fecha del Movimiento')
     descripcion = models.CharField(max_length=255, verbose_name='Descripción')
     
+    tasa_bcv = models.DecimalField(
+        max_digits=10, 
+        decimal_places=4, 
+        verbose_name='Tasa BCV (Bs/USD)',
+        # Se elimina null=True y blank=True para hacerlo obligatorio
+        null=False, 
+        blank=False,
+        help_text="Tasa de referencia del BCV del día en que se realizó el movimiento."
+    )
+
     # Campos separados para mejor manejo en consultas
     monto_condominio = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name='Monto Condominio')
     monto_basura = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name='Monto Basura')

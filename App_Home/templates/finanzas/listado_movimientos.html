@@ -37,6 +37,7 @@
                     <thead class="table-dark">
                         <tr>
                             <th>Fecha</th>
+                            <th>Tasa BCV</th>
                             <th>Descripción</th>
                             <th>Ingresos (Bs)</th>
                             <th>Egresos (Bs)</th>
@@ -48,6 +49,7 @@
                         {% for mov in movimientos %}
                             <tr>
                                 <td>{{ mov.fecha|date:"Y-m-d" }}</td>
+                                <td>{{ mov.tasa_bcv|floatformat:4 }}</td>
                                 <td>{{ mov.descripcion }}</td>
                                 <td class="text-success">{{ mov.ingreso|default_if_none:"" }}</td>
                                 <td class="text-danger">{{ mov.egreso|default_if_none:"" }}</td>

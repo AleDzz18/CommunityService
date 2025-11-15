@@ -8,6 +8,7 @@ from App_Home.models import MovimientoFinanciero, CustomUser
 from .mixins import LiderTorreRequiredMixin 
 from .forms import IngresoCondominioForm, EgresoCondominioForm, IngresoBasuraForm
 from django.shortcuts import redirect
+from decimal import Decimal
 
 # La plantilla del formulario será la misma para todos los tipos de movimiento
 TEMPLATE_NAME = 'lider_torre/movimiento_form.html'
@@ -45,8 +46,10 @@ class BaseMovimientoCreateView(LoginRequiredMixin, LiderTorreRequiredMixin, Crea
                 tower=form.instance.tower, 
                 categoria=form.instance.categoria
             )
+
+            monto_decimal = Decimal(monto)
             
-            if saldo_actual < monto:
+            if saldo_actual < monto_decimal:
                 messages.error(self.request, f"Operación denegada. Saldo insuficiente para el Egreso de {self.CATEGORIA_MOVIMIENTO}. Saldo disponible: Bs. {saldo_actual:.2f}")
                 # CRÍTICO: Detiene el guardado y retorna para mostrar el error en el formulario
                 return self.form_invalid(form) 
@@ -55,11 +58,11 @@ class BaseMovimientoCreateView(LoginRequiredMixin, LiderTorreRequiredMixin, Crea
         
         if self.MONTO_FIELD == 'monto_condominio':
             form.instance.monto_condominio = monto
-            form.instance.monto_basura = 0 
+            form.instance.monto_basura = Decimal(0.00) 
             
         elif self.MONTO_FIELD == 'monto_basura':
             form.instance.monto_basura = monto
-            form.instance.monto_condominio = 0 
+            form.instance.monto_condominio = Decimal(0.00) 
             
         response = super().form_valid(form)
         
