@@ -246,6 +246,7 @@ from django.db.models.signals import post_migrate
 from django.dispatch import receiver
 from django.db.models import Sum # Necesario para la funciÃ³n de saldo
 from django.db.utils import OperationalError # ImportaciÃ³n clave para manejar el error
+from decimal import Decimal
 
 # Modelo para las 24 Torres
 class Tower(models.Model):
@@ -273,10 +274,10 @@ class MovimientoFinancieroManager(models.Manager):
         )
 
         # Suma los ingresos
-        ingresos = qs.filter(tipo='ING').aggregate(total=Sum(monto_field))['total'] or 0.0
+        ingresos = qs.filter(tipo='ING').aggregate(total=Sum(monto_field))['total'] or Decimal('0.00')
         
         # Suma los egresos
-        egresos = qs.filter(tipo='EGR').aggregate(total=Sum(monto_field))['total'] or 0.0
+        egresos = qs.filter(tipo='EGR').aggregate(total=Sum(monto_field))['total'] or Decimal('0.00')
 
         return ingresos - egresos
 
@@ -298,6 +299,16 @@ class MovimientoFinanciero(models.Model):
     fecha = models.DateField(verbose_name='Fecha del Movimiento')
     descripcion = models.CharField(max_length=255, verbose_name='DescripciÃ³n')
     
+    tasa_bcv = models.DecimalField(
+        max_digits=10, 
+        decimal_places=4, 
+        verbose_name='Tasa BCV (Bs/USD)',
+        # Se elimina null=True y blank=True para hacerlo obligatorio
+        null=False, 
+        blank=False,
+        help_text="Tasa de referencia del BCV del dÃ­a en que se realizÃ³ el movimiento."
+    )
+
     # Campos separados para mejor manejo en consultas
     monto_condominio = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name='Monto Condominio')
     monto_basura = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name='Monto Basura')
@@ -463,9 +474,9 @@ from django.utils import timezone # Importación para manejar la fecha/hora actu
 # Importaciones para generar PDF (Reportlab)
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
-
 from .forms import FormularioCreacionUsuario, FormularioPerfilUsuario 
 from .models import CustomUser, Tower, MovimientoFinanciero # Importación de los nuevos modelos
+from decimal import Decimal
 
 def vista_dashboard(request):
     """
@@ -650,6 +661,12 @@ def ver_ingresos_egresos(request, categoria_slug):
             fecha = request.POST['fecha']
             descripcion = request.POST['descripcion']
             tipo = request.POST['tipo'] # 'ING' o 'EGR'
+
+            # --- AGREGADO: Extraer Tasa BCV ---
+            tasa_bcv = Decimal(request.POST['tasa_bcv']) # Usar Decimal para precisión
+            if tasa_bcv <= 0:
+                raise ValueError("La Tasa BCV debe ser un valor positivo.")
+            # ----------------------------------
             
             # Asegurar que el monto es un número positivo
             monto = float(request.POST['monto'])
@@ -685,6 +702,7 @@ def ver_ingresos_egresos(request, categoria_slug):
         movimiento = MovimientoFinanciero(
             fecha=fecha,
             descripcion=descripcion,
+            tasa_bcv=tasa_bcv,
             tipo=tipo,
             categoria=categoria_filtro, 
             creado_por=request.user,
@@ -770,6 +788,7 @@ def ver_ingresos_egresos(request, categoria_slug):
         movimientos_con_saldo.append({
             'fecha': mov.fecha,
             'descripcion': mov.descripcion,
+            'tasa_bcv': mov.tasa_bcv,
             # Mostrar solo el monto en la columna correcta 
             'ingreso': ingreso_monto if ingreso_monto and ingreso_monto > 0 else None, 
             'egreso': egreso_monto if egreso_monto and egreso_monto > 0 else None,
@@ -2691,6 +2710,7 @@ FILE: App_Home/templates/finanzas/listado_movimientos.html
                     <thead class="table-dark">
                         <tr>
                             <th>Fecha</th>
+                            <th>Tasa BCV</th>
                             <th>DescripciÃ³n</th>
                             <th>Ingresos (Bs)</th>
                             <th>Egresos (Bs)</th>
@@ -2702,6 +2722,7 @@ FILE: App_Home/templates/finanzas/listado_movimientos.html
                         {% for mov in movimientos %}
                             <tr>
                                 <td>{{ mov.fecha|date:"Y-m-d" }}</td>
+                                <td>{{ mov.tasa_bcv|floatformat:4 }}</td>
                                 <td>{{ mov.descripcion }}</td>
                                 <td class="text-success">{{ mov.ingreso|default_if_none:"" }}</td>
                                 <td class="text-danger">{{ mov.egreso|default_if_none:"" }}</td>
@@ -3242,12 +3263,22 @@ from App_Home.models import MovimientoFinanciero
 
 class MovimientoFormBase(forms.ModelForm):
     """Formulario base para Ingresos y Egresos. Solo muestra fecha y descripciÃ³n."""
+    # --- NUEVO CAMPO: Tasa BCV ---
+    # Lo definimos de forma explÃ­cita para controlar el widget, el step y la precisiÃ³n.
+    tasa_bcv = forms.DecimalField(
+        max_digits=10, 
+        decimal_places=4, 
+        min_value=0.0001, # La tasa debe ser un valor positivo
+        label='Tasa BCV (Bs/USD)',
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '0.0001', 'required': 'required'})
+    )
+    # -----------------------------
     class Meta:
         model = MovimientoFinanciero
         # Excluimos los campos que la vista auto-asignarÃ¡
         exclude = ('tipo', 'categoria', 'tower', 'creado_por', 'monto_basura', 'monto_condominio')
         
-        fields = ['fecha', 'descripcion'] 
+        fields = ['fecha', 'descripcion', 'tasa_bcv'] 
 
         widgets = {
             # Usamos la clase 'form-control' para aplicar los estilos de styles-lidergeneral.css
@@ -3274,7 +3305,7 @@ class IngresoCondominioForm(MovimientoFormBase):
 
     class Meta(MovimientoFormBase.Meta):
         # Campos a mostrar en el formulario de ingreso de condominio
-        fields = ['fecha', 'descripcion', 'monto_condominio'] 
+        fields = MovimientoFormBase.Meta.fields + ['monto_condominio']
 
 class EgresoCondominioForm(MovimientoFormBase):
     monto_condominio = forms.DecimalField(
@@ -3286,7 +3317,7 @@ class EgresoCondominioForm(MovimientoFormBase):
     )
 
     class Meta(MovimientoFormBase.Meta):
-        fields = ['fecha', 'descripcion', 'monto_condominio']
+        fields = MovimientoFormBase.Meta.fields + ['monto_condominio']
 
 # --- Formularios EspecÃ­ficos para Cuarto de Basura ---
 
@@ -3300,7 +3331,7 @@ class IngresoBasuraForm(MovimientoFormBase):
     )
 
     class Meta(MovimientoFormBase.Meta):
-        fields = ['fecha', 'descripcion', 'monto_basura']
+        fields = MovimientoFormBase.Meta.fields + ['monto_basura']
 
 
 ================================================
@@ -3380,7 +3411,7 @@ urlpatterns = [
 ================================================
 FILE: App_LiderTorre/views.py
 ================================================
-Error reading file with 'cp1252': 'charmap' codec can't decode byte 0x8d in position 1787: character maps to <undefined>
+Error reading file with 'cp1252': 'charmap' codec can't decode byte 0x8d in position 1816: character maps to <undefined>
 
 
 ================================================
@@ -3433,9 +3464,9 @@ FILE: App_LiderTorre/templates/lider_torre/movimiento_form.html
                 {% endif %}
             {% endfor %}
 
-            {# Campo de Monto (Mitad de ancho en desktop) #}
+            {# Campo de Tasa BCV y Montos (Mitad de ancho en desktop) #}
             {% for field in form %}
-                {% if field.name != 'fecha' and field.name != 'descripcion' %}
+                {% if field.name == 'tasa_bcv' or field.name == 'monto_condominio' or field.name == 'monto_basura' %}
                     <div class="col-md-6">
                         <div class="form-group">
                             <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
