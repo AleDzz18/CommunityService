@@ -6,12 +6,22 @@ from App_Home.models import MovimientoFinanciero
 
 class MovimientoFormBase(forms.ModelForm):
     """Formulario base para Ingresos y Egresos. Solo muestra fecha y descripción."""
+    # --- NUEVO CAMPO: Tasa BCV ---
+    # Lo definimos de forma explícita para controlar el widget, el step y la precisión.
+    tasa_bcv = forms.DecimalField(
+        max_digits=10, 
+        decimal_places=4, 
+        min_value=0.0001, # La tasa debe ser un valor positivo
+        label='Tasa BCV (Bs/USD)',
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '0.0001', 'required': 'required'})
+    )
+    # -----------------------------
     class Meta:
         model = MovimientoFinanciero
         # Excluimos los campos que la vista auto-asignará
         exclude = ('tipo', 'categoria', 'tower', 'creado_por', 'monto_basura', 'monto_condominio')
         
-        fields = ['fecha', 'descripcion'] 
+        fields = ['fecha', 'descripcion', 'tasa_bcv'] 
 
         widgets = {
             # Usamos la clase 'form-control' para aplicar los estilos de styles-lidergeneral.css
@@ -38,7 +48,7 @@ class IngresoCondominioForm(MovimientoFormBase):
 
     class Meta(MovimientoFormBase.Meta):
         # Campos a mostrar en el formulario de ingreso de condominio
-        fields = ['fecha', 'descripcion', 'monto_condominio'] 
+        fields = MovimientoFormBase.Meta.fields + ['monto_condominio']
 
 class EgresoCondominioForm(MovimientoFormBase):
     monto_condominio = forms.DecimalField(
@@ -50,7 +60,7 @@ class EgresoCondominioForm(MovimientoFormBase):
     )
 
     class Meta(MovimientoFormBase.Meta):
-        fields = ['fecha', 'descripcion', 'monto_condominio']
+        fields = MovimientoFormBase.Meta.fields + ['monto_condominio']
 
 # --- Formularios Específicos para Cuarto de Basura ---
 
@@ -64,4 +74,4 @@ class IngresoBasuraForm(MovimientoFormBase):
     )
 
     class Meta(MovimientoFormBase.Meta):
-        fields = ['fecha', 'descripcion', 'monto_basura']
+        fields = MovimientoFormBase.Meta.fields + ['monto_basura']

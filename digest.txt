@@ -18,6 +18,7 @@ Directory structure:
     │   │   │   ├── styles-lidergeneral.css
     │   │   │   ├── styles-listado.css
     │   │   │   ├── styles-login.css
+    │   │   │   ├── styles-navbar.css
     │   │   │   ├── styles-perfil.css
     │   │   │   └── material-theme/
     │   │   │       ├── dark-hc.css
@@ -36,7 +37,8 @@ Directory structure:
     │       ├── finanzas/
     │       │   └── listado_movimientos.html
     │       └── layouts/
-    │           └── base.html
+    │           ├── base.html
+    │           └── navbar.html
     ├── App_LiderGeneral/
     │   ├── __init__.py
     │   ├── admin.py
@@ -1731,6 +1733,12 @@ form {
 
 
 ================================================
+FILE: App_Home/static/css/styles-navbar.css
+================================================
+Error reading file with 'cp1252': 'charmap' codec can't decode byte 0x8d in position 1377: character maps to <undefined>
+
+
+================================================
 FILE: App_Home/static/css/styles-perfil.css
 ================================================
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap');
@@ -2644,7 +2652,7 @@ FILE: App_Home/templates/login.html
 ================================================
 FILE: App_Home/templates/finanzas/listado_movimientos.html
 ================================================
-{% extends "layouts/base.html" %}
+{% extends "layouts/navbar.html" %}
 {% load static %}
 
 {% block content %}
@@ -2771,6 +2779,8 @@ FILE: App_Home/templates/layouts/base.html
     <meta charset="UTF-8" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Estilos y Funciones asociados al Navbar -->
+    <link rel="stylesheet" href="{% static 'css/styles-navbar.css' %}" />
     <!-- Estilos y Funciones asociados al Login-->
     <link rel="stylesheet" href="{% static 'css/styles-login.css' %}" />
     <link rel="stylesheet" href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css">
@@ -2804,6 +2814,64 @@ FILE: App_Home/templates/layouts/base.html
 </body>
 
 </html>
+
+
+================================================
+FILE: App_Home/templates/layouts/navbar.html
+================================================
+{% extends 'layouts/base.html' %} 
+{% block navbar %} 
+{% load static %}
+
+<!-- Barra de Navegación -->
+<nav id="bottom-navbar">
+    
+    <a href="{% url 'url_dashboard' %}" class="nav-item" title="Inicio">
+        <span class="icon">🏠</span>
+        <span class="label">Inicio</span>
+    </a>
+    
+    <a href="{% url 'ver_finanzas' categoria_slug='condominio' %}" class="nav-item" title="Condominio">
+        <span class="icon">🏢</span>
+        <span class="label">Condominio</span>
+    </a>
+    
+    <a href="{% url 'ver_finanzas' categoria_slug='basura' %}" class="nav-item" title="Basura">
+        <span class="icon">🗑️</span>
+        <span class="label">Basura</span>
+    </a>
+
+    <a href="#" class="nav-item" title="CLAP">
+        <span class="icon">📦</span>
+        <span class="label">CLAP</span>
+    </a>
+
+    <a href="#" class="nav-item" title="Bombona">
+        <span class="icon">🔥</span>
+        <span class="label">Gas</span>
+    </a>
+
+    {% if request.user.is_authenticated and request.user.rol == 'LDT' or request.user.is_authenticated and request.user.rol == 'LDG' %}
+        <a href="#" class="nav-item" title="Censo">
+            <span class="icon">👥</span>
+            <span class="label">Censo</span>
+        </a>
+    {% endif %}
+
+    {% if request.user.is_authenticated and request.user.rol == 'LDG' %}
+        <a href="{% url 'lider_general:lista_usuarios' %}" class="nav-item" title="Usuarios">
+            <span class="icon">👤</span>
+            <span class="label">Usuarios</span>
+        </a>
+    {% endif %}
+</nav>
+
+
+<!-- Contenedor principal del contenido de la página -->
+{% block main %} 
+{% endblock main %} 
+
+{% endblock navbar %}
 
 
 ================================================
@@ -2975,7 +3043,7 @@ class EliminarUsuarioView(LoginRequiredMixin, LiderGeneralRequiredMixin, DeleteV
 ================================================
 FILE: App_LiderGeneral/templates/lider_general/lista_usuarios.html
 ================================================
-{% extends 'layouts/base.html' %}
+{% extends 'layouts/navbar.html' %}
 
 {% load static %}
 
