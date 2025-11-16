@@ -25,9 +25,41 @@
                 </select>
             </div>
 
-            <div class="col-md-4 d-flex align-items-end justify-content-end">
-                <button type="submit" class="btn btn-primary me-2 flex-fill">Aplicar Filtros</button>
-                <a href="{% url 'descargar_pdf' categoria_slug=categoria_slug %}{{ request.GET.urlencode|default:'' }}" class="btn btn-danger flex-fill">Descargar PDF</a>
+            {# FILTRO 3: FECHA DE INICIO (NUEVO) #}
+            <div class="col-md-4">
+                {# Usamos label_tag para el label, ya que estamos iterando un forms.Form #}
+                {{ filtro_form.fecha_inicio.label_tag }}
+                {{ filtro_form.fecha_inicio }}
+                {% for error in filtro_form.fecha_inicio.errors %}
+                    <div class="text-danger small">{{ error }}</div>
+                {% endfor %}
+            </div>
+
+            {# FILTRO 4: FECHA DE FIN (NUEVO) #}
+            {# Este campo podría pasar a una nueva línea si el diseño actual usa los 12 espacios (col-12) en la cuadrícula de Bootstrap #}
+            <div class="col-md-4">
+                {{ filtro_form.fecha_fin.label_tag }}
+                {{ filtro_form.fecha_fin }}
+                {% for error in filtro_form.fecha_fin.errors %}
+                    <div class="text-danger small">{{ error }}</div>
+                {% endfor %}
+            </div>
+            {# ------------------------------------------------------------------------------------------------ #}
+
+            {# BOTONES DE ACCIÓN #}
+            <div class="col-12 mt-3">
+                <button type="submit" class="btn btn-secondary me-2">
+                    <i class="fas fa-filter"></i> Aplicar Filtros
+                </button>
+                {# Opcional: Botón para Limpiar Filtros #}
+                <a href="{% url 'ver_finanzas' categoria_slug=categoria_slug %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-undo"></i> Limpiar Filtros
+                </a>
+
+                {# ENLACE DE DESCARGA DE PDF - CRÍTICO: PASAR TODOS LOS FILTROS DE LA URL ACTUAL #}
+                <a href="{% url 'descargar_pdf' categoria_slug=categoria_slug %}?{{ request.GET.urlencode }}" class="btn btn-danger float-end">
+                    <i class="fas fa-file-pdf"></i> Descargar PDF
+                </a>
             </div>
         </form>
 

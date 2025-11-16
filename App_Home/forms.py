@@ -145,3 +145,31 @@ class FormularioPerfilUsuario(forms.ModelForm):
         if commit:
             user.save()
         return user
+    
+# Formulario para filtrar Movimientos Financieros por fechas
+class FormularioFiltroMovimientos(forms.Form):
+    fecha_inicio = forms.DateField(
+        required=False, 
+        label='Fecha de Inicio',
+        # Utilizamos 'type': 'date' para el selector de calendario HTML5
+        widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-control'})
+    )
+    fecha_fin = forms.DateField(
+        required=False, 
+        label='Fecha de Fin',
+        widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-control'})
+    )
+
+    def clean(self):
+        cleaned_data = super().clean()
+        fecha_inicio = cleaned_data.get('fecha_inicio')
+        fecha_fin = cleaned_data.get('fecha_fin')
+
+        # Validación: La fecha de inicio no puede ser posterior a la fecha de fin.
+        if fecha_inicio and fecha_fin and fecha_inicio > fecha_fin:
+            # Usamos add_error para mostrar el mensaje junto al campo.
+            msg = 'La fecha de inicio no puede ser posterior a la fecha de fin.'
+            self.add_error('fecha_inicio', msg)
+            self.add_error('fecha_fin', msg)
+
+        return cleaned_data
