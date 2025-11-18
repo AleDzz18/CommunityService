@@ -1,13 +1,17 @@
 # App_LiderGeneral/views.py
 
-from django.contrib.auth.mixins import AccessMixin, LoginRequiredMixin
+from django.contrib.auth.mixins import AccessMixin, LoginRequiredMixin, UserPassesTestMixin
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView
 from django.urls import reverse_lazy
-from App_Home.models import CustomUser
-from .forms import FormularioAdminUsuario
+from App_Home.models import CustomUser, MovimientoFinanciero
 from django.shortcuts import redirect
 from django.contrib import messages
 from django.contrib.auth import get_user_model
+from App_LiderTorre.views import BaseMovimientoCreateView 
+from .forms import ( FormularioAdminUsuario,
+    IngresoCondominioGeneralForm, EgresoCondominioGeneralForm, 
+    IngresoBasuraGeneralForm, EgresoBasuraGeneralForm
+)
 
 # Create your views here.
 
@@ -82,3 +86,48 @@ class EliminarUsuarioView(LoginRequiredMixin, LiderGeneralRequiredMixin, DeleteV
     def form_valid(self, form):
         messages.success(self.request, f"Usuario '{self.object.username}' eliminado con éxito.")
         return super().form_valid(form)
+    
+# --- Mixin de Permisos ---
+
+class LiderGeneralOrAdminBasuraRequiredMixin(UserPassesTestMixin):
+    """Permite el acceso solo a Líder General o a un Lider con rol de Admin Basura."""
+    def test_func(self):
+        user = self.request.user
+        return user.rol == CustomUser.ROL_LIDER_GENERAL or user.es_admin_basura
+
+class LiderGeneralRequiredMixin(UserPassesTestMixin):
+    """Permite el acceso solo a Líder General."""
+    def test_func(self):
+        user = self.request.user
+        return user.rol == CustomUser.ROL_LIDER_GENERAL
+
+# --- Vistas de Movimientos Financieros (Líder General) ---
+
+# Condominio (Requiere ser LDG)
+class RegistrarIngresoCondominioGeneralView(LiderGeneralRequiredMixin, BaseMovimientoCreateView):
+    form_class = IngresoCondominioGeneralForm
+    TIPO_MOVIMIENTO = 'Ingreso'
+    CATEGORIA_MOVIMIENTO = 'Condominio'
+    MONTO_FIELD = 'monto_condominio'
+
+class RegistrarEgresoCondominioGeneralView(LiderGeneralRequiredMixin, BaseMovimientoCreateView):
+    form_class = EgresoCondominioGeneralForm
+    TIPO_MOVIMIENTO = 'Egreso'
+    CATEGORIA_MOVIMIENTO = 'Condominio'
+    MONTO_FIELD = 'monto_condominio'
+
+# Cuarto de Basura (Ingreso: Requiere ser LDG)
+class RegistrarIngresoBasuraGeneralView(LiderGeneralRequiredMixin, BaseMovimientoCreateView):
+    form_class = IngresoBasuraGeneralForm
+    TIPO_MOVIMIENTO = 'Ingreso'
+    CATEGORIA_MOVIMIENTO = 'Cuarto de Basura'
+    MONTO_FIELD = 'monto_basura'
+
+# Cuarto de Basura (Egreso: Requiere ser LDG O Admin Basura)
+# Esta vista permite realizar egresos de basura en cualquier torre (se selecciona en el form)
+class RegistrarEgresoBasuraGeneralView(LiderGeneralOrAdminBasuraRequiredMixin, BaseMovimientoCreateView):
+    form_class = EgresoBasuraGeneralForm
+    TIPO_MOVIMIENTO = 'Egreso'
+    CATEGORIA_MOVIMIENTO = 'Cuarto de Basura'
+    MONTO_FIELD = 'monto_basura'
+    

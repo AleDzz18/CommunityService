@@ -85,7 +85,13 @@
                                 <td>{{ mov.descripcion }}</td>
                                 <td class="text-success">{{ mov.ingreso|default_if_none:"" }}</td>
                                 <td class="text-danger">{{ mov.egreso|default_if_none:"" }}</td>
-                                <td>{{ mov.torre }}</td>
+                                <td>
+                                    {% if mov.tipo == 'EGR' and mov.categoria == 'BAS' %}
+                                        <span class="badge bg-secondary">General</span>
+                                    {% else %}
+                                        {{ mov.torre }}
+                                    {% endif %}
+                                </td>
                                 <td>{{ mov.saldo }}</td>
                             </tr>
                         {% endfor %}
@@ -110,28 +116,58 @@
                     
                     {% comment %} Lógica para Condominio (categoria_slug='condominio') {% endcomment %}
                     {% if categoria_slug == 'condominio' %}
-                        <a href="{% url 'lider_torre:ingresar_condominio' %}" class="action-button btn-ingreso">
-                            <i class="fas fa-plus-circle"></i>
-                            Registrar Ingreso de Condominio
-                        </a>
-                        
-                        <a href="{% url 'lider_torre:egresar_condominio' %}" class="action-button btn-egreso">
-                            <i class="fas fa-minus-circle"></i>
-                            Registrar Egreso de Condominio
-                        </a>
+                        {% if request.user.rol == 'LDT' %}
+                            <a href="{% url 'lider_torre:ingresar_condominio' %}" class="action-button btn-ingreso">
+                                <i class="fas fa-plus-circle"></i>
+                                Registrar Ingreso Condominio
+                            </a>
+                            <a href="{% url 'lider_torre:egresar_condominio' %}" class="action-button btn-egreso">
+                                <i class="fas fa-minus-circle"></i>
+                                Registrar Egreso Condominio
+                            </a>
+                        {% elif request.user.rol == 'LDG' %}
+                            {# Líder General usa las URLs General que le permiten seleccionar Torre #}
+                            <a href="{% url 'lider_general:ingresar_condominio_general' %}" class="action-button btn-ingreso">
+                                <i class="fas fa-plus-circle"></i>
+                                Registrar Ingreso Condominio
+                            </a>
+                            <a href="{% url 'lider_general:egresar_condominio_general' %}" class="action-button btn-egreso">
+                                <i class="fas fa-minus-circle"></i>
+                                Registrar Egreso Condominio
+                            </a>
+                        {% endif %}
                         
                     {% comment %} Lógica para Cuarto de Basura (categoria_slug='basura') {% endcomment %}
                     {% elif categoria_slug == 'basura' %}
-                        <a href="{% url 'lider_torre:ingresar_basura' %}" class="action-button btn-ingreso">
-                            <i class="fas fa-plus-circle"></i>
-                            Registrar Ingreso Cuarto de Basura
-                        </a>
-                        
-                        {# El egreso de basura se restringe al Lider General (LDG) o a un proceso especial, lo desactivamos para LDT #}
-                        <a href="#" class="action-button btn-egreso btn-disabled" title="Esta acción requiere permiso de Líder General.">
-                            <i class="fas fa-minus-circle"></i>
-                            Registrar Egreso Cuarto de Basura
-                        </a>
+                        {% if request.user.rol == 'LDT' %}
+                            <a href="{% url 'lider_torre:ingresar_basura' %}" class="action-button btn-ingreso">
+                                <i class="fas fa-plus-circle"></i>
+                                Registrar Ingreso Cuarto de Basura
+                            </a>
+
+                        {% elif request.user.rol == 'LDG' %}
+                            {# LDG usa el formulario General para Ingreso Basura y selecciona la Torre #}
+                            <a href="{% url 'lider_general:ingresar_basura_general' %}" class="action-button btn-ingreso">
+                                <i class="fas fa-plus-circle"></i>
+                                Registrar Ingreso Cuarto de Basura
+                            </a>
+
+                        {% endif %}
+
+                        {# EGRESO DE BASURA: solo si es LDG o tiene rol secundario de Admin Basura #}
+                        {% if request.user.rol == 'LDG' or request.user.es_admin_basura %}
+                            {# Admin Basura usa el formulario General para egresar de cualquier torre #}
+                            <a href="{% url 'lider_general:egresar_basura_general' %}" class="action-button btn-egreso">
+                                <i class="fas fa-minus-circle"></i>
+                                Registrar Egreso Cuarto de Basura
+                            </a>
+                        {% else %}
+                            {# Deshabilitado para LDT sin rol de Admin Basura #}
+                            <a href="#" class="action-button btn-egreso btn-disabled" title="Esta acción requiere permiso de Líder General o Administrador de Cuarto de Basura.">
+                                <i class="fas fa-minus-circle"></i>
+                                Registrar Egreso Cuarto de Basura
+                            </a>
+                        {% endif %}
                         
                     {% else %}
                         <p class="text-warning small">Selecciona una categoría para ver las acciones disponibles.</p>

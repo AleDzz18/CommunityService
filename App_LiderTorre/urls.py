@@ -13,5 +13,4 @@ urlpatterns = [
     
     # Cuarto de Basura
     path('basura/ingresar/', views.RegistrarIngresoBasuraView.as_view(), name='ingresar_basura'),
-    # El egreso de basura se restringe al rol secundario y se implementará más tarde
 ]

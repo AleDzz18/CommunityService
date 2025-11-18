@@ -18,4 +18,12 @@ urlpatterns = [
     
     # 4. ELIMINACIÓN DE USUARIOS
     path('usuarios/eliminar/<int:pk>/', views.EliminarUsuarioView.as_view(), name='eliminar_usuario'),
+
+    # Condominio
+    path('condominio/ingresar/', views.RegistrarIngresoCondominioGeneralView.as_view(), name='ingresar_condominio_general'),
+    path('condominio/egresar/', views.RegistrarEgresoCondominioGeneralView.as_view(), name='egresar_condominio_general'),
+    
+    # Cuarto de Basura
+    path('basura/ingresar/', views.RegistrarIngresoBasuraGeneralView.as_view(), name='ingresar_basura_general'),
+    path('basura/egresar/', views.RegistrarEgresoBasuraGeneralView.as_view(), name='egresar_basura_general'),
 ]
