@@ -473,8 +473,12 @@ from django.http import HttpResponse # Importación para manejar la respuesta de
 from django.utils import timezone # Importación para manejar la fecha/hora actual
 # Importaciones para generar PDF (Reportlab)
 from reportlab.pdfgen import canvas
-from reportlab.lib.pagesizes import letter
-from .forms import FormularioCreacionUsuario, FormularioPerfilUsuario 
+from reportlab.lib.pagesizes import letter, A4
+from reportlab.lib import colors
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph # <-- CRÍTICO
+from reportlab.lib.styles import getSampleStyleSheet # <-- CRÍTICO
+from reportlab.lib.units import inch
+from .forms import FormularioCreacionUsuario, FormularioPerfilUsuario, FormularioFiltroMovimientos 
 from .models import CustomUser, Tower, MovimientoFinanciero # Importación de los nuevos modelos
 from decimal import Decimal
 
@@ -556,12 +560,11 @@ def vista_registro(request):
         if formulario.is_valid():
             usuario = formulario.save(commit=False)
             
-            # ❌ LÍNEA ELIMINADA: usuario.is_active = False 
             # El usuario DEBE estar activo (True) para que autenticar_login funcione.
             # Por defecto, Django lo guarda como is_active=True.
             usuario.save() 
             
-            # 🔑 PASO CRÍTICO: Iniciar sesión y redirigir al perfil.
+            # PASO CRÍTICO: Iniciar sesión y redirigir al perfil.
             autenticar_login(request, usuario) 
             
             messages.success(request, f'Cuenta creada exitosamente para {usuario.username}. Por favor, complete su perfil.')
@@ -596,7 +599,7 @@ def vista_completar_perfil(request, user_id):
         messages.info(request, "Su perfil ya está completo.")
         return redirect('url_dashboard')
     
-    # ❌ LÍNEA ELIMINADA: Ya no verificamos if usuario.is_active, sino la cédula.
+    # LÍNEA ELIMINADA: Ya no verificamos if usuario.is_active, sino la cédula.
 
     if request.method == 'POST':
         formulario = FormularioPerfilUsuario(request.POST, instance=usuario)
@@ -754,6 +757,23 @@ def ver_ingresos_egresos(request, categoria_slug):
     torre_id = request.GET.get('torre')
     if torre_id and torre_id.isdigit(): 
         movimientos_query = movimientos_query.filter(tower__id=int(torre_id))
+
+    # -----------------------------------------------------------
+    # ⚠️ AÑADIR NUEVO FILTRO POR RANGO DE FECHAS (Aquí están los cambios)
+    # -----------------------------------------------------------
+    filtro_form = FormularioFiltroMovimientos(request.GET)
+    
+    if filtro_form.is_valid():
+        fecha_inicio = filtro_form.cleaned_data.get('fecha_inicio')
+        fecha_fin = filtro_form.cleaned_data.get('fecha_fin')
+        
+        if fecha_inicio:
+            # Filtrar movimientos donde la fecha es MAYOR O IGUAL a la fecha de inicio
+            movimientos_query = movimientos_query.filter(fecha__gte=fecha_inicio)
+            
+        if fecha_fin:
+            # Filtrar movimientos donde la fecha es MENOR O IGUAL a la fecha de fin
+            movimientos_query = movimientos_query.filter(fecha__lte=fecha_fin)
         
     # 4. Cálculo del Saldo Acumulado
     movimientos_con_saldo = []
@@ -803,6 +823,7 @@ def ver_ingresos_egresos(request, categoria_slug):
         'tipo_seleccionado': tipo_filtro,
         'torre_seleccionada_id': torre_id,
         'categoria_slug': categoria_slug, # Para el botón de descarga
+        'filtro_form': filtro_form, # Formulario de filtro para la plantilla
     }
 
     return render(request, 'finanzas/listado_movimientos.html', context)
@@ -810,38 +831,147 @@ def ver_ingresos_egresos(request, categoria_slug):
 def descargar_pdf(request, categoria_slug):
     """
     Genera y descarga el archivo PDF con la información financiera filtrada.
-    NOTA: Esta función es un esqueleto (placeholder). Necesitará la lógica
-    para generar la tabla de datos completa en Reportlab.
     """
-    
-    # Aquí debería replicarse la lógica de filtrado de 'ver_ingresos_egresos' 
-    # para que el PDF refleje los filtros aplicados por el usuario.
-    
+    # 1. Definir la categoría, título y campo de monto (monto_field)
     if categoria_slug == 'condominio':
+        categoria_filtro = 'CON'
         titulo = 'Reporte Financiero - Condominio'
+        monto_field = 'monto_condominio' 
     elif categoria_slug == 'basura':
+        categoria_filtro = 'BAS'
         titulo = 'Reporte Financiero - Cuarto de Basura'
+        monto_field = 'monto_basura'
     else:
-        return redirect('url_dashboard') 
+        # Redireccionar si el slug es inválido
+        return redirect('url_dashboard')
+
+    # 2. Obtener QuerySet Base
+    movimientos_query = MovimientoFinanciero.objects.filter(categoria=categoria_filtro).select_related('tower').order_by('fecha', 'id')
+
+    # 3. FILTROS POR TIPO Y TORRE (Lógica existente)
+    tipo_filtro = request.GET.get('tipo', 'AMBOS')
+    if tipo_filtro == 'INGRESOS':
+        movimientos_query = movimientos_query.filter(tipo='ING')
+    elif tipo_filtro == 'EGRESOS':
+        movimientos_query = movimientos_query.filter(tipo='EGR')
+
+    torre_id = request.GET.get('torre')
+    if torre_id and torre_id.isdigit(): 
+        movimientos_query = movimientos_query.filter(tower__id=int(torre_id))
+    
+    # 4. 🚀 APLICAR FILTRO POR RANGO DE FECHAS (NUEVO)
+    filtro_form = FormularioFiltroMovimientos(request.GET)
+    
+    if filtro_form.is_valid():
+        fecha_inicio = filtro_form.cleaned_data.get('fecha_inicio')
+        fecha_fin = filtro_form.cleaned_data.get('fecha_fin')
         
+        if fecha_inicio:
+            # Filtrar movimientos donde la fecha es MAYOR O IGUAL a la fecha de inicio
+            movimientos_query = movimientos_query.filter(fecha__gte=fecha_inicio)
+            
+        if fecha_fin:
+            # Filtrar movimientos donde la fecha es MENOR O IGUAL a la fecha de fin
+            movimientos_query = movimientos_query.filter(fecha__lte=fecha_fin)
+            
+    # --- FIN Lógica de Filtrado ---
+
+    # 5. Configuración de la Respuesta HTTP
     response = HttpResponse(content_type='application/pdf')
-    # Añadir fecha al nombre del archivo
-    response['Content-Disposition'] = f'attachment; filename="Reporte_{categoria_slug}_{timezone.now().strftime("%Y%m%d")}.pdf"'
+    response['Content-Disposition'] = f'attachment; filename=\"Reporte_{categoria_slug}_{timezone.now().strftime("%Y%m%d")}.pdf\"'
 
-    p = canvas.Canvas(response, pagesize=letter)
-    width, height = letter
+    # 6. Preparación del documento PDF con SimpleDocTemplate
+    doc = SimpleDocTemplate(response, pagesize=letter, topMargin=inch/2, bottomMargin=inch/2, leftMargin=inch/2, rightMargin=inch/2)
+    styles = getSampleStyleSheet()
+    Story = []
     
-    # Contenido Básico del PDF
-    p.setFont("Helvetica-Bold", 16)
-    p.drawString(50, height - 50, titulo)
+    # --- 7. Encabezado del Reporte ---
+    Story.append(Paragraph(f'<font size="16"><b>{titulo}</b></font>', styles['h1']))
+    Story.append(Paragraph(f'<font size="10">Generado el: {timezone.now().strftime("%d/%m/%Y a las %H:%M")}</font>', styles['Normal']))
+    Story.append(Paragraph('<br/>', styles['Normal']))
     
-    p.setFont("Helvetica", 12)
-    p.drawString(50, height - 70, f"Fecha de Generación: {timezone.now().strftime('%d/%m/%Y %H:%M')}")
-    p.drawString(50, height - 90, "¡IMPORTANTE! Los datos filtrados irán aquí.")
-    p.drawString(50, height - 110, "Lógica pendiente: Generación de la tabla de movimientos.")
+    # Info de Filtros (para mostrar qué se filtró)
+    filtro_info_text = f"<b>Tipo:</b> {tipo_filtro} | <b>Torre ID:</b> {torre_id if torre_id else 'Todas'}"
+    
+    # Detalle de Fechas
+    f_i = filtro_form.cleaned_data.get('fecha_inicio')
+    f_f = filtro_form.cleaned_data.get('fecha_fin')
+    
+    fecha_text = "Todo el Historial"
+    if f_i or f_f:
+        inicio_str = f_i.strftime('%d/%m/%Y') if f_i else 'Inicio'
+        fin_str = f_f.strftime('%d/%m/%Y') if f_f else 'Fin'
+        fecha_text = f"{inicio_str} hasta {fin_str}"
+        
+    filtro_info_text += f" | <b>Rango de Fechas:</b> {fecha_text}"
 
-    p.showPage()
-    p.save()
+    Story.append(Paragraph(f'<font size="10">{filtro_info_text}</font>', styles['Normal']))
+    Story.append(Paragraph('<br/>', styles['Normal']))
+    
+    # --- 8. Preparación de la Tabla de Datos ---
+    
+    # Cabecera de la tabla
+    data = [
+        ['Fecha', 'Descripción', 'Torre', 'Tasa BCV', 'Ingreso (Bs.)', 'Egreso (Bs.)', 'Saldo Acumulado (Bs.)']
+    ]
+
+    # Inicializar Saldo Acumulado (Decimal para precisión)
+    saldo_acumulado = Decimal(0.00)
+    
+    for mov in movimientos_query:
+        # ✅ USO DE monto_field para acceder al campo correcto (condominio o basura)
+        monto = getattr(mov, monto_field) 
+        
+        ingreso = ''
+        egreso = ''
+        
+        if mov.tipo == 'ING':
+            saldo_acumulado += monto
+            ingreso = f"{monto:,.2f}" # Formato de moneda
+        elif mov.tipo == 'EGR':
+            saldo_acumulado -= monto
+            egreso = f"({monto:,.2f})" # Usamos paréntesis para egresos
+            
+        nombre_torre = mov.tower.nombre if mov.tower else 'General'
+        tasa_bcv_str = f"{mov.tasa_bcv:,.2f}"
+
+        data.append([
+            mov.fecha.strftime('%d/%m/%Y'),
+            mov.descripcion,
+            nombre_torre,
+            tasa_bcv_str,
+            ingreso,
+            egreso,
+            f"{saldo_acumulado:,.2f}", 
+        ])
+        
+    # --- 9. Creación y Estilo de la Tabla ---
+    
+    # Anchos de columna
+    table_col_widths = [1.0*inch, 2.5*inch, 0.7*inch, 0.7*inch, 1.0*inch, 1.0*inch, 1.4*inch]
+    
+    table = Table(data, colWidths=table_col_widths)
+    
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2c3e50')), 
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (3, -1), 'LEFT'), 
+        ('ALIGN', (4, 1), (-1, -1), 'RIGHT'), # Alineación derecha para montos y saldo
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#f7f7f7')), 
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+        ('FONTSIZE', (0, 0), (-1, -1), 9),
+    ]))
+    
+    Story.append(table)
+
+    # --- 10. Saldo Total Final ---
+    Story.append(Paragraph('<br/><br/>', styles['Normal']))
+    Story.append(Paragraph(f'<font size="14"><b>SALDO FINAL CALCULADO: Bs. {saldo_acumulado:,.2f}</b></font>', styles['h2']))
+
+    # 11. Construir el PDF
+    doc.build(Story)
     return response
 
 
@@ -2671,120 +2801,7 @@ FILE: App_Home/templates/login.html
 ================================================
 FILE: App_Home/templates/finanzas/listado_movimientos.html
 ================================================
-{% extends "layouts/navbar.html" %}
-{% load static %}
-
-{% block content %}
-    <div class="dashboard-container">
-        <h2 class="mb-4">{{ titulo }}</h2>
-
-        <form method="GET" class="row g-3 mb-4" action="{% url 'ver_finanzas' categoria_slug=categoria_slug %}">
-            <div class="col-md-4">
-                <label for="tipo_filtro" class="form-label">Filtrar por Tipo</label>
-                <select id="tipo_filtro" name="tipo" class="form-select">
-                    <option value="AMBOS" {% if tipo_seleccionado == 'AMBOS' %}selected{% endif %}>Ingresos y Egresos</option>
-                    <option value="INGRESOS" {% if tipo_seleccionado == 'INGRESOS' %}selected{% endif %}>Solo Ingresos</option>
-                    <option value="EGRESOS" {% if tipo_seleccionado == 'EGRESOS' %}selected{% endif %}>Solo Egresos</option>
-                </select>
-            </div>
-
-            <div class="col-md-4">
-                <label for="torre_filtro" class="form-label">Filtrar por Torre</label>
-                <select id="torre_filtro" name="torre" class="form-select">
-                    <option value="">Todas las Torres</option>
-                    {% for torre in torres %}
-                        <option value="{{ torre.id }}" {% if torre.id|stringformat:"s" == torre_seleccionada_id %}selected{% endif %}>Torre {{ torre.nombre }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-
-            <div class="col-md-4 d-flex align-items-end justify-content-end">
-                <button type="submit" class="btn btn-primary me-2 flex-fill">Aplicar Filtros</button>
-                <a href="{% url 'descargar_pdf' categoria_slug=categoria_slug %}{{ request.GET.urlencode|default:'' }}" class="btn btn-danger flex-fill">Descargar PDF</a>
-            </div>
-        </form>
-
-        {% if movimientos %}
-            <div class="table-responsive">
-                <table class="table table-striped table-hover">
-                    <thead class="table-dark">
-                        <tr>
-                            <th>Fecha</th>
-                            <th>Tasa BCV</th>
-                            <th>DescripciÃ³n</th>
-                            <th>Ingresos (Bs)</th>
-                            <th>Egresos (Bs)</th>
-                            <th>Torre</th>
-                            <th>Saldo Acumulado (Bs)</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for mov in movimientos %}
-                            <tr>
-                                <td>{{ mov.fecha|date:"Y-m-d" }}</td>
-                                <td>{{ mov.tasa_bcv|floatformat:4 }}</td>
-                                <td>{{ mov.descripcion }}</td>
-                                <td class="text-success">{{ mov.ingreso|default_if_none:"" }}</td>
-                                <td class="text-danger">{{ mov.egreso|default_if_none:"" }}</td>
-                                <td>{{ mov.torre }}</td>
-                                <td>{{ mov.saldo }}</td>
-                            </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        {% else %}
-            <div class="alert alert-info" role="alert">
-                No se encontraron movimientos financieros con los filtros aplicados.
-            </div>
-        {% endif %}
-        {# --- BLOQUE DE BOTONES DE ACCIÃ“N (SOLO LDT/LDG) --- #}
-        {% if request.user.is_authenticated and request.user.rol == 'LDT' or request.user.is_authenticated and request.user.rol == 'LDG' %}
-            
-            <div class="action-buttons-container">
-                <h3 class="action-buttons-title">
-                    <i class="fas fa-screwdriver-wrench"></i> 
-                    Acciones de AdministraciÃ³n ({{ request.user.tower.nombre|default:'Sin Torre' }})
-                </h3>
-                
-                <div class="action-buttons-grid">
-                    
-                    {% comment %} LÃ³gica para Condominio (categoria_slug='condominio') {% endcomment %}
-                    {% if categoria_slug == 'condominio' %}
-                        <a href="{% url 'lider_torre:ingresar_condominio' %}" class="action-button btn-ingreso">
-                            <i class="fas fa-plus-circle"></i>
-                            Registrar Ingreso de Condominio
-                        </a>
-                        
-                        <a href="{% url 'lider_torre:egresar_condominio' %}" class="action-button btn-egreso">
-                            <i class="fas fa-minus-circle"></i>
-                            Registrar Egreso de Condominio
-                        </a>
-                        
-                    {% comment %} LÃ³gica para Cuarto de Basura (categoria_slug='basura') {% endcomment %}
-                    {% elif categoria_slug == 'basura' %}
-                        <a href="{% url 'lider_torre:ingresar_basura' %}" class="action-button btn-ingreso">
-                            <i class="fas fa-plus-circle"></i>
-                            Registrar Ingreso Cuarto de Basura
-                        </a>
-                        
-                        {# El egreso de basura se restringe al Lider General (LDG) o a un proceso especial, lo desactivamos para LDT #}
-                        <a href="#" class="action-button btn-egreso btn-disabled" title="Esta acciÃ³n requiere permiso de LÃ­der General.">
-                            <i class="fas fa-minus-circle"></i>
-                            Registrar Egreso Cuarto de Basura
-                        </a>
-                        
-                    {% else %}
-                        <p class="text-warning small">Selecciona una categorÃ­a para ver las acciones disponibles.</p>
-                    {% endif %}
-
-                </div>
-            </div>
-            
-        {% endif %}
-        {# --- FIN BLOQUE DE BOTONES DE ACCIÃ“N --- #}
-    </div>
-{% endblock content %}
+Error reading file with 'cp1252': 'charmap' codec can't decode byte 0x8d in position 3141: character maps to <undefined>
 
 
 ================================================

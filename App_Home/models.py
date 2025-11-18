@@ -40,6 +40,24 @@ class MovimientoFinancieroManager(models.Manager):
         egresos = qs.filter(tipo='EGR').aggregate(total=Sum(monto_field))['total'] or Decimal('0.00')
 
         return ingresos - egresos
+    
+    def calcular_saldo_general_basura(self):
+        """Calcula el saldo total de la categoría 'BASURA' (BAS) de TODAS las torres."""
+        
+        # El campo de monto a usar para la categoría Basura es 'monto_basura'
+        monto_field = 'monto_basura'
+        
+        # Filtra solo por la categoría de Basura (BAS) de todas las torres
+        qs = self.filter(categoria='BAS')
+
+        # Suma los ingresos
+        ingresos = qs.filter(tipo='ING').aggregate(total=Sum(monto_field))['total'] or Decimal(0)
+        
+        # Suma los egresos
+        egresos = qs.filter(tipo='EGR').aggregate(total=Sum(monto_field))['total'] or Decimal(0)
+        
+        # Retorna el saldo total de la categoría 'BAS'
+        return ingresos - egresos
 
 # --- MODELO AÑADIDO: MOVIMIENTO FINANCIERO ---
 class MovimientoFinanciero(models.Model):

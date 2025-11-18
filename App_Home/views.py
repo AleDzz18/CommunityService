@@ -349,6 +349,8 @@ def ver_ingresos_egresos(request, categoria_slug):
             'egreso': egreso_monto if egreso_monto and egreso_monto > 0 else None,
             'torre': nombre_torre, # Usar la variable segura
             'saldo': round(saldo_acumulado, 2), # Redondear a dos decimales
+            'tipo': mov.tipo,
+            'categoria': mov.categoria,
         })
         
     context = {
@@ -454,7 +456,6 @@ def descargar_pdf(request, categoria_slug):
     saldo_acumulado = Decimal(0.00)
     
     for mov in movimientos_query:
-        # ✅ USO DE monto_field para acceder al campo correcto (condominio o basura)
         monto = getattr(mov, monto_field) 
         
         ingreso = ''
@@ -467,13 +468,20 @@ def descargar_pdf(request, categoria_slug):
             saldo_acumulado -= monto
             egreso = f"({monto:,.2f})" # Usamos paréntesis para egresos
             
+        # 1. Determinar el nombre inicial de la torre
         nombre_torre = mov.tower.nombre if mov.tower else 'General'
+
+        # 2. LÓGICA PARA OCULTAR LA TORRE EN EGRESOS DE BASURA
+        # Si es un egreso (EGR) Y es de categoría Basura (BAS), la torre debe ser 'General'.
+        if mov.tipo == 'EGR' and mov.categoria == 'BAS':
+            nombre_torre = 'General'
+            
         tasa_bcv_str = f"{mov.tasa_bcv:,.2f}"
 
         data.append([
             mov.fecha.strftime('%d/%m/%Y'),
             mov.descripcion,
-            nombre_torre,
+            nombre_torre, # <-- Esta variable ahora contiene 'General' si aplica
             tasa_bcv_str,
             ingreso,
             egreso,

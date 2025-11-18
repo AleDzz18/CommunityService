@@ -29,6 +29,23 @@
         
         {# Utilizamos la cuadrícula responsive row g-3 y col-md-6/12 #}
         <div class="row g-3">
+
+            {% if form.tower %}
+                <div class="col-md-12">
+                    <div class="form-group">
+                        {% if form.tower.field.required %}
+                            <label for="{{ form.tower.id_for_label }}" class="form-label">{{ form.tower.label }}</label>
+                            {{ form.tower }}
+                            {% for error in form.tower.errors %}
+                                <div class="text-danger small">{{ error }}</div>
+                            {% endfor %}
+                            {% if form.tower.help_text %}
+                                <small class="form-text text-muted">{{ form.tower.help_text }}</small>
+                            {% endif %}
+                        {% endif %}
+                    </div>
+                </div>
+            {% endif %}
             
             {# Fecha y Descripción (Ancho completo en todas las pantallas) #}
             {% for field in form %}

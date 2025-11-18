@@ -5,6 +5,7 @@ from django.core.exceptions import ValidationError
 # Importamos los modelos desde la aplicación base
 from App_Home.models import CustomUser, Tower 
 from django.db.models import Count
+from App_LiderTorre.forms import MovimientoFormBase
 
 class FormularioAdminUsuario(forms.ModelForm):
     """
@@ -69,3 +70,81 @@ class FormularioAdminUsuario(forms.ModelForm):
         if commit:
             user.save()
         return user
+    
+# --- Formularios Base para Líder General ---
+
+class LiderGeneralMovimientoBaseForm(MovimientoFormBase):
+    """Formulario base para Ingresos y Egresos del Líder General, añade el campo 'tower'."""
+    # Añadimos el campo 'tower' (Torre) que estaba excluido en MovimientoFormBase
+    tower = forms.ModelChoiceField(
+        queryset=Tower.objects.all().order_by('nombre'),
+        label='Seleccionar Torre',
+        required=True,
+        widget=forms.Select(attrs={'class': 'form-select', 'required': 'required'})
+    )
+
+    class Meta(MovimientoFormBase.Meta):
+        # Aseguramos que 'tower' no esté en exclude y lo añadimos a fields
+        fields = MovimientoFormBase.Meta.fields + ['tower']
+
+# --- Formularios Específicos para Líder General (Condominio) ---
+
+class IngresoCondominioGeneralForm(LiderGeneralMovimientoBaseForm):
+    # Replicamos el campo de monto específico para que no se pierda en la herencia
+    monto_condominio = forms.DecimalField(
+        max_digits=10, 
+        decimal_places=2, 
+        min_value=0.01, 
+        label='Monto Ingreso Condominio (Bs)',
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'})
+    )
+
+    class Meta(LiderGeneralMovimientoBaseForm.Meta):
+        fields = LiderGeneralMovimientoBaseForm.Meta.fields + ['monto_condominio']
+
+
+class EgresoCondominioGeneralForm(LiderGeneralMovimientoBaseForm):
+    # Replicamos el campo de monto específico
+    monto_condominio = forms.DecimalField(
+        max_digits=10, 
+        decimal_places=2, 
+        min_value=0.01, 
+        label='Monto Egreso Condominio (Bs)',
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'})
+    )
+    class Meta(LiderGeneralMovimientoBaseForm.Meta):
+        fields = LiderGeneralMovimientoBaseForm.Meta.fields + ['monto_condominio']
+
+# --- Formularios Específicos para Líder General / Admin Basura (Cuarto de Basura) ---
+
+class IngresoBasuraGeneralForm(LiderGeneralMovimientoBaseForm):
+    # Replicamos el campo de monto específico
+    monto_basura = forms.DecimalField(
+        max_digits=10, 
+        decimal_places=2, 
+        min_value=0.01, 
+        label='Monto Ingreso Cuarto de Basura (Bs)',
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'})
+    )
+
+    class Meta(LiderGeneralMovimientoBaseForm.Meta):
+        fields = LiderGeneralMovimientoBaseForm.Meta.fields + ['monto_basura']
+
+
+class EgresoBasuraGeneralForm(LiderGeneralMovimientoBaseForm):
+    # Replicamos el campo de monto específico
+    monto_basura = forms.DecimalField(
+        max_digits=10, 
+        decimal_places=2, 
+        min_value=0.01, 
+        label='Monto Egreso Cuarto de Basura (Bs)',
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'})
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Hacemos el campo tower no requerido para egresos generales de Basura
+        self.fields['tower'].required = False
+
+    class Meta(LiderGeneralMovimientoBaseForm.Meta):
+        fields = LiderGeneralMovimientoBaseForm.Meta.fields + ['monto_basura']
