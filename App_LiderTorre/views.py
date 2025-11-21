@@ -1,15 +1,17 @@
 # App_LiderTorre/views.py
 
-from django.views.generic import CreateView
+from django.views.generic import CreateView, UpdateView, ListView, DeleteView
 from django.urls import reverse_lazy, reverse
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib import messages
-from App_Home.models import MovimientoFinanciero, CustomUser
+from App_Home.models import MovimientoFinanciero, CustomUser, CensoMiembro
 from .mixins import LiderTorreRequiredMixin 
 from .forms import IngresoCondominioForm, EgresoCondominioForm, IngresoBasuraForm
 from django.shortcuts import redirect
 from decimal import Decimal
 from django.http import HttpResponseRedirect # Asegúrate de importar esto
+from App_Home.forms import CensoMiembroForm
+from .mixins import LiderTorreRequiredMixin
 
 # La plantilla del formulario será la misma para todos los tipos de movimiento
 TEMPLATE_NAME = 'lider_torre/movimiento_form.html'
@@ -175,3 +177,100 @@ class RegistrarIngresoBasuraView(BaseMovimientoCreateView):
     TIPO_MOVIMIENTO = 'Ingreso'
     CATEGORIA_MOVIMIENTO = 'Cuarto de Basura'
     MONTO_FIELD = 'monto_basura'
+
+# ==============================================================
+# --- GESTIÓN DE CENSO LOCAL (LÍDER TORRE) ---
+# ==============================================================
+
+# 1. VISTA DE LISTA (FALTABA ESTA)
+class CensoTorreListView(LiderTorreRequiredMixin, ListView):
+    model = CensoMiembro
+    template_name = 'lider_torre/censo_list_torre.html'
+    context_object_name = 'miembros'
+
+    def get_queryset(self):
+        # FILTRO AUTOMÁTICO: Solo muestra gente de SU torre
+        return CensoMiembro.objects.filter(tower=self.request.user.tower).order_by('piso', 'apartamento_letra')
+
+# 2. VISTA DE CREACIÓN
+class CensoTorreCreateView(LiderTorreRequiredMixin, CreateView):
+    model = CensoMiembro
+    form_class = CensoMiembroForm
+    template_name = 'lider_torre/censo_form_torre.html'
+    success_url = reverse_lazy('lider_torre:censo_lista')
+
+    def get_form_kwargs(self):
+        """Pasa la torre del usuario actual al formulario para validación."""
+        kwargs = super().get_form_kwargs()
+        kwargs['torre_usuario'] = self.request.user.tower
+        return kwargs
+
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        if 'tower' in form.fields:
+            form.fields['tower'].widget.attrs['hidden'] = True
+            form.fields['tower'].required = False
+        return form
+
+    def form_valid(self, form):
+        form.instance.tower = self.request.user.tower
+        messages.success(self.request, "Vecino registrado correctamente.")
+        return super().form_valid(form)
+
+# 3. VISTA DE EDICIÓN
+class CensoTorreUpdateView(LiderTorreRequiredMixin, UpdateView):
+    model = CensoMiembro
+    form_class = CensoMiembroForm
+    template_name = 'lider_torre/censo_form_torre.html'
+    success_url = reverse_lazy('lider_torre:censo_lista')
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        # Pasa la torre al formulario para la validación de 'Jefe de Familia Único'
+        kwargs['torre_usuario'] = self.request.user.tower
+        return kwargs
+
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        if 'tower' in form.fields:
+            # 1. Ocultamos el campo visualmente.
+            form.fields['tower'].widget.attrs['hidden'] = True
+            # 2. Hacemos el campo NO requerido para que la validación inicial lo ignore.
+            form.fields['tower'].required = False
+        return form
+        
+    # --- MÉTODO CRÍTICO AÑADIDO/CORREGIDO ---
+    def form_valid(self, form):
+        # 3. ¡IMPORTANTE! Asignamos explícitamente la torre del usuario al objeto.
+        # Esto evita el IntegrityError al asegurar que tower_id NO es NULL.
+        form.instance.tower = self.request.user.tower
+        messages.success(self.request, "Cambios guardados correctamente.")
+        return super().form_valid(form)
+    # ----------------------------------------
+
+    def get_queryset(self):
+        # Seguridad: Asegura que solo pueda editar miembros de su propia torre
+        return super().get_queryset().filter(tower=self.request.user.tower)
+        
+    # Método de debugging que añadiste anteriormente
+    def form_invalid(self, form):
+        print("\n*** ERROR DE VALIDACIÓN DE FORMULARIO DE EDICIÓN ***")
+        for field, errors in form.errors.items():
+            print(f"Campo: {field} -> Errores: {errors}")
+        if form.non_field_errors():
+            print(f"Errores No de Campo: {form.non_field_errors()}")
+        print("**************************************************\n")
+        return super().form_invalid(form)
+
+# 4. VISTA DE ELIMINACIÓN (FALTABA ESTA)
+class CensoTorreDeleteView(LiderTorreRequiredMixin, DeleteView):
+    model = CensoMiembro
+    template_name = 'lider_torre/censo_confirm_delete.html'
+    success_url = reverse_lazy('lider_torre:censo_lista')
+
+    def get_queryset(self):
+        return super().get_queryset().filter(tower=self.request.user.tower)
+
+    def form_valid(self, form):
+        messages.success(self.request, "Residente eliminado correctamente.")
+        return super().form_valid(form)

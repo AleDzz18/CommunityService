@@ -50,6 +50,7 @@ Directory structure:
     │   ├── views.py
     │   └── templates/
     │       └── lider_general/
+    │           ├── estado_solvencia_basura.html
     │           ├── lista_usuarios.html
     │           ├── usuario_confirm_delete.html
     │           └── usuario_form.html
@@ -3020,6 +3021,7 @@ urlpatterns = [
     # Cuarto de Basura
     path('basura/ingresar/', views.RegistrarIngresoBasuraGeneralView.as_view(), name='ingresar_basura_general'),
     path('basura/egresar/', views.RegistrarEgresoBasuraGeneralView.as_view(), name='egresar_basura_general'),
+    path('basura/estado-solvencia/', views.EstadoSolvenciaBasuraView.as_view(), name='estado_solvencia_basura'),
 ]
 
 
@@ -3029,9 +3031,9 @@ FILE: App_LiderGeneral/views.py
 # App_LiderGeneral/views.py
 
 from django.contrib.auth.mixins import AccessMixin, LoginRequiredMixin, UserPassesTestMixin
-from django.views.generic import ListView, CreateView, UpdateView, DeleteView
+from django.views.generic import ListView, CreateView, UpdateView, DeleteView, TemplateView
 from django.urls import reverse_lazy
-from App_Home.models import CustomUser, MovimientoFinanciero
+from App_Home.models import CustomUser, MovimientoFinanciero, Tower
 from django.shortcuts import redirect
 from django.contrib import messages
 from django.contrib.auth import get_user_model
@@ -3040,6 +3042,7 @@ from .forms import ( FormularioAdminUsuario,
     IngresoCondominioGeneralForm, EgresoCondominioGeneralForm, 
     IngresoBasuraGeneralForm, EgresoBasuraGeneralForm
 )
+from datetime import date
 
 # Create your views here.
 
@@ -3159,6 +3162,156 @@ class RegistrarEgresoBasuraGeneralView(LiderGeneralOrAdminBasuraRequiredMixin, B
     CATEGORIA_MOVIMIENTO = 'Cuarto de Basura'
     MONTO_FIELD = 'monto_basura'
     
+class EstadoSolvenciaBasuraView(LoginRequiredMixin, LiderGeneralOrAdminBasuraRequiredMixin, TemplateView):
+    template_name = 'lider_general/estado_solvencia_basura.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        
+        # 1. Obtener mes y aÃ±o de los parÃ¡metros GET o usar los actuales
+        hoy = date.today()
+        try:
+            mes = int(self.request.GET.get('mes', hoy.month))
+            anio = int(self.request.GET.get('anio', hoy.year))
+        except ValueError:
+            mes = hoy.month
+            anio = hoy.year
+
+        # 2. Obtener todas las torres ordenadas
+        torres = Tower.objects.all().order_by('nombre')
+        
+        # 3. Buscar pagos registrados (Ingresos de Basura) en ese mes/aÃ±o
+        # Nota: values_list nos da una lista simple de IDs de torres que pagaron
+        pagos_registrados = MovimientoFinanciero.objects.filter(
+            categoria='BAS',
+            tipo='ING',
+            fecha__year=anio,
+            fecha__month=mes,
+            tower__isnull=False # Asegurar que estÃ© asociado a una torre
+        ).values_list('tower_id', flat=True).distinct()
+
+        # 4. Construir la estructura de datos para el reporte
+        reporte_solvencia = []
+        for torre in torres:
+            es_solvente = torre.id in pagos_registrados
+            reporte_solvencia.append({
+                'torre': torre,
+                'status': 'SOLVENTE' if es_solvente else 'PENDIENTE',
+                'css_class': 'bg-success text-white' if es_solvente else 'bg-warning text-dark'
+            })
+
+        context.update({
+            'reporte': reporte_solvencia,
+            'mes_actual': mes,
+            'anio_actual': anio,
+            'meses_choices': range(1, 13),
+            'anios_choices': range(hoy.year - 2, hoy.year + 3),
+        })
+        return context
+
+
+================================================
+FILE: App_LiderGeneral/templates/lider_general/estado_solvencia_basura.html
+================================================
+{% extends 'layouts/base.html' %}
+{% load static %}
+
+{% block title %}Control de Solvencia - Basura{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Control de Pagos Cuarto de Basura</h2>
+        <a href="{% url 'ver_finanzas' categoria_slug='basura' %}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Volver al Listado
+        </a>
+    </div>
+    <hr>
+
+    <form method="GET" class="row g-3 mb-4 align-items-end p-3 bg-light rounded border">
+        <div class="col-md-4">
+            <label for="mes" class="form-label fw-bold">Mes</label>
+            <select name="mes" id="mes" class="form-select">
+                <option value="1" {% if mes_actual == 1 %}selected{% endif %}>Enero</option>
+                <option value="2" {% if mes_actual == 2 %}selected{% endif %}>Febrero</option>
+                <option value="3" {% if mes_actual == 3 %}selected{% endif %}>Marzo</option>
+                <option value="4" {% if mes_actual == 4 %}selected{% endif %}>Abril</option>
+                <option value="5" {% if mes_actual == 5 %}selected{% endif %}>Mayo</option>
+                <option value="6" {% if mes_actual == 6 %}selected{% endif %}>Junio</option>
+                <option value="7" {% if mes_actual == 7 %}selected{% endif %}>Julio</option>
+                <option value="8" {% if mes_actual == 8 %}selected{% endif %}>Agosto</option>
+                <option value="9" {% if mes_actual == 9 %}selected{% endif %}>Septiembre</option>
+                <option value="10" {% if mes_actual == 10 %}selected{% endif %}>Octubre</option>
+                <option value="11" {% if mes_actual == 11 %}selected{% endif %}>Noviembre</option>
+                <option value="12" {% if mes_actual == 12 %}selected{% endif %}>Diciembre</option>
+            </select>
+        </div>
+        <div class="col-md-4">
+            <label for="anio" class="form-label fw-bold">AÃ±o</label>
+            <select name="anio" id="anio" class="form-select">
+                {% for year in anios_choices %}
+                    <option value="{{ year }}" {% if anio_actual == year %}selected{% endif %}>{{ year }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-4">
+            <button type="submit" class="btn btn-primary w-100">
+                <i class="fas fa-search"></i> Consultar Estatus
+            </button>
+        </div>
+    </form>
+
+    <div class="table-responsive">
+        <table class="table table-bordered text-center">
+            <thead class="table-dark">
+                <tr>
+                    <th>Torre</th>
+                    <th>Estatus</th>
+                    <th class="d-none d-md-table-cell border-start">Torre</th>
+                    <th class="d-none d-md-table-cell">Estatus</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in reporte %}
+                    {% if forloop.counter0|divisibleby:2 %}
+                    <tr>
+                    {% endif %}
+
+                        <td class="fw-bold align-middle">{{ item.torre.nombre }}</td>
+                        <td class="align-middle">
+                            <span class="badge {{ item.css_class }} p-2 w-100" style="font-size: 0.9em;">
+                                {{ item.status }}
+                            </span>
+                        </td>
+
+                    {% if not forloop.counter0|divisibleby:2 or forloop.last %}
+                    </tr>
+                    {% endif %}
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <div class="alert alert-info mt-3">
+        <i class="fas fa-info-circle"></i> 
+        <strong>Nota:</strong> El estatus "SOLVENTE" indica que existe al menos un movimiento de Ingreso registrado para la torre en el mes seleccionado bajo la categorÃ­a "Cuarto de Basura".
+    </div>
+</div>
+
+<style>
+    @media (max-width: 767px) {
+        /* En mÃ³viles, forzamos que cada fila sea un bloque para que se vea una lista vertical simple */
+        .d-none.d-md-table-cell {
+            display: none !important; 
+        }
+        /* Reorganizamos el loop visualmente para mÃ³viles si fuera necesario, 
+        pero la tabla simple es mÃ¡s efectiva en pantallas pequeÃ±as. 
+        El cÃ³digo de arriba renderizarÃ¡ 2 torres por fila, lo cual estÃ¡ bien en tablets,
+        pero en mÃ³viles muy pequeÃ±os podrÃ­a verse apretado. 
+        */
+    }
+</style>
+{% endblock %}
 
 
 ================================================

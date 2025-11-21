@@ -1,0 +1,88 @@
+{% extends 'layouts/base.html' %}
+{% load static %}
+
+{% block title %}{% if form.instance.pk %}Editar{% else %}Registrar{% endif %} (Admin General){% endblock %}
+
+{% block content %}
+<div class="dashboard-container" style="max-width: 800px;">
+    <h2>
+        <i class="fas fa-user-shield"></i> 
+        {% if form.instance.pk %}Editar Datos{% else %}Registrar Residente{% endif %}
+        <span class="text-muted fs-5">(Modo General)</span>
+    </h2>
+    <hr>
+    
+    <form method="post">
+        {% csrf_token %}
+        
+        {% if form.non_field_errors %}
+            <div class="alert alert-danger">
+                {% for error in form.non_field_errors %}
+                    {{ error }}
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <div class="row g-3">
+            <div class="col-12"><h5 class="text-primary mt-2 border-bottom pb-2">Ubicación</h5></div>
+            
+            <div class="col-md-4">
+                <label class="form-label fw-bold">Torre</label>
+                {{ form.tower }}
+                {% if form.tower.errors %}<div class="text-danger small">{{ form.tower.errors.0 }}</div>{% endif %}
+            </div>
+            <div class="col-md-4">
+                <label class="form-label fw-bold">Piso</label>
+                {{ form.piso }}
+            </div>
+            <div class="col-md-4">
+                <label class="form-label fw-bold">Apartamento</label>
+                {{ form.apartamento_letra }}
+            </div>
+
+            <div class="col-12"><h5 class="text-primary mt-4 border-bottom pb-2">Datos Personales</h5></div>
+
+            <div class="col-md-6">
+                <label class="form-label">Nombres</label>
+                {{ form.nombres }}
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Apellidos</label>
+                {{ form.apellidos }}
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Cédula</label>
+                {{ form.cedula }}
+                 {% if form.cedula.errors %}<div class="text-danger small">{{ form.cedula.errors.0 }}</div>{% endif %}
+            </div>
+             <div class="col-md-6">
+                <label class="form-label">Fecha de Nacimiento</label>
+                {{ form.fecha_nacimiento }}
+            </div>
+             <div class="col-md-6">
+                <label class="form-label">Género</label>
+                {{ form.genero }}
+            </div>
+             <div class="col-md-6">
+                <label class="form-label">Teléfono</label>
+                {{ form.telefono }}
+            </div>
+
+            <div class="col-12 mt-4">
+                <div class="form-check form-switch p-3 bg-light rounded border">
+                    {{ form.es_jefe_familia }}
+                    <label class="form-check-label fw-bold ms-2" for="{{ form.es_jefe_familia.id_for_label }}">
+                        ¿Es Jefe de Familia?
+                    </label>
+                </div>
+                {% if form.es_jefe_familia.errors %}<div class="text-danger small mt-1">{{ form.es_jefe_familia.errors.0 }}</div>{% endif %}
+            </div>
+        </div>
+
+        <div class="mt-4 d-flex justify-content-end gap-2">
+            <a href="{% url 'lider_general:censo_lista' %}" class="btn btn-secondary">Cancelar</a>
+            <button type="submit" class="btn btn-primary">Guardar (Admin)</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

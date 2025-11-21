@@ -27,4 +27,9 @@ urlpatterns = [
     path('basura/ingresar/', views.RegistrarIngresoBasuraGeneralView.as_view(), name='ingresar_basura_general'),
     path('basura/egresar/', views.RegistrarEgresoBasuraGeneralView.as_view(), name='egresar_basura_general'),
     path('basura/estado-solvencia/', views.EstadoSolvenciaBasuraView.as_view(), name='estado_solvencia_basura'),
+
+    path('censo/', views.CensoGeneralListView.as_view(), name='censo_lista'),
+    path('censo/nuevo/', views.CensoGeneralCreateView.as_view(), name='censo_crear'),
+    path('censo/editar/<int:pk>/', views.CensoGeneralUpdateView.as_view(), name='censo_editar'),
+    path('censo/eliminar/<int:pk>/', views.CensoGeneralDeleteView.as_view(), name='censo_eliminar'),
 ]

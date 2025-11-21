@@ -1,0 +1,97 @@
+{% extends 'layouts/base.html' %}
+{% load static %}
+
+{% block title %}{% if form.instance.pk %}Editar{% else %}Registrar{% endif %} Residente{% endblock %}
+
+{% block content %}
+<div class="dashboard-container" style="max-width: 800px;">
+    <h2>
+        <i class="fas fa-user-edit"></i> 
+        {% if form.instance.pk %}Editar Datos{% else %}Registrar Nuevo Vecino{% endif %}
+        <span class="text-muted fs-5">(Torre {{ request.user.tower.nombre }})</span>
+    </h2>
+    <hr>
+    
+    <form method="post">
+        {% csrf_token %}
+        
+        {% if form.non_field_errors %}
+            <div class="alert alert-danger">
+                {% for error in form.non_field_errors %}
+                    {{ error }}
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        {% for hidden in form.hidden_fields %}
+            {{ hidden }}
+        {% endfor %}
+
+        <div class="row g-3">
+            <div class="col-12"><h5 class="text-primary mt-2 border-bottom pb-2">Ubicación en la Torre</h5></div>
+            
+            <div class="col-md-6">
+                <label class="form-label fw-bold">Piso</label>
+                {{ form.piso }}
+                {% if form.piso.errors %}<div class="text-danger small">{{ form.piso.errors.0 }}</div>{% endif %}
+            </div>
+            <div class="col-md-6">
+                <label class="form-label fw-bold">Apartamento (Letra)</label>
+                {{ form.apartamento_letra }}
+                {% if form.apartamento_letra.errors %}<div class="text-danger small">{{ form.apartamento_letra.errors.0 }}</div>{% endif %}
+            </div>
+
+            <div class="col-12"><h5 class="text-primary mt-4 border-bottom pb-2">Datos Personales</h5></div>
+
+            <div class="col-md-6">
+                <label class="form-label">Nombres</label>
+                {{ form.nombres }}
+                {% if form.nombres.errors %}<div class="text-danger small">{{ form.nombres.errors.0 }}</div>{% endif %}
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Apellidos</label>
+                {{ form.apellidos }}
+                {% if form.apellidos.errors %}<div class="text-danger small">{{ form.apellidos.errors.0 }}</div>{% endif %}
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Cédula de Identidad</label>
+                {{ form.cedula }}
+                {% if form.cedula.errors %}<div class="text-danger small">{{ form.cedula.errors.0 }}</div>{% endif %}
+            </div>
+             <div class="col-md-6">
+                <label class="form-label">Fecha de Nacimiento</label>
+                {{ form.fecha_nacimiento }}
+                {% if form.fecha_nacimiento.errors %}<div class="text-danger small">{{ form.fecha_nacimiento.errors.0 }}</div>{% endif %}
+            </div>
+             <div class="col-md-6">
+                <label class="form-label">Género</label>
+                {{ form.genero }}
+            </div>
+             <div class="col-md-6">
+                <label class="form-label">Teléfono</label>
+                {{ form.telefono }}
+            </div>
+
+            <div class="col-12 mt-4">
+                <div class="form-check form-switch p-3 bg-light rounded border d-flex align-items-center">
+                    {{ form.es_jefe_familia }}
+                    <label class="form-check-label fw-bold ms-3" for="{{ form.es_jefe_familia.id_for_label }}">
+                        ¿Es Jefe de Familia? <br>
+                        <small class="text-muted fw-normal">Marca esta opción si es el responsable principal del apartamento.</small>
+                    </label>
+                </div>
+                {% if form.es_jefe_familia.errors %}<div class="text-danger small mt-1">{{ form.es_jefe_familia.errors.0 }}</div>{% endif %}
+            </div>
+        </div>
+
+        <div class="mt-4 d-flex justify-content-end gap-2">
+            <a href="{% url 'lider_torre:censo_lista' %}" class="btn btn-secondary">
+                <i class="fas fa-times"></i> Cancelar
+            </a>
+            <button type="submit" class="btn btn-success">
+                <i class="fas fa-save"></i> Guardar Datos
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}
