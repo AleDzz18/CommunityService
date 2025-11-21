@@ -4,7 +4,7 @@ from django.contrib.auth.forms import UserCreationForm
 from django import forms
 from django.core.exceptions import ValidationError
 from django.db.models import Count
-from .models import CustomUser, Tower 
+from .models import CustomUser, Tower, CensoMiembro
 
 # Formulario de Registro para el PASO 1 (Solo autenticación)
 class FormularioCreacionUsuario(UserCreationForm):
@@ -172,4 +172,60 @@ class FormularioFiltroMovimientos(forms.Form):
             self.add_error('fecha_inicio', msg)
             self.add_error('fecha_fin', msg)
 
+        return cleaned_data
+    
+class CensoMiembroForm(forms.ModelForm):
+    def __init__(self, *args, **kwargs):
+        # 1. Extraemos el dato 'torre_usuario' que nos manda la vista
+        self.torre_usuario = kwargs.pop('torre_usuario', None)
+        super().__init__(*args, **kwargs)
+
+    class Meta:
+        model = CensoMiembro
+        fields = ['nombres', 'apellidos', 'cedula', 'fecha_nacimiento', 'genero', 'telefono', 'tower', 'piso', 'apartamento_letra', 'es_jefe_familia']
+        widgets = {
+            'fecha_nacimiento': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
+            'nombres': forms.TextInput(attrs={'class': 'form-control'}),
+            'apellidos': forms.TextInput(attrs={'class': 'form-control'}),
+            'cedula': forms.TextInput(attrs={'class': 'form-control'}),
+            'telefono': forms.TextInput(attrs={'class': 'form-control'}),
+            'genero': forms.Select(attrs={'class': 'form-select'}),
+            'tower': forms.Select(attrs={'class': 'form-select'}),
+            'piso': forms.Select(attrs={'class': 'form-select'}),
+            'apartamento_letra': forms.Select(attrs={'class': 'form-select'}),
+            # Clase especial para el switch
+            'es_jefe_familia': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+
+    def clean(self):
+        cleaned_data = super().clean()
+        
+        es_jefe = cleaned_data.get('es_jefe_familia')
+        piso = cleaned_data.get('piso')
+        letra = cleaned_data.get('apartamento_letra')
+        
+        # 2. DETERMINAR LA TORRE CORRECTA
+        # Si viene del formulario (Lider General), usamos esa.
+        # Si no viene (Lider Torre), usamos la que inyectamos en __init__.
+        torre_final = cleaned_data.get('tower')
+        if not torre_final and self.torre_usuario:
+            torre_final = self.torre_usuario
+
+        # 3. VALIDACIÓN DE JEFE DE FAMILIA ÚNICO
+        if es_jefe and torre_final and piso and letra:
+            # Buscamos si YA existe alguien en esa Torre + Piso + Letra que sea Jefe
+            # .exclude(pk=self.instance.pk) es VITAL: evita que el sistema se bloquee al editar al mismo usuario.
+            existe_otro_jefe = CensoMiembro.objects.filter(
+                tower=torre_final,
+                piso=piso,
+                apartamento_letra=letra,
+                es_jefe_familia=True
+            ).exclude(pk=self.instance.pk).exists()
+
+            if existe_otro_jefe:
+                # Esto lanzará el error rojo en la pantalla e impedirá guardar
+                msg = f"Error: Ya existe un Jefe de Familia registrado en la {torre_final}, Apto {piso}-{letra}."
+                self.add_error('es_jefe_familia', msg)
+                raise ValidationError(msg)
+        
         return cleaned_data

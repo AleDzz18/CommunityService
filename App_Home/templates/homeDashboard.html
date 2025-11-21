@@ -51,10 +51,25 @@
         </a>
         
         {% if request.user.is_authenticated and request.user.rol == 'LDT' or request.user.is_authenticated and request.user.rol == 'LDG' %}
-            <a href="#censo" class="boton-principal">
-                <i class="fas fa-users"></i>
-                Censo
-            </a>
+            {% if request.user.is_authenticated %}
+
+                {# Caso 1: Líder General -> Va a su App General #}
+                {% if request.user.rol == 'LDG' %}
+                    <a href="{% url 'lider_general:censo_lista' %}" class="boton-principal">
+                        <i class="fas fa-users"></i>
+                        Censo General
+                    </a>
+                
+                {# Caso 2: Líder Torre -> Va a su App Torre #}
+                {% elif request.user.rol == 'LDT' and request.user.tower %}
+                    <a href="{% url 'lider_torre:censo_lista' %}" class="boton-principal">
+                        <i class="fas fa-house-user"></i>
+                        Censo Torre {{ request.user.tower.nombre }}
+                    </a>
+
+                {% endif %}
+
+            {% endif %}
         {% endif %}
 
         {% if request.user.is_authenticated and request.user.rol == 'LDG' %}

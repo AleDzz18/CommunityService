@@ -1,0 +1,15 @@
+{% extends 'layouts/base.html' %}
+{% block content %}
+<div class="dashboard-container" style="max-width: 600px;">
+    <h2 class="text-danger">Confirmar Eliminación</h2>
+    <div class="alert alert-warning">
+        ¿Estás seguro de que deseas eliminar del censo a <strong>{{ object.nombres }} {{ object.apellidos }}</strong>?
+        <br>Esta acción no se puede deshacer.
+    </div>
+    <form method="post">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-danger">Sí, Eliminar</button>
+        <a href="{% url 'lider_torre:censo_lista' %}" class="btn btn-secondary">Cancelar</a>
+    </form>
+</div>
+{% endblock %}

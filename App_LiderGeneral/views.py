@@ -3,22 +3,19 @@
 from django.contrib.auth.mixins import AccessMixin, LoginRequiredMixin, UserPassesTestMixin
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView, TemplateView
 from django.urls import reverse_lazy
-from App_Home.models import CustomUser, MovimientoFinanciero, Tower
+from App_Home.models import CustomUser, MovimientoFinanciero, Tower, CensoMiembro
 from django.shortcuts import redirect
 from django.contrib import messages
-from django.contrib.auth import get_user_model
 from App_LiderTorre.views import BaseMovimientoCreateView 
 from .forms import ( FormularioAdminUsuario,
     IngresoCondominioGeneralForm, EgresoCondominioGeneralForm, 
     IngresoBasuraGeneralForm, EgresoBasuraGeneralForm
 )
 from datetime import date
+from App_Home.forms import CensoMiembroForm
 
-# Create your views here.
+# --- MIXINS DE PERMISOS (Definirlos al principio) ---
 
-# ******************************************************************
-# MIXIN DE AUTORIZACIÓN: Restringe el acceso solo a Líderes Generales
-# ******************************************************************
 class LiderGeneralRequiredMixin(AccessMixin):
     """Verifica que el usuario actual tenga el rol de Lider General."""
     def dispatch(self, request, *args, **kwargs):
@@ -30,25 +27,29 @@ class LiderGeneralRequiredMixin(AccessMixin):
         if request.user.rol != CustomUser.ROL_LIDER_GENERAL:
             messages.error(request, "No tienes permiso para acceder a esta sección administrativa.")
             # Redirigir al dashboard si no tiene el rol
-            return redirect('homeDashboard') 
+            return redirect('url_dashboard') 
             
         return super().dispatch(request, *args, **kwargs)
 
+class LiderGeneralOrAdminBasuraRequiredMixin(UserPassesTestMixin):
+    """Permite el acceso solo a Líder General o a un Lider con rol de Admin Basura."""
+    def test_func(self):
+        user = self.request.user
+        # Verificamos si está autenticado primero para evitar errores
+        if not user.is_authenticated:
+            return False
+        return user.rol == CustomUser.ROL_LIDER_GENERAL or user.es_admin_basura
+
 # ******************************************************************
-# 1. LISTADO DE USUARIOS (READ)
+# 1. GESTIÓN DE USUARIOS
 # ******************************************************************
+
 class ListaUsuariosView(LoginRequiredMixin, LiderGeneralRequiredMixin, ListView):
     model = CustomUser
     template_name = 'lider_general/lista_usuarios.html' 
     context_object_name = 'usuarios'
     ordering = ['username'] 
 
-# ******************************************************************
-# 2. CREACIÓN DE USUARIOS (CREATE)
-# Nota: La creación de usuarios por aquí requiere asignar una contraseña.
-# Si prefieres que se registren por App_Home, puedes omitir esta vista.
-# Aquí se usa un modelo simple sin manejo de contraseña.
-# ******************************************************************
 class CrearUsuarioView(LoginRequiredMixin, LiderGeneralRequiredMixin, CreateView):
     model = CustomUser
     form_class = FormularioAdminUsuario 
@@ -56,15 +57,9 @@ class CrearUsuarioView(LoginRequiredMixin, LiderGeneralRequiredMixin, CreateView
     success_url = reverse_lazy('lider_general:lista_usuarios')
     
     def form_valid(self, form):
-        # Recomendación: Si quieres crear el usuario con contraseña, 
-        # debes usar un formulario de creación de usuario adecuado (ej: UserCreationForm)
-        # o establecer una contraseña temporal hasheada aquí.
         messages.success(self.request, f"Usuario '{form.instance.username}' creado con éxito.")
         return super().form_valid(form)
 
-# ******************************************************************
-# 3. EDICIÓN DE USUARIOS (UPDATE)
-# ******************************************************************
 class EditarUsuarioView(LoginRequiredMixin, LiderGeneralRequiredMixin, UpdateView):
     model = CustomUser
     form_class = FormularioAdminUsuario 
@@ -75,9 +70,6 @@ class EditarUsuarioView(LoginRequiredMixin, LiderGeneralRequiredMixin, UpdateVie
         messages.success(self.request, f"Usuario '{form.instance.username}' editado con éxito.")
         return super().form_valid(form)
 
-# ******************************************************************
-# 4. ELIMINACIÓN DE USUARIOS (DELETE)
-# ******************************************************************
 class EliminarUsuarioView(LoginRequiredMixin, LiderGeneralRequiredMixin, DeleteView):
     model = CustomUser
     template_name = 'lider_general/usuario_confirm_delete.html'
@@ -87,22 +79,10 @@ class EliminarUsuarioView(LoginRequiredMixin, LiderGeneralRequiredMixin, DeleteV
     def form_valid(self, form):
         messages.success(self.request, f"Usuario '{self.object.username}' eliminado con éxito.")
         return super().form_valid(form)
-    
-# --- Mixin de Permisos ---
 
-class LiderGeneralOrAdminBasuraRequiredMixin(UserPassesTestMixin):
-    """Permite el acceso solo a Líder General o a un Lider con rol de Admin Basura."""
-    def test_func(self):
-        user = self.request.user
-        return user.rol == CustomUser.ROL_LIDER_GENERAL or user.es_admin_basura
-
-class LiderGeneralRequiredMixin(UserPassesTestMixin):
-    """Permite el acceso solo a Líder General."""
-    def test_func(self):
-        user = self.request.user
-        return user.rol == CustomUser.ROL_LIDER_GENERAL
-
-# --- Vistas de Movimientos Financieros (Líder General) ---
+# ******************************************************************
+# 2. GESTIÓN FINANCIERA (CONDOMINIO Y BASURA)
+# ******************************************************************
 
 # Condominio (Requiere ser LDG)
 class RegistrarIngresoCondominioGeneralView(LiderGeneralRequiredMixin, BaseMovimientoCreateView):
@@ -125,7 +105,6 @@ class RegistrarIngresoBasuraGeneralView(LiderGeneralRequiredMixin, BaseMovimient
     MONTO_FIELD = 'monto_basura'
 
 # Cuarto de Basura (Egreso: Requiere ser LDG O Admin Basura)
-# Esta vista permite realizar egresos de basura en cualquier torre (se selecciona en el form)
 class RegistrarEgresoBasuraGeneralView(LiderGeneralOrAdminBasuraRequiredMixin, BaseMovimientoCreateView):
     form_class = EgresoBasuraGeneralForm
     TIPO_MOVIMIENTO = 'Egreso'
@@ -138,7 +117,6 @@ class EstadoSolvenciaBasuraView(LoginRequiredMixin, LiderGeneralOrAdminBasuraReq
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         
-        # 1. Obtener mes y año de los parámetros GET o usar los actuales
         hoy = date.today()
         try:
             mes = int(self.request.GET.get('mes', hoy.month))
@@ -147,20 +125,16 @@ class EstadoSolvenciaBasuraView(LoginRequiredMixin, LiderGeneralOrAdminBasuraReq
             mes = hoy.month
             anio = hoy.year
 
-        # 2. Obtener todas las torres ordenadas
         torres = Tower.objects.all().order_by('nombre')
         
-        # 3. Buscar pagos registrados (Ingresos de Basura) en ese mes/año
-        # Nota: values_list nos da una lista simple de IDs de torres que pagaron
         pagos_registrados = MovimientoFinanciero.objects.filter(
             categoria='BAS',
             tipo='ING',
             fecha__year=anio,
             fecha__month=mes,
-            tower__isnull=False # Asegurar que esté asociado a una torre
+            tower__isnull=False
         ).values_list('tower_id', flat=True).distinct()
 
-        # 4. Construir la estructura de datos para el reporte
         reporte_solvencia = []
         for torre in torres:
             es_solvente = torre.id in pagos_registrados
@@ -178,3 +152,44 @@ class EstadoSolvenciaBasuraView(LoginRequiredMixin, LiderGeneralOrAdminBasuraReq
             'anios_choices': range(hoy.year - 2, hoy.year + 3),
         })
         return context
+    
+# ******************************************************************
+# 3. GESTIÓN DE CENSO GLOBAL
+# ******************************************************************
+
+class CensoGeneralListView(LiderGeneralRequiredMixin, ListView):
+    model = CensoMiembro
+    template_name = 'lider_general/censo_list_general.html'
+    context_object_name = 'miembros'
+    ordering = ['tower', 'piso', 'apartamento_letra']
+
+    def get_queryset(self):
+        qs = super().get_queryset().select_related('tower')
+        # Filtro por Torre desde el GET
+        torre_id = self.request.GET.get('torre')
+        if torre_id and torre_id.isdigit():
+            qs = qs.filter(tower_id=int(torre_id))
+        return qs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['torres'] = Tower.objects.all() # Para el dropdown del filtro
+        context['torre_seleccionada'] = self.request.GET.get('torre')
+        return context
+
+class CensoGeneralCreateView(LiderGeneralRequiredMixin, CreateView):
+    model = CensoMiembro
+    form_class = CensoMiembroForm
+    template_name = 'lider_general/censo_form_general.html'
+    success_url = reverse_lazy('lider_general:censo_lista') 
+
+class CensoGeneralUpdateView(LiderGeneralRequiredMixin, UpdateView):
+    model = CensoMiembro
+    form_class = CensoMiembroForm
+    template_name = 'lider_general/censo_form_general.html'
+    success_url = reverse_lazy('lider_general:censo_lista')
+
+class CensoGeneralDeleteView(LiderGeneralRequiredMixin, DeleteView):
+    model = CensoMiembro
+    template_name = 'lider_general/censo_confirm_delete.html'
+    success_url = reverse_lazy('lider_general:censo_lista')

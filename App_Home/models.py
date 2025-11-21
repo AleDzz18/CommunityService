@@ -7,6 +7,7 @@ from django.dispatch import receiver
 from django.db.models import Sum # Necesario para la función de saldo
 from django.db.utils import OperationalError # Importación clave para manejar el error
 from decimal import Decimal
+from datetime import date
 
 # Modelo para las 24 Torres
 class Tower(models.Model):
@@ -205,3 +206,45 @@ def crear_torres_iniciales(sender, apps, **kwargs): # Añadimos 'apps' como argu
                 print(f"ADVERTENCIA: La tabla 'App_Home_tower' aún no existe. La creación de torres se pospone hasta que se complete la migración.")
             else:
                 raise e
+
+class CensoMiembro(models.Model):
+    GENEROS = [
+        ('M', 'Masculino'),
+        ('F', 'Femenino'),
+    ]
+    
+    # Opciones para Apartamentos (3 Pisos, 4 Letras)
+    PISOS = [('P1', 'Piso 1'), ('P2', 'Piso 2'), ('P3', 'Piso 3')]
+    LETRAS = [('A', 'A'), ('B', 'B'), ('C', 'C'), ('D', 'D')]
+
+    nombres = models.CharField(max_length=100, verbose_name='Nombres')
+    apellidos = models.CharField(max_length=100, verbose_name='Apellidos')
+    cedula = models.CharField(max_length=15, unique=True, verbose_name='Cédula')
+    fecha_nacimiento = models.DateField(verbose_name='Fecha de Nacimiento')
+    genero = models.CharField(max_length=1, choices=GENEROS, verbose_name='Género')
+    telefono = models.CharField(max_length=20, blank=True, null=True, verbose_name='Teléfono')
+    
+    # Ubicación
+    tower = models.ForeignKey(Tower, on_delete=models.CASCADE, verbose_name='Torre')
+    piso = models.CharField(max_length=2, choices=PISOS, verbose_name='Piso')
+    apartamento_letra = models.CharField(max_length=1, choices=LETRAS, verbose_name='Letra Apto')
+    
+    es_jefe_familia = models.BooleanField(default=False, verbose_name='¿Es Jefe de Familia?')
+
+    @property
+    def edad(self):
+        today = date.today()
+        return today.year - self.fecha_nacimiento.year - ((today.month, today.day) < (self.fecha_nacimiento.month, self.fecha_nacimiento.day))
+
+    @property
+    def apartamento_completo(self):
+        return f"{self.piso}-{self.apartamento_letra}"
+
+    def __str__(self):
+        return f"{self.nombres} {self.apellidos} ({self.tower} - {self.apartamento_completo})"
+
+    class Meta:
+        verbose_name = "Miembro del Censo"
+        verbose_name_plural = "Miembros del Censo"
+        # Ordenar por Torre, luego Piso, luego Letra
+        ordering = ['tower', 'piso', 'apartamento_letra']
