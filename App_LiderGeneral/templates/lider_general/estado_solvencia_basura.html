@@ -1,0 +1,99 @@
+{% extends 'layouts/base.html' %}
+{% load static %}
+
+{% block title %}Control de Solvencia - Basura{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Control de Pagos Cuarto de Basura</h2>
+        <a href="{% url 'ver_finanzas' categoria_slug='basura' %}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Volver al Listado
+        </a>
+    </div>
+    <hr>
+
+    <form method="GET" class="row g-3 mb-4 align-items-end p-3 bg-light rounded border">
+        <div class="col-md-4">
+            <label for="mes" class="form-label fw-bold">Mes</label>
+            <select name="mes" id="mes" class="form-select">
+                <option value="1" {% if mes_actual == 1 %}selected{% endif %}>Enero</option>
+                <option value="2" {% if mes_actual == 2 %}selected{% endif %}>Febrero</option>
+                <option value="3" {% if mes_actual == 3 %}selected{% endif %}>Marzo</option>
+                <option value="4" {% if mes_actual == 4 %}selected{% endif %}>Abril</option>
+                <option value="5" {% if mes_actual == 5 %}selected{% endif %}>Mayo</option>
+                <option value="6" {% if mes_actual == 6 %}selected{% endif %}>Junio</option>
+                <option value="7" {% if mes_actual == 7 %}selected{% endif %}>Julio</option>
+                <option value="8" {% if mes_actual == 8 %}selected{% endif %}>Agosto</option>
+                <option value="9" {% if mes_actual == 9 %}selected{% endif %}>Septiembre</option>
+                <option value="10" {% if mes_actual == 10 %}selected{% endif %}>Octubre</option>
+                <option value="11" {% if mes_actual == 11 %}selected{% endif %}>Noviembre</option>
+                <option value="12" {% if mes_actual == 12 %}selected{% endif %}>Diciembre</option>
+            </select>
+        </div>
+        <div class="col-md-4">
+            <label for="anio" class="form-label fw-bold">Año</label>
+            <select name="anio" id="anio" class="form-select">
+                {% for year in anios_choices %}
+                    <option value="{{ year }}" {% if anio_actual == year %}selected{% endif %}>{{ year }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-4">
+            <button type="submit" class="btn btn-primary w-100">
+                <i class="fas fa-search"></i> Consultar Estatus
+            </button>
+        </div>
+    </form>
+
+    <div class="table-responsive">
+        <table class="table table-bordered text-center">
+            <thead class="table-dark">
+                <tr>
+                    <th>Torre</th>
+                    <th>Estatus</th>
+                    <th class="d-none d-md-table-cell border-start">Torre</th>
+                    <th class="d-none d-md-table-cell">Estatus</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in reporte %}
+                    {% if forloop.counter0|divisibleby:2 %}
+                    <tr>
+                    {% endif %}
+
+                        <td class="fw-bold align-middle">{{ item.torre.nombre }}</td>
+                        <td class="align-middle">
+                            <span class="badge {{ item.css_class }} p-2 w-100" style="font-size: 0.9em;">
+                                {{ item.status }}
+                            </span>
+                        </td>
+
+                    {% if not forloop.counter0|divisibleby:2 or forloop.last %}
+                    </tr>
+                    {% endif %}
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <div class="alert alert-info mt-3">
+        <i class="fas fa-info-circle"></i> 
+        <strong>Nota:</strong> El estatus "SOLVENTE" indica que existe al menos un movimiento de Ingreso registrado para la torre en el mes seleccionado bajo la categoría "Cuarto de Basura".
+    </div>
+</div>
+
+<style>
+    @media (max-width: 767px) {
+        /* En móviles, forzamos que cada fila sea un bloque para que se vea una lista vertical simple */
+        .d-none.d-md-table-cell {
+            display: none !important; 
+        }
+        /* Reorganizamos el loop visualmente para móviles si fuera necesario, 
+        pero la tabla simple es más efectiva en pantallas pequeñas. 
+        El código de arriba renderizará 2 torres por fila, lo cual está bien en tablets,
+        pero en móviles muy pequeños podría verse apretado. 
+        */
+    }
+</style>
+{% endblock %}

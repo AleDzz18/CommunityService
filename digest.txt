@@ -280,6 +280,24 @@ class MovimientoFinancieroManager(models.Manager):
         egresos = qs.filter(tipo='EGR').aggregate(total=Sum(monto_field))['total'] or Decimal('0.00')
 
         return ingresos - egresos
+    
+    def calcular_saldo_general_basura(self):
+        """Calcula el saldo total de la categorÃ­a 'BASURA' (BAS) de TODAS las torres."""
+        
+        # El campo de monto a usar para la categorÃ­a Basura es 'monto_basura'
+        monto_field = 'monto_basura'
+        
+        # Filtra solo por la categorÃ­a de Basura (BAS) de todas las torres
+        qs = self.filter(categoria='BAS')
+
+        # Suma los ingresos
+        ingresos = qs.filter(tipo='ING').aggregate(total=Sum(monto_field))['total'] or Decimal(0)
+        
+        # Suma los egresos
+        egresos = qs.filter(tipo='EGR').aggregate(total=Sum(monto_field))['total'] or Decimal(0)
+        
+        # Retorna el saldo total de la categorÃ­a 'BAS'
+        return ingresos - egresos
 
 # --- MODELO AÃ‘ADIDO: MOVIMIENTO FINANCIERO ---
 class MovimientoFinanciero(models.Model):
@@ -814,6 +832,8 @@ def ver_ingresos_egresos(request, categoria_slug):
             'egreso': egreso_monto if egreso_monto and egreso_monto > 0 else None,
             'torre': nombre_torre, # Usar la variable segura
             'saldo': round(saldo_acumulado, 2), # Redondear a dos decimales
+            'tipo': mov.tipo,
+            'categoria': mov.categoria,
         })
         
     context = {
@@ -919,7 +939,6 @@ def descargar_pdf(request, categoria_slug):
     saldo_acumulado = Decimal(0.00)
     
     for mov in movimientos_query:
-        # ✅ USO DE monto_field para acceder al campo correcto (condominio o basura)
         monto = getattr(mov, monto_field) 
         
         ingreso = ''
@@ -932,13 +951,20 @@ def descargar_pdf(request, categoria_slug):
             saldo_acumulado -= monto
             egreso = f"({monto:,.2f})" # Usamos paréntesis para egresos
             
+        # 1. Determinar el nombre inicial de la torre
         nombre_torre = mov.tower.nombre if mov.tower else 'General'
+
+        # 2. LÓGICA PARA OCULTAR LA TORRE EN EGRESOS DE BASURA
+        # Si es un egreso (EGR) Y es de categoría Basura (BAS), la torre debe ser 'General'.
+        if mov.tipo == 'EGR' and mov.categoria == 'BAS':
+            nombre_torre = 'General'
+            
         tasa_bcv_str = f"{mov.tasa_bcv:,.2f}"
 
         data.append([
             mov.fecha.strftime('%d/%m/%Y'),
             mov.descripcion,
-            nombre_torre,
+            nombre_torre, # <-- Esta variable ahora contiene 'General' si aplica
             tasa_bcv_str,
             ingreso,
             egreso,
@@ -2942,7 +2968,7 @@ class AppLidergeneralConfig(AppConfig):
 ================================================
 FILE: App_LiderGeneral/forms.py
 ================================================
-Error reading file with 'cp1252': 'charmap' codec can't decode byte 0x8d in position 1723: character maps to <undefined>
+Error reading file with 'cp1252': 'charmap' codec can't decode byte 0x8d in position 1776: character maps to <undefined>
 
 
 ================================================
@@ -2986,6 +3012,14 @@ urlpatterns = [
     
     # 4. ELIMINACIÃ“N DE USUARIOS
     path('usuarios/eliminar/<int:pk>/', views.EliminarUsuarioView.as_view(), name='eliminar_usuario'),
+
+    # Condominio
+    path('condominio/ingresar/', views.RegistrarIngresoCondominioGeneralView.as_view(), name='ingresar_condominio_general'),
+    path('condominio/egresar/', views.RegistrarEgresoCondominioGeneralView.as_view(), name='egresar_condominio_general'),
+    
+    # Cuarto de Basura
+    path('basura/ingresar/', views.RegistrarIngresoBasuraGeneralView.as_view(), name='ingresar_basura_general'),
+    path('basura/egresar/', views.RegistrarEgresoBasuraGeneralView.as_view(), name='egresar_basura_general'),
 ]
 
 
@@ -2994,14 +3028,18 @@ FILE: App_LiderGeneral/views.py
 ================================================
 # App_LiderGeneral/views.py
 
-from django.contrib.auth.mixins import AccessMixin, LoginRequiredMixin
+from django.contrib.auth.mixins import AccessMixin, LoginRequiredMixin, UserPassesTestMixin
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView
 from django.urls import reverse_lazy
-from App_Home.models import CustomUser
-from .forms import FormularioAdminUsuario
+from App_Home.models import CustomUser, MovimientoFinanciero
 from django.shortcuts import redirect
 from django.contrib import messages
 from django.contrib.auth import get_user_model
+from App_LiderTorre.views import BaseMovimientoCreateView 
+from .forms import ( FormularioAdminUsuario,
+    IngresoCondominioGeneralForm, EgresoCondominioGeneralForm, 
+    IngresoBasuraGeneralForm, EgresoBasuraGeneralForm
+)
 
 # Create your views here.
 
@@ -3076,6 +3114,51 @@ class EliminarUsuarioView(LoginRequiredMixin, LiderGeneralRequiredMixin, DeleteV
     def form_valid(self, form):
         messages.success(self.request, f"Usuario '{self.object.username}' eliminado con Ã©xito.")
         return super().form_valid(form)
+    
+# --- Mixin de Permisos ---
+
+class LiderGeneralOrAdminBasuraRequiredMixin(UserPassesTestMixin):
+    """Permite el acceso solo a LÃ­der General o a un Lider con rol de Admin Basura."""
+    def test_func(self):
+        user = self.request.user
+        return user.rol == CustomUser.ROL_LIDER_GENERAL or user.es_admin_basura
+
+class LiderGeneralRequiredMixin(UserPassesTestMixin):
+    """Permite el acceso solo a LÃ­der General."""
+    def test_func(self):
+        user = self.request.user
+        return user.rol == CustomUser.ROL_LIDER_GENERAL
+
+# --- Vistas de Movimientos Financieros (LÃ­der General) ---
+
+# Condominio (Requiere ser LDG)
+class RegistrarIngresoCondominioGeneralView(LiderGeneralRequiredMixin, BaseMovimientoCreateView):
+    form_class = IngresoCondominioGeneralForm
+    TIPO_MOVIMIENTO = 'Ingreso'
+    CATEGORIA_MOVIMIENTO = 'Condominio'
+    MONTO_FIELD = 'monto_condominio'
+
+class RegistrarEgresoCondominioGeneralView(LiderGeneralRequiredMixin, BaseMovimientoCreateView):
+    form_class = EgresoCondominioGeneralForm
+    TIPO_MOVIMIENTO = 'Egreso'
+    CATEGORIA_MOVIMIENTO = 'Condominio'
+    MONTO_FIELD = 'monto_condominio'
+
+# Cuarto de Basura (Ingreso: Requiere ser LDG)
+class RegistrarIngresoBasuraGeneralView(LiderGeneralRequiredMixin, BaseMovimientoCreateView):
+    form_class = IngresoBasuraGeneralForm
+    TIPO_MOVIMIENTO = 'Ingreso'
+    CATEGORIA_MOVIMIENTO = 'Cuarto de Basura'
+    MONTO_FIELD = 'monto_basura'
+
+# Cuarto de Basura (Egreso: Requiere ser LDG O Admin Basura)
+# Esta vista permite realizar egresos de basura en cualquier torre (se selecciona en el form)
+class RegistrarEgresoBasuraGeneralView(LiderGeneralOrAdminBasuraRequiredMixin, BaseMovimientoCreateView):
+    form_class = EgresoBasuraGeneralForm
+    TIPO_MOVIMIENTO = 'Egreso'
+    CATEGORIA_MOVIMIENTO = 'Cuarto de Basura'
+    MONTO_FIELD = 'monto_basura'
+    
 
 
 ================================================
@@ -3343,12 +3426,13 @@ class IngresoBasuraForm(MovimientoFormBase):
         max_digits=10, 
         decimal_places=2, 
         min_value=0.01, 
-        label='Monto Cuarto de Basura (Bs)',
+        label='Monto Ingreso Cuarto de Basura (Bs)',
         widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'})
     )
 
     class Meta(MovimientoFormBase.Meta):
         fields = MovimientoFormBase.Meta.fields + ['monto_basura']
+
 
 
 ================================================
@@ -3421,14 +3505,13 @@ urlpatterns = [
     
     # Cuarto de Basura
     path('basura/ingresar/', views.RegistrarIngresoBasuraView.as_view(), name='ingresar_basura'),
-    # El egreso de basura se restringe al rol secundario y se implementarÃ¡ mÃ¡s tarde
 ]
 
 
 ================================================
 FILE: App_LiderTorre/views.py
 ================================================
-Error reading file with 'cp1252': 'charmap' codec can't decode byte 0x8d in position 1816: character maps to <undefined>
+Error reading file with 'cp1252': 'charmap' codec can't decode byte 0x8d in position 4830: character maps to <undefined>
 
 
 ================================================
@@ -3465,6 +3548,23 @@ FILE: App_LiderTorre/templates/lider_torre/movimiento_form.html
         
         {# Utilizamos la cuadrÃ­cula responsive row g-3 y col-md-6/12 #}
         <div class="row g-3">
+
+            {% if form.tower %}
+                <div class="col-md-12">
+                    <div class="form-group">
+                        {% if form.tower.field.required %}
+                            <label for="{{ form.tower.id_for_label }}" class="form-label">{{ form.tower.label }}</label>
+                            {{ form.tower }}
+                            {% for error in form.tower.errors %}
+                                <div class="text-danger small">{{ error }}</div>
+                            {% endfor %}
+                            {% if form.tower.help_text %}
+                                <small class="form-text text-muted">{{ form.tower.help_text }}</small>
+                            {% endif %}
+                        {% endif %}
+                    </div>
+                </div>
+            {% endif %}
             
             {# Fecha y DescripciÃ³n (Ancho completo en todas las pantallas) #}
             {% for field in form %}
