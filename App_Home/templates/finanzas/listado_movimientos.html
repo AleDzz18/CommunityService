@@ -161,6 +161,11 @@
                                 <i class="fas fa-minus-circle"></i>
                                 Registrar Egreso Cuarto de Basura
                             </a>
+
+                            <a href="{% url 'lider_general:estado_solvencia_basura' %}" class="action-button btn-ingreso">
+                                <i class="fas fa-clipboard-list"></i> 
+                                Ver Tablero de Solvencia
+                            </a>
                         {% else %}
                             {# Deshabilitado para LDT sin rol de Admin Basura #}
                             <a href="#" class="action-button btn-egreso btn-disabled" title="Esta acción requiere permiso de Líder General o Administrador de Cuarto de Basura.">

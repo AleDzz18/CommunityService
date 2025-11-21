@@ -1,9 +1,9 @@
 # App_LiderGeneral/views.py
 
 from django.contrib.auth.mixins import AccessMixin, LoginRequiredMixin, UserPassesTestMixin
-from django.views.generic import ListView, CreateView, UpdateView, DeleteView
+from django.views.generic import ListView, CreateView, UpdateView, DeleteView, TemplateView
 from django.urls import reverse_lazy
-from App_Home.models import CustomUser, MovimientoFinanciero
+from App_Home.models import CustomUser, MovimientoFinanciero, Tower
 from django.shortcuts import redirect
 from django.contrib import messages
 from django.contrib.auth import get_user_model
@@ -12,6 +12,7 @@ from .forms import ( FormularioAdminUsuario,
     IngresoCondominioGeneralForm, EgresoCondominioGeneralForm, 
     IngresoBasuraGeneralForm, EgresoBasuraGeneralForm
 )
+from datetime import date
 
 # Create your views here.
 
@@ -131,3 +132,49 @@ class RegistrarEgresoBasuraGeneralView(LiderGeneralOrAdminBasuraRequiredMixin, B
     CATEGORIA_MOVIMIENTO = 'Cuarto de Basura'
     MONTO_FIELD = 'monto_basura'
     
+class EstadoSolvenciaBasuraView(LoginRequiredMixin, LiderGeneralOrAdminBasuraRequiredMixin, TemplateView):
+    template_name = 'lider_general/estado_solvencia_basura.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        
+        # 1. Obtener mes y año de los parámetros GET o usar los actuales
+        hoy = date.today()
+        try:
+            mes = int(self.request.GET.get('mes', hoy.month))
+            anio = int(self.request.GET.get('anio', hoy.year))
+        except ValueError:
+            mes = hoy.month
+            anio = hoy.year
+
+        # 2. Obtener todas las torres ordenadas
+        torres = Tower.objects.all().order_by('nombre')
+        
+        # 3. Buscar pagos registrados (Ingresos de Basura) en ese mes/año
+        # Nota: values_list nos da una lista simple de IDs de torres que pagaron
+        pagos_registrados = MovimientoFinanciero.objects.filter(
+            categoria='BAS',
+            tipo='ING',
+            fecha__year=anio,
+            fecha__month=mes,
+            tower__isnull=False # Asegurar que esté asociado a una torre
+        ).values_list('tower_id', flat=True).distinct()
+
+        # 4. Construir la estructura de datos para el reporte
+        reporte_solvencia = []
+        for torre in torres:
+            es_solvente = torre.id in pagos_registrados
+            reporte_solvencia.append({
+                'torre': torre,
+                'status': 'SOLVENTE' if es_solvente else 'PENDIENTE',
+                'css_class': 'bg-success text-white' if es_solvente else 'bg-warning text-dark'
+            })
+
+        context.update({
+            'reporte': reporte_solvencia,
+            'mes_actual': mes,
+            'anio_actual': anio,
+            'meses_choices': range(1, 13),
+            'anios_choices': range(hoy.year - 2, hoy.year + 3),
+        })
+        return context
