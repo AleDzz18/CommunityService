@@ -28,8 +28,14 @@ urlpatterns = [
     path('basura/egresar/', views.RegistrarEgresoBasuraGeneralView.as_view(), name='egresar_basura_general'),
     path('basura/estado-solvencia/', views.EstadoSolvenciaBasuraView.as_view(), name='estado_solvencia_basura'),
 
+    # Censo de Miembros
     path('censo/', views.CensoGeneralListView.as_view(), name='censo_lista'),
     path('censo/nuevo/', views.CensoGeneralCreateView.as_view(), name='censo_crear'),
     path('censo/editar/<int:pk>/', views.CensoGeneralUpdateView.as_view(), name='censo_editar'),
     path('censo/eliminar/<int:pk>/', views.CensoGeneralDeleteView.as_view(), name='censo_eliminar'),
+
+    # Gestión de Ciclos y Beneficios
+    path('ciclos/crear/', views.CrearCicloView.as_view(), name='crear_ciclo'),
+    path('ciclos/eliminar/<int:pk>/', views.EliminarCicloView.as_view(), name='eliminar_ciclo'),
+    path('beneficios/agregar-global/<str:tipo_slug>/', views.AgregarBeneficiarioGeneralView.as_view(), name='agregar_beneficiario_global'),
 ]

@@ -1,17 +1,19 @@
 # App_LiderTorre/views.py
 
-from django.views.generic import CreateView, UpdateView, ListView, DeleteView
+from django.views.generic import CreateView, UpdateView, ListView, DeleteView, ListView, View
 from django.urls import reverse_lazy, reverse
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib import messages
-from App_Home.models import MovimientoFinanciero, CustomUser, CensoMiembro
+from App_Home.models import MovimientoFinanciero, CustomUser, CensoMiembro, CicloBeneficio, EntregaBeneficio
 from .mixins import LiderTorreRequiredMixin 
 from .forms import IngresoCondominioForm, EgresoCondominioForm, IngresoBasuraForm
-from django.shortcuts import redirect
+from django.shortcuts import redirect, get_object_or_404
 from decimal import Decimal
 from django.http import HttpResponseRedirect # Asegúrate de importar esto
 from App_Home.forms import CensoMiembroForm
 from .mixins import LiderTorreRequiredMixin
+from django.db import IntegrityError
+
 
 # La plantilla del formulario será la misma para todos los tipos de movimiento
 TEMPLATE_NAME = 'lider_torre/movimiento_form.html'
@@ -274,3 +276,127 @@ class CensoTorreDeleteView(LiderTorreRequiredMixin, DeleteView):
     def form_valid(self, form):
         messages.success(self.request, "Residente eliminado correctamente.")
         return super().form_valid(form)
+    
+# VISTA PARA AGREGAR VECINOS A LISTAS DE BENEFICIOS (CLAP/GAS)
+
+
+class AgregarVecinosTorreView(LoginRequiredMixin, LiderTorreRequiredMixin, ListView):
+    model = CensoMiembro
+    template_name = 'lider_torre/agregar_beneficio.html'
+    context_object_name = 'vecinos'
+
+    def _get_benefit_slug_map(self):
+        """Mapea los códigos DB ('CLAP', 'GAS') a slugs minúsculos ('clap', 'gas') para la URL."""
+        # Usa la lista TIPOS definida dentro del modelo CicloBeneficio
+        return [(db.lower(), db) for db, desc in CicloBeneficio.TIPOS] #
+
+    def get_queryset(self):
+        user_tower = self.request.user.tower
+        if not user_tower:
+            return CensoMiembro.objects.none()
+            
+        tipo_slug = self.kwargs.get('tipo_slug')
+        
+        # Encuentra el código DB ('CLAP' o 'GAS')
+        tipo_db = next((db for slug, db in self._get_benefit_slug_map() if slug == tipo_slug), None)
+        
+        if not tipo_db:
+             return CensoMiembro.objects.none()
+
+        # 1. Obtener ciclo activo (usando campo 'activo')
+        ciclo = CicloBeneficio.objects.filter(tipo=tipo_db, activo=True).first()
+        if not ciclo:
+            return CensoMiembro.objects.none()
+
+        # 2. Excluir los que YA están en la lista (usando EntregaBeneficio)
+        ids_en_lista = EntregaBeneficio.objects.filter(ciclo=ciclo).values_list('beneficiario_id', flat=True)
+        
+        # 3. Filtrar y ordenar
+        return CensoMiembro.objects.filter(
+            tower=user_tower,
+            es_jefe_familia=True # Si este es el filtro deseado
+        ).exclude(id__in=ids_en_lista).order_by('piso', 'apartamento_letra')
+
+
+    def post(self, request, *args, **kwargs):
+        tipo_slug = self.kwargs['tipo_slug']
+        miembros_ids = request.POST.getlist('miembros_ids')
+        
+        if not miembros_ids:
+            messages.error(request, "No seleccionaste a ningún vecino para agregar.")
+            return redirect('lider_torre:agregar_vecinos', tipo_slug=tipo_slug)
+            
+        try:
+            # ⚠️ CORRECCIÓN: Usar la función de mapeo para obtener el código DB
+            tipo_db = next(db for slug, db in self._get_benefit_slug_map() if slug == tipo_slug)
+            
+            # ⚠️ CORRECCIÓN: Usar el campo correcto 'activo=True'
+            ciclo_activo = CicloBeneficio.objects.get(tipo=tipo_db, activo=True)
+            torre_usuario = request.user.tower
+            
+        except CicloBeneficio.DoesNotExist:
+            messages.error(request, f"No existe un ciclo activo para {tipo_slug.upper()}.")
+            return redirect('ver_beneficio', tipo_slug=tipo_slug)
+        except StopIteration:
+            messages.error(request, "Tipo de beneficio inválido.")
+            return redirect('ver_beneficio', tipo_slug=tipo_slug)
+
+        # 4. Crear los objetos EntregaBeneficio
+        objetos_a_crear = []
+        miembros_seleccionados = CensoMiembro.objects.filter(id__in=miembros_ids, tower=torre_usuario)
+        
+        for miembro in miembros_seleccionados:
+            objetos_a_crear.append(
+                # ⚠️ CORRECCIÓN: Usar el modelo correcto EntregaBeneficio
+                EntregaBeneficio(
+                    ciclo=ciclo_activo,
+                    beneficiario=miembro, # ⚠️ CORRECCIÓN: Usar el campo correcto 'beneficiario'
+                    agregado_por=request.user
+                )
+            )
+
+        # 5. Guardar en la base de datos de forma masiva
+        try:
+            # ⚠️ CORRECCIÓN: Usar el modelo correcto EntregaBeneficio
+            EntregaBeneficio.objects.bulk_create(objetos_a_crear)
+            messages.success(request, f"Se agregaron **{len(objetos_a_crear)}** vecinos a la lista de {tipo_slug.upper()}.")
+        except IntegrityError:
+            messages.warning(request, "Algunos vecinos ya estaban en la lista y fueron omitidos (duplicado).")
+        except Exception as e:
+            messages.error(request, f"Error al guardar los beneficiarios: {e}")
+
+        # 6. Redirigir a la lista principal de beneficios
+        return redirect('ver_beneficio', tipo_slug=tipo_slug)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        tipo_slug = self.kwargs.get('tipo_slug')
+        context['tipo_slug'] = tipo_slug
+        context['titulo'] = "Agregar Vecinos a " + tipo_slug.upper()
+        
+        tipo_db = next((db for slug, db in self._get_benefit_slug_map() if slug == tipo_slug), None)
+        # ⚠️ CORRECCIÓN: Usar el campo correcto 'activo=True'
+        context['ciclo'] = CicloBeneficio.objects.filter(tipo=tipo_db, activo=True).first()
+        return context
+
+# La vista para procesar el POST puede ser la misma 'AgregarBeneficiarioGeneralView' 
+# reutilizada o una similar en App_LiderTorre si quieres separar lógica.
+# Por simplicidad, el formulario en el HTML apuntará a una vista de acción compartida o local.
+class ProcesarAgregarTorreView(LoginRequiredMixin, View):
+    def post(self, request):
+        censo_id = request.POST.get('censo_id')
+        ciclo_id = request.POST.get('ciclo_id')
+        
+        miembro = get_object_or_404(CensoMiembro, pk=censo_id)
+        # SEGURIDAD: Verificar que el miembro pertenece a la torre del líder
+        if miembro.tower != request.user.tower:
+            messages.error(request, "No puedes agregar vecinos de otra torre.")
+            return redirect('url_dashboard')
+
+        ciclo = get_object_or_404(CicloBeneficio, pk=ciclo_id)
+        
+        EntregaBeneficio.objects.create(ciclo=ciclo, beneficiario=miembro, agregado_por=request.user)
+        messages.success(request, "Vecino agregado.")
+        
+        slug = 'clap' if ciclo.tipo == 'CLAP' else 'gas'
+        return redirect('lider_torre:agregar_vecinos', tipo_slug=slug)
