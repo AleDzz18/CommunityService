@@ -14,4 +14,8 @@ urlpatterns = [
     
     # URL para descargar el archivo PDF (ejemplo: /finanzas/condominio/descargar/)
     path('finanzas/<str:categoria_slug>/descargar/', views.descargar_pdf, name='descargar_pdf'),
+
+    # --- VISTAS DE BENEFICIOS (PÚBLICO + GESTIÓN VISUAL) ---
+    path('beneficios/<str:tipo_slug>/', views.vista_beneficio, name='ver_beneficio'),
+    path('beneficios/pdf/<int:ciclo_id>/', views.descargar_pdf_beneficio, name='pdf_beneficio'),
 ]

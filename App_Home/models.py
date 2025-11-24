@@ -248,3 +248,38 @@ class CensoMiembro(models.Model):
         verbose_name_plural = "Miembros del Censo"
         # Ordenar por Torre, luego Piso, luego Letra
         ordering = ['tower', 'piso', 'apartamento_letra']
+
+class CicloBeneficio(models.Model):
+    TIPOS = [
+        ('CLAP', 'Bolsa CLAP'),
+        ('GAS', 'Bombona de Gas'),
+    ]
+
+    tipo = models.CharField(max_length=4, choices=TIPOS, verbose_name='Tipo de Beneficio')
+    nombre = models.CharField(max_length=50, verbose_name='Nombre del Ciclo (Ej: Noviembre 2024)')
+    fecha_apertura = models.DateField(auto_now_add=True, verbose_name='Fecha de Apertura')
+    activo = models.BooleanField(default=True, verbose_name='¿Ciclo Activo?')
+
+    def __str__(self):
+        return f"{self.get_tipo_display()} - {self.nombre}"
+
+    class Meta:
+        verbose_name = "Ciclo de Beneficio"
+        verbose_name_plural = "Ciclos de Beneficios"
+        ordering = ['-fecha_apertura']
+
+class EntregaBeneficio(models.Model):
+    ciclo = models.ForeignKey(CicloBeneficio, on_delete=models.CASCADE, related_name='entregas')
+    beneficiario = models.ForeignKey(CensoMiembro, on_delete=models.CASCADE, verbose_name='Vecino Beneficiado')
+    fecha_agregado = models.DateTimeField(auto_now_add=True)
+    
+    # Opcional: Para saber quién lo agregó a la lista
+    agregado_por = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, blank=True)
+
+    class Meta:
+        verbose_name = "Beneficiario en Lista"
+        verbose_name_plural = "Beneficiarios en Lista"
+        unique_together = ('ciclo', 'beneficiario') # Evita duplicados en la misma lista
+
+    def __str__(self):
+        return f"{self.beneficiario} - {self.ciclo}"

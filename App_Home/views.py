@@ -14,8 +14,9 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph #
 from reportlab.lib.styles import getSampleStyleSheet # <-- CRÍTICO
 from reportlab.lib.units import inch
 from .forms import FormularioCreacionUsuario, FormularioPerfilUsuario, FormularioFiltroMovimientos 
-from .models import CustomUser, Tower, MovimientoFinanciero # Importación de los nuevos modelos
+from .models import CustomUser, Tower, MovimientoFinanciero, CicloBeneficio, EntregaBeneficio, CensoMiembro
 from decimal import Decimal
+from django.db.models import Q # Para búsquedas complejas
 
 def vista_dashboard(request):
     """
@@ -514,5 +515,107 @@ def descargar_pdf(request, categoria_slug):
     Story.append(Paragraph(f'<font size="14"><b>SALDO FINAL CALCULADO: Bs. {saldo_acumulado:,.2f}</b></font>', styles['h2']))
 
     # 11. Construir el PDF
+    doc.build(Story)
+    return response
+
+# --- VISTAS DE BENEFICIOS (PÚBLICO + GESTIÓN VISUAL) ---
+
+def vista_beneficio(request, tipo_slug):
+    """
+    Muestra la lista activa de CLAP o GAS.
+    Permite buscar por cédula.
+    Muestra botones de administración si el usuario tiene permisos.
+    """
+    # Mapeo de slug a tipo de modelo
+    tipo_map = {'clap': 'CLAP', 'gas': 'GAS'}
+    if tipo_slug not in tipo_map:
+        return redirect('url_dashboard')
+    
+    tipo_db = tipo_map[tipo_slug]
+    titulo = "Bolsa CLAP" if tipo_db == 'CLAP' else "Bombona de Gas"
+    
+    # 1. Buscar Ciclo Activo
+    ciclo_activo = CicloBeneficio.objects.filter(tipo=tipo_db, activo=True).first()
+    
+    beneficiarios = []
+    mensaje_busqueda = ""
+    
+    if ciclo_activo:
+        # 2. Query Base
+        query = EntregaBeneficio.objects.filter(ciclo=ciclo_activo).select_related('beneficiario', 'beneficiario__tower')
+        
+        # 3. Filtro de Búsqueda (Por Cédula o Nombre)
+        busqueda = request.GET.get('q')
+        if busqueda:
+            query = query.filter(
+                Q(beneficiario__cedula__icontains=busqueda) | 
+                Q(beneficiario__nombres__icontains=busqueda) |
+                Q(beneficiario__apellidos__icontains=busqueda)
+            )
+            mensaje_busqueda = f"Resultados para: '{busqueda}'"
+            
+        beneficiarios = query.order_by('beneficiario__tower', 'beneficiario__piso')
+        
+    # 4. Verificar Permisos de Administración (Para mostrar botones)
+    es_admin = False
+    if request.user.is_authenticated:
+        if request.user.rol == 'LDG':
+            es_admin = True
+        elif tipo_db == 'CLAP' and request.user.es_admin_clap:
+            es_admin = True
+        elif tipo_db == 'GAS' and request.user.es_admin_bombonas:
+            es_admin = True
+
+    context = {
+        'titulo': titulo,
+        'tipo_slug': tipo_slug,
+        'tipo_db': tipo_db,
+        'ciclo': ciclo_activo,
+        'beneficiarios': beneficiarios,
+        'es_admin': es_admin,
+        'busqueda': request.GET.get('q', ''),
+    }
+    return render(request, 'beneficios/lista_beneficio.html', context)
+
+def descargar_pdf_beneficio(request, ciclo_id):
+    """Genera el PDF de la lista de beneficiarios de un ciclo específico."""
+    ciclo = get_object_or_404(CicloBeneficio, pk=ciclo_id)
+    entregas = EntregaBeneficio.objects.filter(ciclo=ciclo).select_related('beneficiario', 'beneficiario__tower').order_by('beneficiario__tower', 'beneficiario__apartamento_letra')
+
+    response = HttpResponse(content_type='application/pdf')
+    filename = f"Listado_{ciclo.get_tipo_display()}_{ciclo.nombre}.pdf"
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+
+    doc = SimpleDocTemplate(response, pagesize=letter)
+    styles = getSampleStyleSheet()
+    Story = []
+
+    # Encabezado
+    Story.append(Paragraph(f"Listado de Beneficiarios - {ciclo.get_tipo_display()}", styles['h1']))
+    Story.append(Paragraph(f"Ciclo: {ciclo.nombre} (Fecha: {ciclo.fecha_apertura})", styles['h3']))
+    Story.append(Paragraph("<br/>", styles['Normal']))
+
+    # Tabla
+    data = [['Torre', 'Apto', 'Cédula', 'Beneficiario', 'Jefe Familia']]
+    for item in entregas:
+        es_jefe = "SÍ" if item.beneficiario.es_jefe_familia else "NO"
+        data.append([
+            item.beneficiario.tower.nombre,
+            item.beneficiario.apartamento_completo,
+            item.beneficiario.cedula,
+            f"{item.beneficiario.nombres} {item.beneficiario.apellidos}",
+            es_jefe
+        ])
+
+    table = Table(data)
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+    ]))
+    
+    Story.append(table)
+    Story.append(Paragraph(f"<br/>Total Beneficiarios: {entregas.count()}", styles['h4']))
+    
     doc.build(Story)
     return response

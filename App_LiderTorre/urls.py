@@ -14,8 +14,13 @@ urlpatterns = [
     # Cuarto de Basura
     path('basura/ingresar/', views.RegistrarIngresoBasuraView.as_view(), name='ingresar_basura'),
 
+    # Censo de Miembros de la Torre
     path('censo/', views.CensoTorreListView.as_view(), name='censo_lista'),
     path('censo/nuevo/', views.CensoTorreCreateView.as_view(), name='censo_crear'),
     path('censo/editar/<int:pk>/', views.CensoTorreUpdateView.as_view(), name='censo_editar'),
     path('censo/eliminar/<int:pk>/', views.CensoTorreDeleteView.as_view(), name='censo_eliminar'),
+
+    # Beneficios para Vecinos
+    path('beneficios/agregar/<str:tipo_slug>/', views.AgregarVecinosTorreView.as_view(), name='agregar_vecinos'),
+    path('beneficios/procesar/', views.ProcesarAgregarTorreView.as_view(), name='procesar_agregar'),
 ]
