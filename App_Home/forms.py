@@ -30,12 +30,9 @@ class FormularioPerfilUsuario(forms.ModelForm):
 
     class Meta:
         model = CustomUser
-        # CORRECCIÓN 1: 'torre' cambia a 'tower' para coincidir con el modelo.
-        # Se añade 'apartamento' para completar el perfil.
         fields = ('first_name', 'last_name', 'cedula', 'rol', 'tower', 'apartamento') 
 
         widgets = {
-            # CORRECCIÓN 2: OPCIONES_ROLES cambia a ROLES para coincidir con el modelo.
             'rol': forms.Select(choices=CustomUser.ROLES),
         }
         

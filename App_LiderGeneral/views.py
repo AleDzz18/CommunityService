@@ -3,18 +3,19 @@
 from django.contrib.auth.mixins import AccessMixin, LoginRequiredMixin, UserPassesTestMixin
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView, TemplateView
 from django.urls import reverse_lazy
-from App_Home.models import CustomUser, MovimientoFinanciero, Tower, CensoMiembro, CicloBeneficio, EntregaBeneficio
+from django.views import View
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.db import IntegrityError
 from django.shortcuts import redirect, get_object_or_404
 from django.contrib import messages
+from App_Home.models import CustomUser, MovimientoFinanciero, Tower, CensoMiembro, CicloBeneficio, EntregaBeneficio
+from App_Home.forms import CensoMiembroForm
 from App_LiderTorre.views import BaseMovimientoCreateView 
 from .forms import ( FormularioAdminUsuario, IngresoCondominioGeneralForm, EgresoCondominioGeneralForm, 
     IngresoBasuraGeneralForm, EgresoBasuraGeneralForm
 )
 from datetime import date
-from App_Home.forms import CensoMiembroForm
-from django.views import View
-from django.contrib.auth.mixins import LoginRequiredMixin
-from django.db import IntegrityError
+
 
 # --- MIXINS DE PERMISOS (Definirlos al principio) ---
 
@@ -196,8 +197,6 @@ class CensoGeneralDeleteView(LiderGeneralRequiredMixin, DeleteView):
     template_name = 'lider_general/censo_confirm_delete.html'
     success_url = reverse_lazy('lider_general:censo_lista')
 
-
-
 # --- GESTIÓN DE CICLOS (CREAR / ELIMINAR) ---
 
 class CrearCicloView(LoginRequiredMixin, View):
@@ -232,10 +231,7 @@ class EliminarCicloView(LoginRequiredMixin, View):
     def post(self, request, pk):
         ciclo = get_object_or_404(CicloBeneficio, pk=pk)
         
-        # Validación de permisos... (Similar a arriba)
-        # ... (Omitido por brevedad, usar misma lógica) ...
-        
-        ciclo.delete() # O ciclo.activo = False si prefieres historial
+        ciclo.delete()
         
         messages.warning(request, "Lista eliminada.")
         return redirect('url_dashboard')

@@ -1,3 +1,5 @@
+# App_Home/views.py
+
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import authenticate, login as autenticar_login, logout
 from django.contrib.auth.forms import AuthenticationForm
@@ -6,24 +8,23 @@ from django.contrib import messages
 from django.contrib.messages import get_messages
 from django.http import HttpResponse # Importación para manejar la respuesta de PDF
 from django.utils import timezone # Importación para manejar la fecha/hora actual
-# Importaciones para generar PDF (Reportlab)
-from reportlab.pdfgen import canvas
+from django.db.models import Q # Para búsquedas complejas
+from reportlab.pdfgen import canvas # Importaciones para generar PDF (Reportlab)
 from reportlab.lib.pagesizes import letter, A4
 from reportlab.lib import colors
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph # <-- CRÍTICO
-from reportlab.lib.styles import getSampleStyleSheet # <-- CRÍTICO
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph
+from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.units import inch
 from .forms import FormularioCreacionUsuario, FormularioPerfilUsuario, FormularioFiltroMovimientos 
 from .models import CustomUser, Tower, MovimientoFinanciero, CicloBeneficio, EntregaBeneficio, CensoMiembro
 from decimal import Decimal
-from django.db.models import Q # Para búsquedas complejas
 
 def vista_dashboard(request):
     """
     Muestra la página principal o dashboard. Permite acceso a espectadores.
     """
     
-    # 🔑 LÓGICA CRÍTICA: REDIRECCIÓN FORZOSA A COMPLETAR PERFIL
+    # REDIRECCIÓN FORZOSA A COMPLETAR PERFIL
     if request.user.is_authenticated:
         usuario = request.user
         
@@ -100,7 +101,7 @@ def vista_registro(request):
             # Por defecto, Django lo guarda como is_active=True.
             usuario.save() 
             
-            # PASO CRÍTICO: Iniciar sesión y redirigir al perfil.
+            # Iniciar sesión y redirigir al perfil.
             autenticar_login(request, usuario) 
             
             messages.success(request, f'Cuenta creada exitosamente para {usuario.username}. Por favor, complete su perfil.')
@@ -130,20 +131,15 @@ def vista_completar_perfil(request, user_id):
         messages.error(request, 'No tiene permisos para editar el perfil de otro usuario.')
         return redirect('url_dashboard')
     
-    # 🔑 MODIFICACIÓN: Si el usuario tiene Cédula (perfil completo), lo redirigimos
+    # Si el usuario tiene Cédula (perfil completo), lo redirigimos
     if getattr(usuario, 'cedula', None):
         messages.info(request, "Su perfil ya está completo.")
         return redirect('url_dashboard')
-    
-    # LÍNEA ELIMINADA: Ya no verificamos if usuario.is_active, sino la cédula.
 
     if request.method == 'POST':
         formulario = FormularioPerfilUsuario(request.POST, instance=usuario)
         if formulario.is_valid():
             formulario.save()
-            
-            # NO ES NECESARIO SETEAR is_active=True NI HACER login de nuevo
-            # ya que el usuario siempre estuvo activo y logueado, solo que incompleto.
             
             messages.success(request, 'Perfil completado con éxito. ¡Bienvenido a la comunidad!')
             return redirect('url_dashboard')
@@ -169,7 +165,7 @@ def vista_completar_perfil(request, user_id):
 
 
 # ------------------------------------------------------------------
-# --- NUEVAS VISTAS: ADMINISTRACIÓN DE INGRESOS Y EGRESOS (USUARIO BÁSICO) ---
+# --- ADMINISTRACIÓN DE INGRESOS Y EGRESOS (USUARIO BÁSICO) ---
 # ------------------------------------------------------------------
 
 def ver_ingresos_egresos(request, categoria_slug):
@@ -278,8 +274,7 @@ def ver_ingresos_egresos(request, categoria_slug):
     torres = Tower.objects.all().order_by('nombre')
     
     # 3. Aplicar filtros iniciales y ordenar
-    # --- CORRECCIÓN 1: Usar select_related('tower') para optimizar la consulta y cargar el objeto 'tower' ---
-    # Nota: El código original usaba 'torre', lo ajusto a 'tower' para seguir la convención del modelo.
+    # --- Usar select_related('tower') para optimizar la consulta y cargar el objeto 'tower' ---
     movimientos_query = MovimientoFinanciero.objects.filter(categoria=categoria_filtro).select_related('tower').order_by('fecha', 'id')
 
     # Filtro por tipo (Ingreso, Egreso, Ambos)
@@ -295,7 +290,7 @@ def ver_ingresos_egresos(request, categoria_slug):
         movimientos_query = movimientos_query.filter(tower__id=int(torre_id))
 
     # -----------------------------------------------------------
-    # ⚠️ AÑADIR NUEVO FILTRO POR RANGO DE FECHAS (Aquí están los cambios)
+    # AÑADIR NUEVO FILTRO POR RANGO DE FECHAS
     # -----------------------------------------------------------
     filtro_form = FormularioFiltroMovimientos(request.GET)
     
@@ -316,7 +311,7 @@ def ver_ingresos_egresos(request, categoria_slug):
     saldo_acumulado = 0
     
     for mov in movimientos_query:
-        # --- CORRECCIÓN 2 (Del turno anterior): Obtener el monto correcto del objeto ---
+        # --- Obtener el monto correcto del objeto ---
         monto = getattr(mov, monto_field)
         
         # Inicializar ingreso/egreso para el diccionario final
@@ -331,7 +326,7 @@ def ver_ingresos_egresos(request, categoria_slug):
             saldo_acumulado -= monto
             egreso_monto = monto
             
-        # --- CORRECCIÓN 3: Manejar el AttributeError para 'tower' ---
+        # --- Manejar el AttributeError para 'tower' ---
         # 1. Comprueba si el atributo 'tower' existe en el objeto (hasattr).
         # 2. Si existe y tiene un valor (es decir, no es None), usa el nombre de la torre.
         # 3. Si no existe o es None, usa 'General'.
@@ -345,10 +340,9 @@ def ver_ingresos_egresos(request, categoria_slug):
             'fecha': mov.fecha,
             'descripcion': mov.descripcion,
             'tasa_bcv': mov.tasa_bcv,
-            # Mostrar solo el monto en la columna correcta 
             'ingreso': ingreso_monto if ingreso_monto and ingreso_monto > 0 else None, 
             'egreso': egreso_monto if egreso_monto and egreso_monto > 0 else None,
-            'torre': nombre_torre, # Usar la variable segura
+            'torre': nombre_torre,
             'saldo': round(saldo_acumulado, 2), # Redondear a dos decimales
             'tipo': mov.tipo,
             'categoria': mov.categoria,

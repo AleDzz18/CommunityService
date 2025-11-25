@@ -4,17 +4,16 @@ from django.views.generic import CreateView, UpdateView, ListView, DeleteView, L
 from django.urls import reverse_lazy, reverse
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib import messages
+from django.db import IntegrityError
+from django.shortcuts import redirect, get_object_or_404
+from django.http import HttpResponseRedirect
 from App_Home.models import MovimientoFinanciero, CustomUser, CensoMiembro, CicloBeneficio, EntregaBeneficio
+from App_Home.forms import CensoMiembroForm
 from .mixins import LiderTorreRequiredMixin 
 from .forms import IngresoCondominioForm, EgresoCondominioForm, IngresoBasuraForm
-from django.shortcuts import redirect, get_object_or_404
 from decimal import Decimal
-from django.http import HttpResponseRedirect # Asegúrate de importar esto
-from App_Home.forms import CensoMiembroForm
-from .mixins import LiderTorreRequiredMixin
-from django.db import IntegrityError
 
-
+# ==============================================================
 # La plantilla del formulario será la misma para todos los tipos de movimiento
 TEMPLATE_NAME = 'lider_torre/movimiento_form.html'
 SUCCESS_URL = None # Se define dinámicamente en get_success_url
@@ -23,7 +22,6 @@ class BaseMovimientoCreateView(LoginRequiredMixin, LiderTorreRequiredMixin, Crea
     """Clase base que asigna automáticamente el creador, tipo, categoría y torre."""
     model = MovimientoFinanciero
     template_name = TEMPLATE_NAME
-    # Ya no se usa success_url, se usa get_success_url
 
     TIPO_MOVIMIENTO = None 
     CATEGORIA_MOVIMIENTO = None
@@ -48,12 +46,10 @@ class BaseMovimientoCreateView(LoginRequiredMixin, LiderTorreRequiredMixin, Crea
         # Asegura que el usuario vea un mensaje genérico si el template no muestra errores específicos
         messages.error(self.request, "Hubo un error en los datos ingresados. Revisa el formulario para ver los errores específicos.")
             
-        return super().form_invalid(form) 
-    # -----------------------------------------------------------
-
+        return super().form_invalid(form)
     
     # -----------------------------------------------------------
-    # MÉTODO form_valid CORREGIDO Y COMPLETO
+    # MÉTODO form_valid
     # -----------------------------------------------------------
     def form_valid(self, form):
         
@@ -92,13 +88,12 @@ class BaseMovimientoCreateView(LoginRequiredMixin, LiderTorreRequiredMixin, Crea
             messages.error(self.request, "Error: No se pudo asignar una torre de destino.")
             return self.form_invalid(form)
 
-
         # 3. Control de Egreso Negativo (Solo si es un Egreso)
         if form.instance.tipo == 'EGR':
             monto_egreso = form.cleaned_data.get(self.MONTO_FIELD)
             
             # ---------------------------------------------------------------------------------
-            # >>> LÓGICA DE SALDO GENERAL/ESPECÍFICO CORREGIDA <<<
+            # >>> LÓGICA DE SALDO GENERAL/ESPECÍFICO <<<
             # ---------------------------------------------------------------------------------
             if form.instance.categoria == 'BAS':
                 # Si es BASURA, chequeamos el saldo GLOBAL de todas las torres
@@ -120,7 +115,6 @@ class BaseMovimientoCreateView(LoginRequiredMixin, LiderTorreRequiredMixin, Crea
                     f"Saldo insuficiente ({self.CATEGORIA_MOVIMIENTO}) en la administración {torre_nombre} para realizar este Egreso. Saldo actual: {saldo_actual:.2f} Bs."
                 )
                 return self.form_invalid(form)
-
 
         # 4. Asignar Montos (Se asigna el monto ingresado y cero al campo no usado)
         monto = form.cleaned_data[self.MONTO_FIELD]
@@ -155,12 +149,6 @@ class BaseMovimientoCreateView(LoginRequiredMixin, LiderTorreRequiredMixin, Crea
         # 7. Retornar la redirección
         return HttpResponseRedirect(self.get_success_url())
     
-        
-
-
-# ----------------------------------------------------------------------
-# Vistas Concretas
-# ----------------------------------------------------------------------
 
 class RegistrarIngresoCondominioView(BaseMovimientoCreateView):
     form_class = IngresoCondominioForm
@@ -184,7 +172,7 @@ class RegistrarIngresoBasuraView(BaseMovimientoCreateView):
 # --- GESTIÓN DE CENSO LOCAL (LÍDER TORRE) ---
 # ==============================================================
 
-# 1. VISTA DE LISTA (FALTABA ESTA)
+# 1. VISTA DE LISTA
 class CensoTorreListView(LiderTorreRequiredMixin, ListView):
     model = CensoMiembro
     template_name = 'lider_torre/censo_list_torre.html'
@@ -264,7 +252,7 @@ class CensoTorreUpdateView(LiderTorreRequiredMixin, UpdateView):
         print("**************************************************\n")
         return super().form_invalid(form)
 
-# 4. VISTA DE ELIMINACIÓN (FALTABA ESTA)
+# 4. VISTA DE ELIMINACIÓN
 class CensoTorreDeleteView(LiderTorreRequiredMixin, DeleteView):
     model = CensoMiembro
     template_name = 'lider_torre/censo_confirm_delete.html'
@@ -277,8 +265,8 @@ class CensoTorreDeleteView(LiderTorreRequiredMixin, DeleteView):
         messages.success(self.request, "Residente eliminado correctamente.")
         return super().form_valid(form)
     
-# VISTA PARA AGREGAR VECINOS A LISTAS DE BENEFICIOS (CLAP/GAS)
 
+# VISTA PARA AGREGAR VECINOS A LISTAS DE BENEFICIOS (CLAP/GAS)
 
 class AgregarVecinosTorreView(LoginRequiredMixin, LiderTorreRequiredMixin, ListView):
     model = CensoMiembro
@@ -301,7 +289,7 @@ class AgregarVecinosTorreView(LoginRequiredMixin, LiderTorreRequiredMixin, ListV
         tipo_db = next((db for slug, db in self._get_benefit_slug_map() if slug == tipo_slug), None)
         
         if not tipo_db:
-             return CensoMiembro.objects.none()
+            return CensoMiembro.objects.none()
 
         # 1. Obtener ciclo activo (usando campo 'activo')
         ciclo = CicloBeneficio.objects.filter(tipo=tipo_db, activo=True).first()
@@ -327,10 +315,8 @@ class AgregarVecinosTorreView(LoginRequiredMixin, LiderTorreRequiredMixin, ListV
             return redirect('lider_torre:agregar_vecinos', tipo_slug=tipo_slug)
             
         try:
-            # ⚠️ CORRECCIÓN: Usar la función de mapeo para obtener el código DB
             tipo_db = next(db for slug, db in self._get_benefit_slug_map() if slug == tipo_slug)
             
-            # ⚠️ CORRECCIÓN: Usar el campo correcto 'activo=True'
             ciclo_activo = CicloBeneficio.objects.get(tipo=tipo_db, activo=True)
             torre_usuario = request.user.tower
             
@@ -347,17 +333,15 @@ class AgregarVecinosTorreView(LoginRequiredMixin, LiderTorreRequiredMixin, ListV
         
         for miembro in miembros_seleccionados:
             objetos_a_crear.append(
-                # ⚠️ CORRECCIÓN: Usar el modelo correcto EntregaBeneficio
                 EntregaBeneficio(
                     ciclo=ciclo_activo,
-                    beneficiario=miembro, # ⚠️ CORRECCIÓN: Usar el campo correcto 'beneficiario'
+                    beneficiario=miembro,
                     agregado_por=request.user
                 )
             )
 
         # 5. Guardar en la base de datos de forma masiva
         try:
-            # ⚠️ CORRECCIÓN: Usar el modelo correcto EntregaBeneficio
             EntregaBeneficio.objects.bulk_create(objetos_a_crear)
             messages.success(request, f"Se agregaron **{len(objetos_a_crear)}** vecinos a la lista de {tipo_slug.upper()}.")
         except IntegrityError:
@@ -375,7 +359,6 @@ class AgregarVecinosTorreView(LoginRequiredMixin, LiderTorreRequiredMixin, ListV
         context['titulo'] = "Agregar Vecinos a " + tipo_slug.upper()
         
         tipo_db = next((db for slug, db in self._get_benefit_slug_map() if slug == tipo_slug), None)
-        # ⚠️ CORRECCIÓN: Usar el campo correcto 'activo=True'
         context['ciclo'] = CicloBeneficio.objects.filter(tipo=tipo_db, activo=True).first()
         return context
 
