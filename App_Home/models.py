@@ -60,7 +60,7 @@ class MovimientoFinancieroManager(models.Manager):
         # Retorna el saldo total de la categoría 'BAS'
         return ingresos - egresos
 
-# --- MODELO AÑADIDO: MOVIMIENTO FINANCIERO ---
+# --- MOVIMIENTO FINANCIERO ---
 class MovimientoFinanciero(models.Model):
 
     objects = MovimientoFinancieroManager()  # Asignar el Manager personalizado

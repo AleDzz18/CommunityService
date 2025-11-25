@@ -2,9 +2,8 @@
 
 from django import forms
 from django.core.exceptions import ValidationError
-# Importamos los modelos desde la aplicación base
-from App_Home.models import CustomUser, Tower 
 from django.db.models import Count
+from App_Home.models import CustomUser, Tower 
 from App_LiderTorre.forms import MovimientoFormBase
 
 class FormularioAdminUsuario(forms.ModelForm):

@@ -15,7 +15,7 @@ loginBtn.addEventListener("click", () => {
 document.addEventListener('DOMContentLoaded', function() {
     // Selecciona todos los mensajes de alerta dentro del contenedor
     const alerts = document.querySelectorAll('.message-container .alert');
-    const DURATION = 9000; // 9 segundos para que el mensaje desaparezca
+    const DURATION = 7000; // 7 segundos para que el mensaje desaparezca
     
     // *** LÍNEA DE DEBUGGING: Abrir Consola (F12) para confirmar que se ejecuta. ***
     console.log(`[DEBUG] Alertas encontradas: ${alerts.length}`);
