@@ -283,3 +283,38 @@ class EntregaBeneficio(models.Model):
 
     def __str__(self):
         return f"{self.beneficiario} - {self.ciclo}"
+    
+
+# --- NUEVO MODELO: SOLICITUDES DE DOCUMENTOS ---
+class SolicitudDocumento(models.Model):
+    TIPOS = [
+        ('CARTA_CONDUCTA', 'Carta de Buena Conducta'),
+        # Aquí agregaremos los otros tipos (Mudanza, etc.) luego
+    ]
+    
+    ESTADOS = [
+        ('PENDIENTE', 'Pendiente'),
+        ('PROCESADO', 'Procesado'),
+    ]
+
+    # Vinculamos con el Censo para sacar datos automáticos
+    beneficiario = models.ForeignKey(CensoMiembro, on_delete=models.CASCADE, verbose_name='Vecino Solicitante')
+    
+    tipo = models.CharField(max_length=20, choices=TIPOS, default='CARTA_CONDUCTA', verbose_name='Tipo de Documento')
+    estado = models.CharField(max_length=15, choices=ESTADOS, default='PENDIENTE', verbose_name='Estado')
+    fecha_solicitud = models.DateTimeField(auto_now_add=True, verbose_name='Fecha Solicitud')
+    
+    # -- Campos específicos para Carta de Buena Conducta (Se llenan al procesar) --
+    anios_residencia = models.CharField(max_length=50, blank=True, null=True, verbose_name='Años de Residencia')
+
+    # Auditoría
+    procesado_por = models.ForeignKey('CustomUser', on_delete=models.SET_NULL, null=True, blank=True, verbose_name='Procesado por')
+    fecha_proceso = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.get_tipo_display()} - {self.beneficiario.cedula}"
+
+    class Meta:
+        verbose_name = "Solicitud de Documento"
+        verbose_name_plural = "Solicitudes de Documentos"
+        ordering = ['-fecha_solicitud']
