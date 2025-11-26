@@ -3,8 +3,9 @@
 from django import forms
 from django.core.exceptions import ValidationError
 from django.db.models import Count
-from App_Home.models import CustomUser, Tower 
+from App_Home.models import CustomUser, Tower, SolicitudDocumento 
 from App_LiderTorre.forms import MovimientoFormBase
+
 
 class FormularioAdminUsuario(forms.ModelForm):
     """
@@ -147,3 +148,21 @@ class EgresoBasuraGeneralForm(LiderGeneralMovimientoBaseForm):
 
     class Meta(LiderGeneralMovimientoBaseForm.Meta):
         fields = LiderGeneralMovimientoBaseForm.Meta.fields + ['monto_basura']
+
+
+# --- Formulario para Procesar Solicitudes de Documentos ---
+class ProcesarCartaConductaForm(forms.ModelForm):
+    """
+    Formulario usado por el Líder General para completar los datos
+    faltantes de una Carta de Buena Conducta antes de generar el PDF.
+    """
+    anios_residencia = forms.CharField(
+        max_length=50,
+        label='Años de Residencia',
+        help_text='Ejemplo: "10 años" o "5 años y 2 meses"',
+        widget=forms.TextInput(attrs={'class': 'form-control', 'required': 'required'})
+    )
+
+    class Meta:
+        model = SolicitudDocumento
+        fields = ['anios_residencia']

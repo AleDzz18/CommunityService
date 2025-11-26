@@ -15,8 +15,9 @@ from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.units import inch
-from .forms import FormularioCreacionUsuario, FormularioPerfilUsuario, FormularioFiltroMovimientos 
-from .models import CustomUser, Tower, MovimientoFinanciero, CicloBeneficio, EntregaBeneficio, CensoMiembro
+from .forms import FormularioCreacionUsuario, FormularioPerfilUsuario, FormularioFiltroMovimientos, SolicitudDocumentoForm
+from .models import (CustomUser, Tower, MovimientoFinanciero, CicloBeneficio, 
+                    EntregaBeneficio, CensoMiembro, SolicitudDocumento)
 from decimal import Decimal
 
 def vista_dashboard(request):
@@ -613,3 +614,33 @@ def descargar_pdf_beneficio(request, ciclo_id):
     
     doc.build(Story)
     return response
+
+# --- VISTA DE SOLICITUD DE DOCUMENTOS (PÚBLICA) ---
+def vista_solicitar_documento(request):
+    """
+    Vista pública donde un vecino ingresa su cédula para pedir un documento.
+    """
+    if request.method == 'POST':
+        form = SolicitudDocumentoForm(request.POST)
+        if form.is_valid():
+            cedula = form.cleaned_data['cedula']
+            tipo = form.cleaned_data['tipo_documento']
+            
+            # Buscamos al miembro (ya validamos en el form que existe)
+            miembro = CensoMiembro.objects.get(cedula=cedula)
+            
+            # Verificamos si ya tiene una solicitud pendiente del mismo tipo
+            if SolicitudDocumento.objects.filter(beneficiario=miembro, tipo=tipo, estado='PENDIENTE').exists():
+                messages.warning(request, f"Ya tienes una solicitud pendiente para {tipo}. Por favor espera a que sea procesada.")
+            else:
+                # Creamos la solicitud
+                SolicitudDocumento.objects.create(
+                    beneficiario=miembro,
+                    tipo=tipo
+                )
+                messages.success(request, "¡Solicitud enviada con éxito! Tu Líder General procesará el documento pronto.")
+                return redirect('url_dashboard')
+    else:
+        form = SolicitudDocumentoForm()
+
+    return render(request, 'solicitudes/crear_solicitud.html', {'form': form})

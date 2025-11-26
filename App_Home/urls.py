@@ -17,4 +17,7 @@ urlpatterns = [
     # --- VISTAS DE BENEFICIOS (PÚBLICO + GESTIÓN VISUAL) ---
     path('beneficios/<str:tipo_slug>/', views.vista_beneficio, name='ver_beneficio'),
     path('beneficios/pdf/<int:ciclo_id>/', views.descargar_pdf_beneficio, name='pdf_beneficio'),
+
+    # --- VISTAS DE DOCUMENTOS ---
+    path('solicitudes/nueva/', views.vista_solicitar_documento, name='solicitar_documento'),
 ]
