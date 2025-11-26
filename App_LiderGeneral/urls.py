@@ -38,4 +38,8 @@ urlpatterns = [
     path('ciclos/crear/', views.CrearCicloView.as_view(), name='crear_ciclo'),
     path('ciclos/eliminar/<int:pk>/', views.EliminarCicloView.as_view(), name='eliminar_ciclo'),
     path('beneficios/agregar-global/<str:tipo_slug>/', views.AgregarBeneficiarioGeneralView.as_view(), name='agregar_beneficiario_global'),
+
+    # GESTIÓN DE SOLICITUDES DE DOCUMENTOS
+    path('solicitudes/', views.ListaSolicitudesView.as_view(), name='lista_solicitudes'),
+    path('solicitudes/procesar/<int:pk>/', views.ProcesarSolicitudView.as_view(), name='procesar_solicitud'),
 ]

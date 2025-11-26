@@ -15,7 +15,6 @@ class MovimientoFormBase(forms.ModelForm):
         label='Tasa BCV (Bs/USD)',
         widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '0.0001', 'required': 'required'})
     )
-    # -----------------------------
     class Meta:
         model = MovimientoFinanciero
         # Excluimos los campos que la vista auto-asignará

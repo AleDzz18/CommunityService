@@ -45,10 +45,17 @@
             Bombona
         </a>
 
-        <a href="#carta-residencia" class="boton-principal">
+        <a href="{% url 'solicitar_documento' %}" class="boton-principal">
             <i class="fas fa-file-alt"></i>
-            Carta de Residencia
+            Solicitar Documentos
         </a>
+
+        {% if request.user.is_authenticated and request.user.rol == 'LDG' %}
+            <a href="{% url 'lider_general:lista_solicitudes' %}" class="boton-principal">
+                <i class="fas fa-tasks"></i>
+                Gestión de Solicitudes
+            </a>
+        {% endif %}
         
         {% if request.user.is_authenticated and request.user.rol == 'LDT' or request.user.is_authenticated and request.user.rol == 'LDG' %}
             {% if request.user.is_authenticated %}

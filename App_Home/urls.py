@@ -8,8 +8,7 @@ urlpatterns = [
     path('register/', views.vista_registro, name='url_registro'),
     path('register/perfil/<int:user_id>/', views.vista_completar_perfil, name='url_completar_perfil'),
     
-    # --- NUEVAS URLS: ADMINISTRACIÓN DE INGRESOS Y EGRESOS ---
-    # Ejemplo de uso: /finanzas/condominio/ o /finanzas/basura/
+    # --- ADMINISTRACIÓN DE INGRESOS Y EGRESOS ---
     path('finanzas/<str:categoria_slug>/', views.ver_ingresos_egresos, name='ver_finanzas'),
     
     # URL para descargar el archivo PDF (ejemplo: /finanzas/condominio/descargar/)
@@ -18,4 +17,7 @@ urlpatterns = [
     # --- VISTAS DE BENEFICIOS (PÚBLICO + GESTIÓN VISUAL) ---
     path('beneficios/<str:tipo_slug>/', views.vista_beneficio, name='ver_beneficio'),
     path('beneficios/pdf/<int:ciclo_id>/', views.descargar_pdf_beneficio, name='pdf_beneficio'),
+
+    # --- VISTAS DE DOCUMENTOS ---
+    path('solicitudes/nueva/', views.vista_solicitar_documento, name='solicitar_documento'),
 ]

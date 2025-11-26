@@ -4,7 +4,7 @@ from django.contrib.auth.forms import UserCreationForm
 from django import forms
 from django.core.exceptions import ValidationError
 from django.db.models import Count
-from .models import CustomUser, Tower, CensoMiembro
+from .models import CustomUser, Tower, CensoMiembro, SolicitudDocumento
 
 # Formulario de Registro para el PASO 1 (Solo autenticación)
 class FormularioCreacionUsuario(UserCreationForm):
@@ -30,12 +30,9 @@ class FormularioPerfilUsuario(forms.ModelForm):
 
     class Meta:
         model = CustomUser
-        # CORRECCIÓN 1: 'torre' cambia a 'tower' para coincidir con el modelo.
-        # Se añade 'apartamento' para completar el perfil.
         fields = ('first_name', 'last_name', 'cedula', 'rol', 'tower', 'apartamento') 
 
         widgets = {
-            # CORRECCIÓN 2: OPCIONES_ROLES cambia a ROLES para coincidir con el modelo.
             'rol': forms.Select(choices=CustomUser.ROLES),
         }
         
@@ -229,3 +226,23 @@ class CensoMiembroForm(forms.ModelForm):
                 raise ValidationError(msg)
         
         return cleaned_data
+    
+# Formulario para Solicitar Documentos (Público)
+class SolicitudDocumentoForm(forms.Form):
+    cedula = forms.CharField(
+        max_length=15, 
+        label='Cédula de Identidad',
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: 12.345.678'})
+    )
+    tipo_documento = forms.ChoiceField(
+        choices=SolicitudDocumento.TIPOS, 
+        label='Tipo de Documento',
+        widget=forms.Select(attrs={'class': 'form-select'})
+    )
+
+    def clean_cedula(self):
+        cedula = self.cleaned_data.get('cedula')
+        # Verificar si la cédula existe en el Censo
+        if not CensoMiembro.objects.filter(cedula=cedula).exists():
+            raise ValidationError("Esta cédula no se encuentra registrada en el Censo. Por favor contacte a su Líder de Torre.")
+        return cedula

@@ -40,9 +40,8 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'App_Home',
-    'App_LiderTorre', # Asumo que ya la tienes instalada
-    'App_LiderGeneral', # Asumo que ya la tienes instalada
-    # ... otras apps si las tienes
+    'App_LiderTorre',
+    'App_LiderGeneral',
 ]
 
 MIDDLEWARE = [
@@ -134,11 +133,11 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # El modelo de usuario personalizado que se usa en el proyecto
 AUTH_USER_MODEL = 'App_Home.CustomUser'
 
-# URL a la que se redirige cuando se requiere inicio de sesión (debe ser la misma que tu path en urls.py)
-LOGIN_URL = '/login/' # <--- ¡CORRECCIÓN!
+# URL a la que se redirige cuando se requiere inicio de sesión
+LOGIN_URL = '/login/'
 
 # URL a la que se redirige a los usuarios después de iniciar sesión con éxito
 LOGIN_REDIRECT_URL = '/' 
 
-# URL a la que se redirige a los usuarios después de cerrar sesión (puedes ajustarla)
+# URL a la que se redirige a los usuarios después de cerrar sesión
 LOGOUT_REDIRECT_URL = '/login/'
