@@ -3038,7 +3038,7 @@ FILE: App_Home/templates/login.html
 ================================================
 FILE: App_Home/templates/beneficios/lista_beneficio.html
 ================================================
-{% extends 'layouts/base.html' %}
+{% extends 'layouts/navbar.html' %}
 {% load static %}
 
 {% block title %}Listado de Beneficio - {{ titulo }}{% endblock %}
@@ -3308,12 +3308,12 @@ FILE: App_Home/templates/layouts/navbar.html
         <span class="label">Basura</span>
     </a>
 
-    <a href="#" class="nav-item" title="CLAP">
+    <a href="{% url 'ver_beneficio' tipo_slug='clap' %}" class="nav-item" title="CLAP">
         <span class="icon">📦</span>
         <span class="label">CLAP</span>
     </a>
 
-    <a href="#" class="nav-item" title="Bombona">
+    <a href="{% url 'ver_beneficio' tipo_slug='gas' %}" class="nav-item" title="Bombona">
         <span class="icon">🔥</span>
         <span class="label">Gas</span>
     </a>
