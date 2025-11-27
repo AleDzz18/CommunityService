@@ -187,3 +187,10 @@ class ProcesarCartaMudanzaForm(forms.ModelForm):
                 'placeholder': 'Ej: Octubre del 2025'
             }),
         }
+
+class ProcesarConstanciaSimpleForm(forms.ModelForm):
+    # Heredamos de SolicitudDocumento pero no incluimos ningún campo en 'fields'
+    # Esto le permite a la vista 'validar' y 'guardar' el modelo sin pedir input al usuario.
+    class Meta:
+        model = SolicitudDocumento
+        fields = [] # Lista vacía: NO SE PIDE NINGÚN CAMPO.

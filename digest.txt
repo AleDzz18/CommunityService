@@ -544,7 +544,9 @@ class EntregaBeneficio(models.Model):
 class SolicitudDocumento(models.Model):
     TIPOS = [
         ('CARTA_CONDUCTA', 'Carta de Buena Conducta'),
-        # AquÃ­ agregaremos los otros tipos (Mudanza, etc.) luego
+        ('CARTA_MUDANZA', 'Carta de Mudanza'),               
+        ('CONSTANCIA_RESIDENCIA', 'Constancia de Residencia'),
+        ('CONSTANCIA_MIGRATORIA', 'Constancia Migratoria'),
     ]
     
     ESTADOS = [
@@ -555,12 +557,16 @@ class SolicitudDocumento(models.Model):
     # Vinculamos con el Censo para sacar datos automÃ¡ticos
     beneficiario = models.ForeignKey(CensoMiembro, on_delete=models.CASCADE, verbose_name='Vecino Solicitante')
     
-    tipo = models.CharField(max_length=20, choices=TIPOS, default='CARTA_CONDUCTA', verbose_name='Tipo de Documento')
+    tipo = models.CharField(max_length=30, choices=TIPOS, default='CARTA_CONDUCTA', verbose_name='Tipo de Documento')
     estado = models.CharField(max_length=15, choices=ESTADOS, default='PENDIENTE', verbose_name='Estado')
     fecha_solicitud = models.DateTimeField(auto_now_add=True, verbose_name='Fecha Solicitud')
     
     # -- Campos especÃ­ficos para Carta de Buena Conducta (Se llenan al procesar) --
     anios_residencia = models.CharField(max_length=50, blank=True, null=True, verbose_name='AÃ±os de Residencia')
+
+    # -- NUEVOS CAMPOS para Carta de Mudanza --
+    mudanza_anio_inicio = models.CharField(max_length=4, blank=True, null=True, verbose_name='AÃ±o de Inicio (Mudanza)')
+    mudanza_fecha_fin = models.CharField(max_length=50, blank=True, null=True, verbose_name='Fecha Fin (Ej: Octubre del 2025)')
 
     # AuditorÃ­a
     procesado_por = models.ForeignKey('CustomUser', on_delete=models.SET_NULL, null=True, blank=True, verbose_name='Procesado por')
@@ -615,7 +621,7 @@ urlpatterns = [
 ================================================
 FILE: App_Home/views.py
 ================================================
-Error reading file with 'cp1252': 'charmap' codec can't decode byte 0x8d in position 3301: character maps to <undefined>
+Error reading file with 'cp1252': 'charmap' codec can't decode byte 0x81 in position 7774: character maps to <undefined>
 
 
 ================================================
@@ -2964,7 +2970,7 @@ urlpatterns = [
 ================================================
 FILE: App_LiderGeneral/views.py
 ================================================
-Error reading file with 'cp1252': 'charmap' codec can't decode byte 0x81 in position 20307: character maps to <undefined>
+Error reading file with 'cp1252': 'charmap' codec can't decode byte 0x81 in position 21330: character maps to <undefined>
 
 
 ================================================
@@ -3596,20 +3602,35 @@ FILE: App_LiderGeneral/templates/lider_general/solicitudes_procesar.html
 {% block content %}
 <div class="dashboard-container" style="max-width: 600px;">
     <h2>Procesar: {{ solicitud.get_tipo_display }}</h2>
+    
     <div class="alert alert-info">
         <strong>Solicitante:</strong> {{ solicitud.beneficiario.nombres }} {{ solicitud.beneficiario.apellidos }}<br>
-        <strong>CÃ©dula:</strong> {{ solicitud.beneficiario.cedula }}
+        <strong>Cédula:</strong> {{ solicitud.beneficiario.cedula }}<br>
+        
+        {# Se muestra la ubicación completa si está disponible #}
+        {% if solicitud.beneficiario.tower %}
+            <strong>Ubicación:</strong> Torre {{ solicitud.beneficiario.tower.nombre }} - Apto {{ solicitud.beneficiario.apartamento_letra }}
+        {% endif %}
     </div>
     
     <form method="post">
         {% csrf_token %}
-        <div class="mb-3">
-            <label class="form-label fw-bold">Tiempo de Residencia (Requerido para la carta)</label>
-            {{ form.anios_residencia }}
-            <div class="form-text">Este texto aparecerÃ¡ tal cual en el PDF. Ej: "10 aÃ±os".</div>
-        </div>
         
-        <div class="d-flex justify-content-between">
+        {# ESTE BUCLE RENDERIZA AUTOMÁTICAMENTE CUALQUIER FORMULARIO (Conducta o Mudanza) #}
+        {% for field in form %}
+        <div class="mb-3">
+            <label class="form-label fw-bold" for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {{ field }}
+            {% if field.help_text %}
+                <div class="form-text">{{ field.help_text }}</div>
+            {% endif %}
+            {% for error in field.errors %}
+                <div class="text-danger small">{{ error }}</div>
+            {% endfor %}
+        </div>
+        {% endfor %}
+        
+        <div class="d-flex justify-content-between mt-4">
             <a href="{% url 'lider_general:lista_solicitudes' %}" class="btn btn-secondary">Cancelar</a>
             <button type="submit" class="btn btn-success">
                 <i class="fas fa-file-pdf"></i> Guardar y Generar PDF
