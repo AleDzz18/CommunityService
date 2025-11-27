@@ -313,6 +313,10 @@ class SolicitudDocumento(models.Model):
     mudanza_anio_inicio = models.CharField(max_length=4, blank=True, null=True, verbose_name='Año de Inicio (Mudanza)')
     mudanza_fecha_fin = models.CharField(max_length=50, blank=True, null=True, verbose_name='Fecha Fin (Ej: Octubre del 2025)')
 
+    # -- NUEVOS CAMPOS para Constancia Migratoria --
+    migratoria_anio_inicio = models.CharField(max_length=4, blank=True, null=True, verbose_name='Año de Inicio (Migratoria)') # <-- AÑADIR ESTE
+    migratoria_anio_fin = models.CharField(max_length=4, blank=True, null=True, verbose_name='Año de Fin (Migratoria)') # <-- AÑADIR ESTE
+
     # Auditoría
     procesado_por = models.ForeignKey('CustomUser', on_delete=models.SET_NULL, null=True, blank=True, verbose_name='Procesado por')
     fecha_proceso = models.DateTimeField(null=True, blank=True)

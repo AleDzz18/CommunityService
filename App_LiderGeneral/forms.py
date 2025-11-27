@@ -3,6 +3,7 @@
 from django import forms
 from django.core.exceptions import ValidationError
 from django.db.models import Count
+from django.utils import timezone
 from App_Home.models import CustomUser, Tower, SolicitudDocumento 
 from App_LiderTorre.forms import MovimientoFormBase
 
@@ -194,3 +195,29 @@ class ProcesarConstanciaSimpleForm(forms.ModelForm):
     class Meta:
         model = SolicitudDocumento
         fields = [] # Lista vacía: NO SE PIDE NINGÚN CAMPO.
+
+# --- NUEVO: Formulario para Constancia Migratoria ---
+class ProcesarConstanciaMigratoriaForm(forms.ModelForm):
+    class Meta:
+        model = SolicitudDocumento
+        fields = ['migratoria_anio_inicio', 'migratoria_anio_fin']
+        labels = {
+            'migratoria_anio_inicio': 'Año en que comenzó a residir',
+            'migratoria_anio_fin': 'Año en que cesó la residencia'
+        }
+        widgets = {
+            'migratoria_anio_inicio': forms.TextInput(attrs={
+                'class': 'form-control', 
+                'placeholder': 'Ej: 2013',
+                'type': 'number',
+                'min': '1900',
+                'max': str(timezone.now().year) # Asegura importar timezone
+            }),
+            'migratoria_anio_fin': forms.TextInput(attrs={
+                'class': 'form-control', 
+                'placeholder': 'Ej: 2025',
+                'type': 'number',
+                'min': '1900',
+                'max': str(timezone.now().year + 1)
+            }),
+        }

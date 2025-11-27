@@ -2970,7 +2970,7 @@ urlpatterns = [
 ================================================
 FILE: App_LiderGeneral/views.py
 ================================================
-Error reading file with 'cp1252': 'charmap' codec can't decode byte 0x81 in position 21330: character maps to <undefined>
+Error reading file with 'cp1252': 'charmap' codec can't decode byte 0x81 in position 21994: character maps to <undefined>
 
 
 ================================================

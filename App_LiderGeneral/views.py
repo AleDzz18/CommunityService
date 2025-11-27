@@ -16,7 +16,7 @@ from App_Home.forms import CensoMiembroForm
 from App_LiderTorre.views import BaseMovimientoCreateView 
 from .forms import ( FormularioAdminUsuario, IngresoCondominioGeneralForm, EgresoCondominioGeneralForm, 
                     IngresoBasuraGeneralForm, EgresoBasuraGeneralForm, ProcesarCartaConductaForm,
-                    ProcesarCartaMudanzaForm, ProcesarConstanciaSimpleForm)
+                    ProcesarCartaMudanzaForm, ProcesarConstanciaSimpleForm, ProcesarConstanciaMigratoriaForm)
 from datetime import date
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
@@ -369,6 +369,9 @@ class ProcesarSolicitudView(LoginRequiredMixin, UserPassesTestMixin, View):
         elif solicitud.tipo == 'CONSTANCIA_RESIDENCIA':
             form = ProcesarConstanciaSimpleForm(instance=solicitud)
 
+        elif solicitud.tipo == 'CONSTANCIA_MIGRATORIA':
+            form = ProcesarConstanciaMigratoriaForm(instance=solicitud)
+
         else:
             # Por defecto, o para CARTA_CONDUCTA
             form = ProcesarCartaConductaForm(instance=solicitud)
@@ -385,6 +388,8 @@ class ProcesarSolicitudView(LoginRequiredMixin, UserPassesTestMixin, View):
             form = ProcesarCartaMudanzaForm(request.POST, instance=solicitud)
         elif solicitud.tipo == 'CONSTANCIA_RESIDENCIA':
             form = ProcesarConstanciaSimpleForm(request.POST, instance=solicitud)
+        elif solicitud.tipo == 'CONSTANCIA_MIGRATORIA':
+            form = ProcesarConstanciaMigratoriaForm(request.POST, instance=solicitud)
         else:
             form = ProcesarCartaConductaForm(request.POST, instance=solicitud)
 
@@ -407,8 +412,11 @@ class ProcesarSolicitudView(LoginRequiredMixin, UserPassesTestMixin, View):
             
             elif solicitud.tipo == 'CONSTANCIA_RESIDENCIA': 
                 messages.success(request, f"Se ha procesado y generado el PDF de Constancia de Residencia para {solicitud.beneficiario.nombres}.")
-                # Devolver el HttpResponse del PDF (NO redirigir)
                 return self.generar_pdf_residencia(solicitud_procesada)
+            
+            elif solicitud.tipo == 'CONSTANCIA_MIGRATORIA': 
+                messages.success(request, f"Se ha procesado y generado el PDF de Constancia Migratoria para {solicitud.beneficiario.nombres}.")
+                return self.generar_pdf_migratoria(solicitud_procesada)
             
             else:
                 messages.warning(request, "Documento procesado pero no se pudo generar el PDF (Tipo no implementado).")
@@ -759,6 +767,112 @@ class ProcesarSolicitudView(LoginRequiredMixin, UserPassesTestMixin, View):
             [Paragraph(f"V- {jefe_cedula}", estilo_firmas), Paragraph(f"V- {lc_cedula}", estilo_firmas)],
             [Paragraph("Jefe de Comunidad", estilo_firmas), Paragraph("Líder de Calle", estilo_firmas)],
         ], colWidths=[250, 250]))
+
+        doc.build(Story)
+        return response
+    
+    def generar_pdf_migratoria(self, solicitud):
+        """Genera el PDF basado en el formato 'CONSTANCIA MIGRATORIA.pdf'"""
+        response = HttpResponse(content_type='application/pdf')
+        filename = f"Constancia_Migratoria_{solicitud.beneficiario.cedula}.pdf"
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+
+        # Document Setup
+        doc = SimpleDocTemplate(response, pagesize=letter, topMargin=1*inch, bottomMargin=1*inch, leftMargin=1*inch, rightMargin=1*inch)
+        Story = []
+        styles = getSampleStyleSheet()
+
+        # Estilos (Usando los mismos que en los otros generadores)
+        estilo_titulo = ParagraphStyle('Titulo', parent=styles['Normal'], alignment=TA_CENTER, fontSize=12, leading=18, spaceAfter=20)
+        estilo_titulo_documento = ParagraphStyle(name='Titulo_Documento', parent=styles['Heading1'], alignment=TA_CENTER, fontSize=14, spaceAfter=20)
+        estilo_cuerpo = ParagraphStyle(name='Cuerpo', parent=styles['Normal'], alignment=TA_JUSTIFY, fontSize=12, leading=18, spaceAfter=12)
+        estilo_firmas = ParagraphStyle(name='Firmas', parent=styles['Normal'], alignment=TA_CENTER, fontSize=12, leading=14, spaceAfter=0)
+        estilo_encabezado_linea = ParagraphStyle(name='EncabezadoLinea', parent=styles['Normal'], alignment=TA_CENTER, fontSize=10, spaceAfter=5)
+
+
+        # Obtención de Datos
+        vecino = solicitud.beneficiario
+        nombre_completo = f"{vecino.nombres} {vecino.apellidos}"
+        cedula = vecino.cedula
+        torre = vecino.tower.nombre if vecino.tower else "N/A"
+        piso = vecino.get_piso_display()
+        anio_inicio = solicitud.migratoria_anio_inicio
+        anio_fin = solicitud.migratoria_anio_fin
+        
+        torre_modificada = torre[1:] if torre.startswith('T') else torre
+        
+        try:
+            # Opción más robusta si la imagen está en App_Home/static/img/clap_logo.png
+            from django.conf import settings
+            image_path = os.path.join(settings.BASE_DIR, 'App_Home', 'static', 'img', 'clap_logo.png')
+            
+            img = Image(image_path, width=350, height=75) # Ajusta width/height según necesites
+            Story.append(img)
+            Story.append(Spacer(1, 12))
+        except FileNotFoundError:
+            # Si la imagen no se encuentra, vuelve a poner el texto.
+            Story.append(Paragraph("<b>CLAP</b>", estilo_titulo))
+            messages.error(self.request, "La imagen del logo CLAP no fue encontrada. Se usó texto en su lugar.")
+        
+        # ENCABEZADO (Adaptado de la plantilla)
+        header_text = """
+        República Bolivariana de Venezuela<br/>
+        Ministerio del Poder Popular para las Comunas y Protección Social<br/>
+        Comité Local de abastecimiento y Producción "BALCONES DE PARAGUANÁ I"<br/>
+        Municipio Carirubana - Parroquia Punta Cardón.<br/>
+        Sector Zarabón - Estado Falcón.<br/>
+        """
+        Story.append(Paragraph(header_text, estilo_titulo))
+        Story.append(Spacer(1, 12))
+
+        # TÍTULO DEL DOCUMENTO
+        Story.append(Paragraph("<b><u>CONSTANCIA MIGRATORIA</u></b>", estilo_titulo_documento))
+        Story.append(Spacer(1, 0.2*inch))
+
+        # CUERPO DEL DOCUMENTO
+        # La Constancia Migratoria del ejemplo (CONSTANCIA MIGRATORIA.pdf) no incluye Piso/Apartamento, solo la Torre.
+        torre_texto = f"Torre {vecino.tower.nombre}" if vecino.tower else ""
+        
+        texto = f"""
+        Por medio de la presente nosotros integrantes del El Comité de Abastecimiento y
+        Producción Balcones de Paraguaná I, hace constar que el ciudadano(a), {nombre_completo}
+        Titular de la cédula de identidad N°V.<u>{cedula}</u> tenía su residencia desde el
+        año {anio_inicio} hasta el año {anio_fin} en el Conjunto Residencial Balcones de Paraguaná I, Torre
+        {torre_modificada}. A partir de esta fecha deja de estar incluido(a) en nuestros censos, para todos los fines
+        consiguientes.
+
+        """
+        Story.append(Paragraph(texto, estilo_cuerpo))
+
+        # FECHA Y CIERRE
+        fecha_hoy = timezone.now()
+        meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
+        # Formato de la migratoria: 'Punto Fijo Municipio Carirubana al 1 día del mes de Diciembre del año 2025.'
+        fecha_texto = f"Constancia que se expide por solicitud de parte interesada, Punto Fijo Municipio Carirubana al {fecha_hoy.day} día del mes de {meses[fecha_hoy.month-1]} del año {fecha_hoy.year}."
+        
+        Story.append(Spacer(1, 0.2*inch))
+        Story.append(Paragraph(fecha_texto, estilo_cuerpo))
+
+        # --- SECCIÓN DE FIRMAS ---
+        
+        # Datos del Jefe de Comunidad (HARDCODEADO según tu plantilla)
+        jefe_nombre = f"{self.request.user.first_name} {self.request.user.last_name}"
+        jefe_cedula = self.request.user.cedula if self.request.user.cedula else "V-XX.XXX.XXX"
+        
+        Story.append(Spacer(1, 0.5*inch))
+        Story.append(Paragraph("Atentamente", estilo_firmas))
+        Story.append(Paragraph("Por el CLAP", estilo_firmas))
+        Story.append(Spacer(1, 0.5*inch))
+        
+        # Línea de firma
+        Story.append(Paragraph("____________________", estilo_firmas))
+        Story.append(Spacer(1, 5)) 
+
+        # Nombre, Cédula y Rol
+        Story.append(Paragraph(jefe_nombre, estilo_firmas))
+        Story.append(Paragraph(f"V- {jefe_cedula}", estilo_firmas))
+        Story.append(Paragraph("Jefe de Comunidad", estilo_firmas))
+
 
         doc.build(Story)
         return response
