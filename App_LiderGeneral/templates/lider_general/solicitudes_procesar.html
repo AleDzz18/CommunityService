@@ -3,20 +3,35 @@
 {% block content %}
 <div class="dashboard-container" style="max-width: 600px;">
     <h2>Procesar: {{ solicitud.get_tipo_display }}</h2>
+    
     <div class="alert alert-info">
         <strong>Solicitante:</strong> {{ solicitud.beneficiario.nombres }} {{ solicitud.beneficiario.apellidos }}<br>
-        <strong>Cédula:</strong> {{ solicitud.beneficiario.cedula }}
+        <strong>Cédula:</strong> {{ solicitud.beneficiario.cedula }}<br>
+        
+        {# Se muestra la ubicación completa si está disponible #}
+        {% if solicitud.beneficiario.tower %}
+            <strong>Ubicación:</strong> Torre {{ solicitud.beneficiario.tower.nombre }} - Apto {{ solicitud.beneficiario.apartamento_letra }}
+        {% endif %}
     </div>
     
     <form method="post">
         {% csrf_token %}
-        <div class="mb-3">
-            <label class="form-label fw-bold">Tiempo de Residencia (Requerido para la carta)</label>
-            {{ form.anios_residencia }}
-            <div class="form-text">Este texto aparecerá tal cual en el PDF. Ej: "10 años".</div>
-        </div>
         
-        <div class="d-flex justify-content-between">
+        {# ESTE BUCLE RENDERIZA AUTOMÁTICAMENTE CUALQUIER FORMULARIO (Conducta o Mudanza) #}
+        {% for field in form %}
+        <div class="mb-3">
+            <label class="form-label fw-bold" for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {{ field }}
+            {% if field.help_text %}
+                <div class="form-text">{{ field.help_text }}</div>
+            {% endif %}
+            {% for error in field.errors %}
+                <div class="text-danger small">{{ error }}</div>
+            {% endfor %}
+        </div>
+        {% endfor %}
+        
+        <div class="d-flex justify-content-between mt-4">
             <a href="{% url 'lider_general:lista_solicitudes' %}" class="btn btn-secondary">Cancelar</a>
             <button type="submit" class="btn btn-success">
                 <i class="fas fa-file-pdf"></i> Guardar y Generar PDF

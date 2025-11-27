@@ -38,9 +38,11 @@ Directory structure:
     │       │   └── lista_beneficio.html
     │       ├── finanzas/
     │       │   └── listado_movimientos.html
-    │       └── layouts/
-    │           ├── base.html
-    │           └── navbar.html
+    │       ├── layouts/
+    │       │   ├── base.html
+    │       │   └── navbar.html
+    │       └── solicitudes/
+    │           └── crear_solicitud.html
     ├── App_LiderGeneral/
     │   ├── __init__.py
     │   ├── admin.py
@@ -58,6 +60,8 @@ Directory structure:
     │           ├── censo_list_general.html
     │           ├── estado_solvencia_basura.html
     │           ├── lista_usuarios.html
+    │           ├── solicitudes_lista.html
+    │           ├── solicitudes_procesar.html
     │           ├── usuario_confirm_delete.html
     │           └── usuario_form.html
     ├── App_LiderTorre/
@@ -243,7 +247,7 @@ class AppHomeConfig(AppConfig):
 ================================================
 FILE: App_Home/forms.py
 ================================================
-Error reading file with 'cp1252': 'charmap' codec can't decode byte 0x81 in position 2448: character maps to <undefined>
+Error reading file with 'cp1252': 'charmap' codec can't decode byte 0x81 in position 2468: character maps to <undefined>
 
 
 ================================================
@@ -534,6 +538,41 @@ class EntregaBeneficio(models.Model):
 
     def __str__(self):
         return f"{self.beneficiario} - {self.ciclo}"
+    
+
+# --- NUEVO MODELO: SOLICITUDES DE DOCUMENTOS ---
+class SolicitudDocumento(models.Model):
+    TIPOS = [
+        ('CARTA_CONDUCTA', 'Carta de Buena Conducta'),
+        # AquÃ­ agregaremos los otros tipos (Mudanza, etc.) luego
+    ]
+    
+    ESTADOS = [
+        ('PENDIENTE', 'Pendiente'),
+        ('PROCESADO', 'Procesado'),
+    ]
+
+    # Vinculamos con el Censo para sacar datos automÃ¡ticos
+    beneficiario = models.ForeignKey(CensoMiembro, on_delete=models.CASCADE, verbose_name='Vecino Solicitante')
+    
+    tipo = models.CharField(max_length=20, choices=TIPOS, default='CARTA_CONDUCTA', verbose_name='Tipo de Documento')
+    estado = models.CharField(max_length=15, choices=ESTADOS, default='PENDIENTE', verbose_name='Estado')
+    fecha_solicitud = models.DateTimeField(auto_now_add=True, verbose_name='Fecha Solicitud')
+    
+    # -- Campos especÃ­ficos para Carta de Buena Conducta (Se llenan al procesar) --
+    anios_residencia = models.CharField(max_length=50, blank=True, null=True, verbose_name='AÃ±os de Residencia')
+
+    # AuditorÃ­a
+    procesado_por = models.ForeignKey('CustomUser', on_delete=models.SET_NULL, null=True, blank=True, verbose_name='Procesado por')
+    fecha_proceso = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.get_tipo_display()} - {self.beneficiario.cedula}"
+
+    class Meta:
+        verbose_name = "Solicitud de Documento"
+        verbose_name_plural = "Solicitudes de Documentos"
+        ordering = ['-fecha_solicitud']
 
 
 ================================================
@@ -567,13 +606,16 @@ urlpatterns = [
     # --- VISTAS DE BENEFICIOS (PÃšBLICO + GESTIÃ“N VISUAL) ---
     path('beneficios/<str:tipo_slug>/', views.vista_beneficio, name='ver_beneficio'),
     path('beneficios/pdf/<int:ciclo_id>/', views.descargar_pdf_beneficio, name='pdf_beneficio'),
+
+    # --- VISTAS DE DOCUMENTOS ---
+    path('solicitudes/nueva/', views.vista_solicitar_documento, name='solicitar_documento'),
 ]
 
 
 ================================================
 FILE: App_Home/views.py
 ================================================
-Error reading file with 'cp1252': 'charmap' codec can't decode byte 0x8d in position 3234: character maps to <undefined>
+Error reading file with 'cp1252': 'charmap' codec can't decode byte 0x8d in position 3301: character maps to <undefined>
 
 
 ================================================
@@ -2275,10 +2317,17 @@ FILE: App_Home/templates/homeDashboard.html
             Bombona
         </a>
 
-        <a href="#carta-residencia" class="boton-principal">
+        <a href="{% url 'solicitar_documento' %}" class="boton-principal">
             <i class="fas fa-file-alt"></i>
-            Carta de Residencia
+            Solicitar Documentos
         </a>
+
+        {% if request.user.is_authenticated and request.user.rol == 'LDG' %}
+            <a href="{% url 'lider_general:lista_solicitudes' %}" class="boton-principal">
+                <i class="fas fa-tasks"></i>
+                GestiÃ³n de Solicitudes
+            </a>
+        {% endif %}
         
         {% if request.user.is_authenticated and request.user.rol == 'LDT' or request.user.is_authenticated and request.user.rol == 'LDG' %}
             {% if request.user.is_authenticated %}
@@ -2697,10 +2746,18 @@ FILE: App_Home/templates/layouts/navbar.html
         <span class="label">Gas</span>
     </a>
 
-    <a href="#" class="nav-item" title="Carta de Residencia">
+    <a href="{% url 'solicitar_documento' %}" class="nav-item" title="Solicitar Documento">
         <span class="icon">📄</span>
-        <span class="label">Carta</span>
+        <span class="label">Documentos</span>
     </a>
+
+    {% if request.user.is_authenticated and request.user.rol == 'LDG' %}
+        <a href="{% url 'lider_general:lista_solicitudes' %}" class="nav-item" title="Gestión de Solicitudes">
+            <span class="icon">🗂️</span>
+            <span class="label">Solicitudes</span>
+        </a>
+    {% endif %}
+
 
     {% if request.user.is_authenticated and request.user.rol == 'LDT' or request.user.is_authenticated and request.user.rol == 'LDG' %}
         {% if request.user.is_authenticated %}
@@ -2738,6 +2795,72 @@ FILE: App_Home/templates/layouts/navbar.html
 
 
 ================================================
+FILE: App_Home/templates/solicitudes/crear_solicitud.html
+================================================
+{% extends 'layouts/base.html' %} 
+{% load static %}
+{% block title %}Solicitar Documento{% endblock %}
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card shadow-lg">
+                <div class="card-header bg-primary text-white text-center">
+                    <h4 class="mb-0">Solicitar Documento Comunitario</h4>
+                </div>
+                <div class="card-body">
+                    {# Mensajes de Django (success, warning, error) #}
+                    {% if messages %}
+                        <div class="message-container">
+                            {% for message in messages %}
+                                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                    {{ message }}
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                    
+                    <p class="text-muted text-center">
+                        Ingresa tu **CÃ©dula de Identidad** y selecciona el tipo de documento. Tu solicitud serÃ¡ enviada al LÃ­der General para su procesamiento.
+                    </p>
+                    
+                    <form method="post" class="mt-4">
+                        {% csrf_token %}
+                        
+                        {# Campos del formulario (cedula y tipo_documento) #}
+                        <div class="mb-3">
+                            <label for="{{ form.cedula.id_for_label }}" class="form-label fw-bold">{{ form.cedula.label }}</label>
+                            {{ form.cedula }}
+                            {% if form.cedula.errors %}
+                                <div class="text-danger small">{{ form.cedula.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="{{ form.tipo_documento.id_for_label }}" class="form-label fw-bold">{{ form.tipo_documento.label }}</label>
+                            {{ form.tipo_documento }}
+                            {% if form.tipo_documento.errors %}
+                                <div class="text-danger small">{{ form.tipo_documento.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-success btn-lg mt-3">
+                                <i class="fas fa-paper-plane"></i> Enviar Solicitud
+                            </button>
+                            <a href="{% url 'url_dashboard' %}" class="btn btn-outline-secondary">Volver al Inicio</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+
+================================================
 FILE: App_LiderGeneral/__init__.py
 ================================================
 [Empty file]
@@ -2767,7 +2890,7 @@ class AppLidergeneralConfig(AppConfig):
 ================================================
 FILE: App_LiderGeneral/forms.py
 ================================================
-Error reading file with 'cp1252': 'charmap' codec can't decode byte 0x8d in position 1724: character maps to <undefined>
+Error reading file with 'cp1252': 'charmap' codec can't decode byte 0x8d in position 1746: character maps to <undefined>
 
 
 ================================================
@@ -2831,340 +2954,17 @@ urlpatterns = [
     path('ciclos/crear/', views.CrearCicloView.as_view(), name='crear_ciclo'),
     path('ciclos/eliminar/<int:pk>/', views.EliminarCicloView.as_view(), name='eliminar_ciclo'),
     path('beneficios/agregar-global/<str:tipo_slug>/', views.AgregarBeneficiarioGeneralView.as_view(), name='agregar_beneficiario_global'),
+
+    # GESTIÃ“N DE SOLICITUDES DE DOCUMENTOS
+    path('solicitudes/', views.ListaSolicitudesView.as_view(), name='lista_solicitudes'),
+    path('solicitudes/procesar/<int:pk>/', views.ProcesarSolicitudView.as_view(), name='procesar_solicitud'),
 ]
 
 
 ================================================
 FILE: App_LiderGeneral/views.py
 ================================================
-# App_LiderGeneral/views.py
-
-from django.contrib.auth.mixins import AccessMixin, LoginRequiredMixin, UserPassesTestMixin
-from django.views.generic import ListView, CreateView, UpdateView, DeleteView, TemplateView
-from django.urls import reverse_lazy
-from django.views import View
-from django.contrib.auth.mixins import LoginRequiredMixin
-from django.db import IntegrityError
-from django.shortcuts import redirect, get_object_or_404
-from django.contrib import messages
-from App_Home.models import CustomUser, MovimientoFinanciero, Tower, CensoMiembro, CicloBeneficio, EntregaBeneficio
-from App_Home.forms import CensoMiembroForm
-from App_LiderTorre.views import BaseMovimientoCreateView 
-from .forms import ( FormularioAdminUsuario, IngresoCondominioGeneralForm, EgresoCondominioGeneralForm, 
-    IngresoBasuraGeneralForm, EgresoBasuraGeneralForm
-)
-from datetime import date
-
-
-# --- MIXINS DE PERMISOS (Definirlos al principio) ---
-
-class LiderGeneralRequiredMixin(AccessMixin):
-    """Verifica que el usuario actual tenga el rol de Lider General."""
-    def dispatch(self, request, *args, **kwargs):
-        # Aseguramos que el usuario estÃ© autenticado
-        if not request.user.is_authenticated:
-            return self.handle_no_permission()
-        
-        # Usamos la constante del modelo para la comparaciÃ³n
-        if request.user.rol != CustomUser.ROL_LIDER_GENERAL:
-            messages.error(request, "No tienes permiso para acceder a esta secciÃ³n administrativa.")
-            # Redirigir al dashboard si no tiene el rol
-            return redirect('url_dashboard') 
-            
-        return super().dispatch(request, *args, **kwargs)
-
-class LiderGeneralOrAdminBasuraRequiredMixin(UserPassesTestMixin):
-    """Permite el acceso solo a LÃ­der General o a un Lider con rol de Admin Basura."""
-    def test_func(self):
-        user = self.request.user
-        # Verificamos si estÃ¡ autenticado primero para evitar errores
-        if not user.is_authenticated:
-            return False
-        return user.rol == CustomUser.ROL_LIDER_GENERAL or user.es_admin_basura
-
-# ******************************************************************
-# 1. GESTIÃ“N DE USUARIOS
-# ******************************************************************
-
-class ListaUsuariosView(LoginRequiredMixin, LiderGeneralRequiredMixin, ListView):
-    model = CustomUser
-    template_name = 'lider_general/lista_usuarios.html' 
-    context_object_name = 'usuarios'
-    ordering = ['username'] 
-
-class CrearUsuarioView(LoginRequiredMixin, LiderGeneralRequiredMixin, CreateView):
-    model = CustomUser
-    form_class = FormularioAdminUsuario 
-    template_name = 'lider_general/usuario_form.html'
-    success_url = reverse_lazy('lider_general:lista_usuarios')
-    
-    def form_valid(self, form):
-        messages.success(self.request, f"Usuario '{form.instance.username}' creado con Ã©xito.")
-        return super().form_valid(form)
-
-class EditarUsuarioView(LoginRequiredMixin, LiderGeneralRequiredMixin, UpdateView):
-    model = CustomUser
-    form_class = FormularioAdminUsuario 
-    template_name = 'lider_general/usuario_form.html'
-    success_url = reverse_lazy('lider_general:lista_usuarios')
-    
-    def form_valid(self, form):
-        messages.success(self.request, f"Usuario '{form.instance.username}' editado con Ã©xito.")
-        return super().form_valid(form)
-
-class EliminarUsuarioView(LoginRequiredMixin, LiderGeneralRequiredMixin, DeleteView):
-    model = CustomUser
-    template_name = 'lider_general/usuario_confirm_delete.html'
-    success_url = reverse_lazy('lider_general:lista_usuarios')
-    context_object_name = 'usuario'
-
-    def form_valid(self, form):
-        messages.success(self.request, f"Usuario '{self.object.username}' eliminado con Ã©xito.")
-        return super().form_valid(form)
-
-# ******************************************************************
-# 2. GESTIÃ“N FINANCIERA (CONDOMINIO Y BASURA)
-# ******************************************************************
-
-# Condominio (Requiere ser LDG)
-class RegistrarIngresoCondominioGeneralView(LiderGeneralRequiredMixin, BaseMovimientoCreateView):
-    form_class = IngresoCondominioGeneralForm
-    TIPO_MOVIMIENTO = 'Ingreso'
-    CATEGORIA_MOVIMIENTO = 'Condominio'
-    MONTO_FIELD = 'monto_condominio'
-
-class RegistrarEgresoCondominioGeneralView(LiderGeneralRequiredMixin, BaseMovimientoCreateView):
-    form_class = EgresoCondominioGeneralForm
-    TIPO_MOVIMIENTO = 'Egreso'
-    CATEGORIA_MOVIMIENTO = 'Condominio'
-    MONTO_FIELD = 'monto_condominio'
-
-# Cuarto de Basura (Ingreso: Requiere ser LDG)
-class RegistrarIngresoBasuraGeneralView(LiderGeneralRequiredMixin, BaseMovimientoCreateView):
-    form_class = IngresoBasuraGeneralForm
-    TIPO_MOVIMIENTO = 'Ingreso'
-    CATEGORIA_MOVIMIENTO = 'Cuarto de Basura'
-    MONTO_FIELD = 'monto_basura'
-
-# Cuarto de Basura (Egreso: Requiere ser LDG O Admin Basura)
-class RegistrarEgresoBasuraGeneralView(LiderGeneralOrAdminBasuraRequiredMixin, BaseMovimientoCreateView):
-    form_class = EgresoBasuraGeneralForm
-    TIPO_MOVIMIENTO = 'Egreso'
-    CATEGORIA_MOVIMIENTO = 'Cuarto de Basura'
-    MONTO_FIELD = 'monto_basura'
-    
-class EstadoSolvenciaBasuraView(LoginRequiredMixin, LiderGeneralOrAdminBasuraRequiredMixin, TemplateView):
-    template_name = 'lider_general/estado_solvencia_basura.html'
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        
-        hoy = date.today()
-        try:
-            mes = int(self.request.GET.get('mes', hoy.month))
-            anio = int(self.request.GET.get('anio', hoy.year))
-        except ValueError:
-            mes = hoy.month
-            anio = hoy.year
-
-        torres = Tower.objects.all().order_by('nombre')
-        
-        pagos_registrados = MovimientoFinanciero.objects.filter(
-            categoria='BAS',
-            tipo='ING',
-            fecha__year=anio,
-            fecha__month=mes,
-            tower__isnull=False
-        ).values_list('tower_id', flat=True).distinct()
-
-        reporte_solvencia = []
-        for torre in torres:
-            es_solvente = torre.id in pagos_registrados
-            reporte_solvencia.append({
-                'torre': torre,
-                'status': 'SOLVENTE' if es_solvente else 'PENDIENTE',
-                'css_class': 'bg-success text-white' if es_solvente else 'bg-warning text-dark'
-            })
-
-        context.update({
-            'reporte': reporte_solvencia,
-            'mes_actual': mes,
-            'anio_actual': anio,
-            'meses_choices': range(1, 13),
-            'anios_choices': range(hoy.year - 2, hoy.year + 3),
-        })
-        return context
-    
-# ******************************************************************
-# 3. GESTIÃ“N DE CENSO GLOBAL
-# ******************************************************************
-
-class CensoGeneralListView(LiderGeneralRequiredMixin, ListView):
-    model = CensoMiembro
-    template_name = 'lider_general/censo_list_general.html'
-    context_object_name = 'miembros'
-    ordering = ['tower', 'piso', 'apartamento_letra']
-
-    def get_queryset(self):
-        qs = super().get_queryset().select_related('tower')
-        # Filtro por Torre desde el GET
-        torre_id = self.request.GET.get('torre')
-        if torre_id and torre_id.isdigit():
-            qs = qs.filter(tower_id=int(torre_id))
-        return qs
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['torres'] = Tower.objects.all() # Para el dropdown del filtro
-        context['torre_seleccionada'] = self.request.GET.get('torre')
-        return context
-
-class CensoGeneralCreateView(LiderGeneralRequiredMixin, CreateView):
-    model = CensoMiembro
-    form_class = CensoMiembroForm
-    template_name = 'lider_general/censo_form_general.html'
-    success_url = reverse_lazy('lider_general:censo_lista') 
-
-class CensoGeneralUpdateView(LiderGeneralRequiredMixin, UpdateView):
-    model = CensoMiembro
-    form_class = CensoMiembroForm
-    template_name = 'lider_general/censo_form_general.html'
-    success_url = reverse_lazy('lider_general:censo_lista')
-
-class CensoGeneralDeleteView(LiderGeneralRequiredMixin, DeleteView):
-    model = CensoMiembro
-    template_name = 'lider_general/censo_confirm_delete.html'
-    success_url = reverse_lazy('lider_general:censo_lista')
-
-# --- GESTIÃ“N DE CICLOS (CREAR / ELIMINAR) ---
-
-class CrearCicloView(LoginRequiredMixin, View):
-    """Crea una nueva lista mensual y cierra la anterior si existe."""
-    
-    def post(self, request, *args, **kwargs):
-        tipo = request.POST.get('tipo') # CLAP o GAS
-        nombre = request.POST.get('nombre') # Ej: "Octubre 2024"
-        
-        # ValidaciÃ³n de permisos (LDG o Admin EspecÃ­fico)
-        permiso = False
-        if request.user.rol == 'LDG': permiso = True
-        elif tipo == 'CLAP' and request.user.es_admin_clap: permiso = True
-        elif tipo == 'GAS' and request.user.es_admin_bombonas: permiso = True
-        
-        if not permiso:
-            messages.error(request, "No tienes permiso para crear listas.")
-            return redirect('url_dashboard')
-
-        # 1. Desactivar ciclos anteriores del mismo tipo
-        CicloBeneficio.objects.filter(tipo=tipo, activo=True).update(activo=False)
-        
-        # 2. Crear nuevo ciclo
-        CicloBeneficio.objects.create(tipo=tipo, nombre=nombre, activo=True)
-        
-        slug = 'clap' if tipo == 'CLAP' else 'gas'
-        messages.success(request, f"Nueva lista de {tipo} creada exitosamente.")
-        return redirect('ver_beneficio', tipo_slug=slug)
-
-class EliminarCicloView(LoginRequiredMixin, View):
-    """Elimina (Cierra) la lista actual."""
-    def post(self, request, pk):
-        ciclo = get_object_or_404(CicloBeneficio, pk=pk)
-        
-        ciclo.delete()
-        
-        messages.warning(request, "Lista eliminada.")
-        return redirect('url_dashboard')
-
-# --- AGREGAR PERSONAS GLOBALMENTE ---
-class AgregarBeneficiarioGeneralView(LoginRequiredMixin, LiderGeneralRequiredMixin, ListView):
-    model = CensoMiembro
-    template_name = 'lider_general/agregar_beneficiario_global.html' # AsegÃºrate de crear/usar este template
-    context_object_name = 'miembros_disponibles'
-
-    def get_queryset(self):
-        tipo_slug = self.kwargs['tipo_slug']
-        tipo_db = tipo_slug.upper() # CLAP o GAS
-
-        try:
-            # 1. Obtener el ciclo activo
-            ciclo = CicloBeneficio.objects.get(tipo=tipo_db, activo=True)
-        except CicloBeneficio.DoesNotExist:
-            # Si no hay ciclo activo, no hay miembros que listar para agregar.
-            messages.error(self.request, f"No existe un ciclo activo para {tipo_db}.")
-            return CensoMiembro.objects.none()
-
-        # 2. Obtener IDs de miembros que YA estÃ¡n en la lista (EntregaBeneficio)
-        ids_en_lista = EntregaBeneficio.objects.filter(ciclo=ciclo).values_list('beneficiario_id', flat=True)
-
-        # 3. Obtener todos los CensoMiembro que NO estÃ¡n en la lista
-        # El LÃ­der General puede ver todas las torres
-        qs = CensoMiembro.objects.all().exclude(id__in=ids_en_lista).select_related('tower').order_by('tower__nombre', 'piso', 'apartamento_letra')
-        
-        # Opcional: Filtro por Torre (Ãºtil para el LÃ­der General)
-        torre_id = self.request.GET.get('torre')
-        if torre_id and torre_id.isdigit():
-            qs = qs.filter(tower_id=int(torre_id))
-
-        return qs
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        tipo_slug = self.kwargs['tipo_slug']
-        tipo_db = tipo_slug.upper()
-        
-        # Intentar obtener el ciclo activo para mostrar la informaciÃ³n en el template
-        ciclo = CicloBeneficio.objects.filter(tipo=tipo_db, activo=True).first()
-
-        context['tipo_slug'] = tipo_slug
-        context['titulo'] = f"Agregar Beneficiarios ({tipo_db})"
-        context['ciclo_activo'] = ciclo
-        context['torres'] = Tower.objects.all() # Para un posible filtro en el template
-        context['torre_seleccionada'] = self.request.GET.get('torre')
-        
-        return context
-
-    # El mÃ©todo POST se debe redefinir aquÃ­ para manejar la adiciÃ³n masiva de la lista.
-    # Recibe 'tipo_slug' desde el argumento de la URL.
-    def post(self, request, tipo_slug):
-        miembros_ids = request.POST.getlist('miembros_ids') # Esperamos una lista de IDs de checkboxes
-        
-        if not miembros_ids:
-            messages.error(request, "No seleccionaste a ningÃºn miembro para agregar.")
-            return redirect('lider_general:agregar_beneficiario_global', tipo_slug=tipo_slug)
-            
-        tipo_db = tipo_slug.upper()
-        
-        try:
-            ciclo_activo = CicloBeneficio.objects.get(tipo=tipo_db, activo=True)
-        except CicloBeneficio.DoesNotExist:
-            messages.error(request, f"No existe un ciclo activo para {tipo_db}.")
-            return redirect('ver_beneficio', tipo_slug=tipo_slug)
-
-        # 4. Crear los objetos EntregaBeneficio
-        objetos_a_crear = []
-        miembros_seleccionados = CensoMiembro.objects.filter(id__in=miembros_ids)
-        
-        for miembro in miembros_seleccionados:
-            objetos_a_crear.append(
-                EntregaBeneficio(
-                    ciclo=ciclo_activo,
-                    beneficiario=miembro,
-                    agregado_por=request.user
-                )
-            )
-
-        # 5. Guardar en la base de datos de forma masiva
-        try:
-            # Usamos ignore_conflicts=True para evitar fallos si un beneficiario ya fue agregado
-            EntregaBeneficio.objects.bulk_create(objetos_a_crear, ignore_conflicts=True)
-            messages.success(request, f"Se agregaron **{len(objetos_a_crear)}** miembros a la lista de {tipo_db}.")
-        except IntegrityError:
-            messages.warning(request, "Algunos miembros ya estaban en la lista y fueron omitidos.")
-        except Exception as e:
-            messages.error(request, f"Error al guardar los beneficiarios: {e}")
-
-        # 6. Redirigir a la lista principal de beneficios
-        return redirect('ver_beneficio', tipo_slug=tipo_slug)
+Error reading file with 'cp1252': 'charmap' codec can't decode byte 0x81 in position 20307: character maps to <undefined>
 
 
 ================================================
@@ -3739,6 +3539,83 @@ FILE: App_LiderGeneral/templates/lider_general/lista_usuarios.html
             </tbody>
         </table>
     </div>
+</div>
+{% endblock %}
+
+
+================================================
+FILE: App_LiderGeneral/templates/lider_general/solicitudes_lista.html
+================================================
+{% extends 'layouts/navbar.html' %}
+{% block title %}Solicitudes de Documentos{% endblock %}
+{% block content %}
+<div class="dashboard-container">
+    <h2><i class="fas fa-inbox"></i> Solicitudes Pendientes</h2>
+    <hr>
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead class="table-dark">
+                <tr>
+                    <th>Fecha</th>
+                    <th>Vecino</th>
+                    <th>Torre/Apto</th>
+                    <th>Documento</th>
+                    <th>AcciÃ³n</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for sol in solicitudes %}
+                <tr>
+                    <td>{{ sol.fecha_solicitud|date:"d/m/Y" }}</td>
+                    <td>{{ sol.beneficiario.nombres }} {{ sol.beneficiario.apellidos }}</td>
+                    <td><span class="badge bg-secondary">{{ sol.beneficiario.tower.nombre }} - {{ sol.beneficiario.apartamento_completo }}</span></td>
+                    <td>{{ sol.get_tipo_display }}</td>
+                    <td>
+                        <a href="{% url 'lider_general:procesar_solicitud' sol.pk %}" class="btn btn-primary btn-sm">
+                            <i class="fas fa-cog"></i> Procesar
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" class="text-center text-muted py-4">No hay solicitudes pendientes.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+
+================================================
+FILE: App_LiderGeneral/templates/lider_general/solicitudes_procesar.html
+================================================
+{% extends 'layouts/base.html' %}
+{% block title %}Procesar Documento{% endblock %}
+{% block content %}
+<div class="dashboard-container" style="max-width: 600px;">
+    <h2>Procesar: {{ solicitud.get_tipo_display }}</h2>
+    <div class="alert alert-info">
+        <strong>Solicitante:</strong> {{ solicitud.beneficiario.nombres }} {{ solicitud.beneficiario.apellidos }}<br>
+        <strong>CÃ©dula:</strong> {{ solicitud.beneficiario.cedula }}
+    </div>
+    
+    <form method="post">
+        {% csrf_token %}
+        <div class="mb-3">
+            <label class="form-label fw-bold">Tiempo de Residencia (Requerido para la carta)</label>
+            {{ form.anios_residencia }}
+            <div class="form-text">Este texto aparecerÃ¡ tal cual en el PDF. Ej: "10 aÃ±os".</div>
+        </div>
+        
+        <div class="d-flex justify-content-between">
+            <a href="{% url 'lider_general:lista_solicitudes' %}" class="btn btn-secondary">Cancelar</a>
+            <button type="submit" class="btn btn-success">
+                <i class="fas fa-file-pdf"></i> Guardar y Generar PDF
+            </button>
+        </div>
+    </form>
 </div>
 {% endblock %}
 

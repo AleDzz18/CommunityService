@@ -166,3 +166,24 @@ class ProcesarCartaConductaForm(forms.ModelForm):
     class Meta:
         model = SolicitudDocumento
         fields = ['anios_residencia']
+
+# --- NUEVO: Formulario para Carta de Mudanza ---
+class ProcesarCartaMudanzaForm(forms.ModelForm):
+    class Meta:
+        model = SolicitudDocumento
+        fields = ['mudanza_anio_inicio', 'mudanza_fecha_fin']
+        labels = {
+            'mudanza_anio_inicio': 'Año de Inicio de Residencia',
+            'mudanza_fecha_fin': 'Fecha de Finalización (Mes y Año)'
+        }
+        widgets = {
+            'mudanza_anio_inicio': forms.TextInput(attrs={
+                'class': 'form-control', 
+                'placeholder': 'Ej: 2023',
+                'type': 'number'
+            }),
+            'mudanza_fecha_fin': forms.TextInput(attrs={
+                'class': 'form-control', 
+                'placeholder': 'Ej: Octubre del 2025'
+            }),
+        }
