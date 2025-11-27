@@ -6,22 +6,26 @@ from django.urls import reverse_lazy
 from django.views import View
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db import IntegrityError
-from django.shortcuts import redirect, get_object_or_404
+from django.shortcuts import redirect, get_object_or_404, render
 from django.contrib import messages
 from django.http import HttpResponse
+from django.utils import timezone
 from App_Home.models import (CustomUser, MovimientoFinanciero, Tower, CensoMiembro,
                             CicloBeneficio, EntregaBeneficio, SolicitudDocumento)
 from App_Home.forms import CensoMiembroForm
 from App_LiderTorre.views import BaseMovimientoCreateView 
 from .forms import ( FormularioAdminUsuario, IngresoCondominioGeneralForm, EgresoCondominioGeneralForm, 
-                    IngresoBasuraGeneralForm, EgresoBasuraGeneralForm, ProcesarCartaConductaForm)
+                    IngresoBasuraGeneralForm, EgresoBasuraGeneralForm, ProcesarCartaConductaForm,
+                    ProcesarCartaMudanzaForm)
 from datetime import date
+from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image , Table as PDFTable
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY, TA_RIGHT
 from reportlab.lib.utils import ImageReader
 from reportlab.lib.colors import black # Para el color del subrayado
+from reportlab.lib.units import inch
 import os
 
 
@@ -350,39 +354,70 @@ class ListaSolicitudesView(LoginRequiredMixin, LiderGeneralRequiredMixin, ListVi
         # Filtramos solo las pendientes, ordenadas por fecha (más viejas primero)
         return SolicitudDocumento.objects.filter(estado='PENDIENTE').order_by('fecha_solicitud')
 
-class ProcesarSolicitudView(LoginRequiredMixin, LiderGeneralRequiredMixin, UpdateView):
-    """
-    Vista doble: 
-    1. Muestra el formulario para ingresar 'años de residencia'.
-    2. Al guardar, genera y descarga el PDF automáticamente.
-    """
-    model = SolicitudDocumento
-    form_class = ProcesarCartaConductaForm
-    template_name = 'lider_general/solicitudes_procesar.html'
-    context_object_name = 'solicitud'
+class ProcesarSolicitudView(LoginRequiredMixin, UserPassesTestMixin, View):
+    
+    def test_func(self):
+        # Solo Lideres Generales (LDG) pueden procesar documentos
+        return self.request.user.rol == 'LDG'
 
-    def form_valid(self, form):
-        # 1. Guardar datos del formulario (años de residencia)
-        solicitud = form.save(commit=False)
-        solicitud.estado = 'PROCESADO'
-        solicitud.procesado_por = self.request.user
-        solicitud.fecha_proceso = date.today() # Usamos la fecha actual
-        solicitud.save()
+    def get(self, request, pk):
+        solicitud = get_object_or_404(SolicitudDocumento, pk=pk)
+        
+        if solicitud.tipo == 'CARTA_MUDANZA':
+            form = ProcesarCartaMudanzaForm(instance=solicitud)
+        else:
+            # Por defecto, o para CARTA_CONDUCTA
+            form = ProcesarCartaConductaForm(instance=solicitud)
+            
+        return render(request, 'lider_general/solicitudes_procesar.html', {
+            'form': form, 
+            'solicitud': solicitud
+        })
 
-        # 2. Generar el PDF
-        return self.generar_pdf_carta_conducta(solicitud)
+    def post(self, request, pk):
+        solicitud = get_object_or_404(SolicitudDocumento, pk=pk)
+        
+        if solicitud.tipo == 'CARTA_MUDANZA':
+            form = ProcesarCartaMudanzaForm(request.POST, instance=solicitud)
+        else:
+            form = ProcesarCartaConductaForm(request.POST, instance=solicitud)
 
-    def generar_pdf_carta_conducta(self, solicitud):
+        if form.is_valid():
+            solicitud_procesada = form.save(commit=False)
+            solicitud_procesada.estado = 'PROCESADO'
+            solicitud_procesada.procesado_por = request.user
+            solicitud_procesada.fecha_proceso = timezone.now()
+            solicitud_procesada.save()
+            
+            # --- LÓGICA DE GENERACIÓN DE PDF ---
+            if solicitud.tipo == 'CARTA_MUDANZA':
+                messages.success(request, f"Se ha procesado y generado el PDF de Carta de Mudanza para {solicitud.beneficiario.nombres}.")
+                return self.generar_pdf_mudanza(solicitud_procesada)
+            
+            elif solicitud.tipo == 'CARTA_CONDUCTA':
+                # ¡Esta es la línea que fallaba y ahora es posible!
+                messages.success(request, f"Se ha procesado y generado el PDF de Carta de Conducta para {solicitud.beneficiario.nombres}.")
+                return self.generar_pdf_conducta(solicitud_procesada)
+            
+            else:
+                messages.warning(request, "Documento procesado pero no se pudo generar el PDF (Tipo no implementado).")
+                return redirect('lider_general:lista_solicitudes') 
+        
+        messages.error(request, "Error en los datos ingresados.")
+        return render(request, 'lider_general/solicitudes_procesar.html', {'form': form, 'solicitud': solicitud})
+
+    # --- GENERADOR 1: CARTA DE BUENA CONDUCTA (RESTAURADO) ---
+    def generar_pdf_conducta(self, solicitud):
         response = HttpResponse(content_type='application/pdf')
         filename = f"Carta_Conducta_{solicitud.beneficiario.cedula}.pdf"
         response['Content-Disposition'] = f'attachment; filename="{filename}"'
 
-        doc = SimpleDocTemplate(response, pagesize=letter, 
-                                rightMargin=72, leftMargin=72, 
+        doc = SimpleDocTemplate(response, pagesize=letter,
+                                rightMargin=72, leftMargin=72,
                                 topMargin=72, bottomMargin=18)
         Story = []
         styles = getSampleStyleSheet()
-        
+
         # Estilos Personalizados
         estilo_titulo = ParagraphStyle(
             'Titulo', parent=styles['Normal'], fontSize=12, leading=18, 
@@ -415,23 +450,12 @@ class ProcesarSolicitudView(LoginRequiredMixin, LiderGeneralRequiredMixin, Updat
         # --- FIN MODIFICACIÓN 3 ---
 
         # --- MODIFICACIÓN 1: Insertar la imagen del CLAP ---
-        # Ruta de la imagen: Asegúrate de que esta ruta sea correcta para tu proyecto.
-        # Asumo que la imagen está en tu carpeta static de App_Home o en la general del proyecto.
-        # Por ejemplo: 'static/img/clap_logo.png'
-        # Tendrás que crear esta carpeta y colocar la imagen allí.
         try:
-            # Reemplaza con la ruta real de tu imagen.
-            # Puedes usar staticfiles_storage.path('img/clap_logo.png') si configuras STATIC_ROOT y collectstatic.
-            # O simplemente una ruta relativa desde BASE_DIR
-            
             # Opción más robusta si la imagen está en App_Home/static/img/clap_logo.png
             from django.conf import settings
             image_path = os.path.join(settings.BASE_DIR, 'App_Home', 'static', 'img', 'clap_logo.png')
             
-            # Otra opción si está en un STATICFILES_DIRS configurado globalmente:
-            # image_path = os.path.join(settings.BASE_DIR, 'static', 'img', 'clap_logo.png')
-            
-            img = Image(image_path, width=200, height=50) # Ajusta width/height según necesites
+            img = Image(image_path, width=350, height=75) # Ajusta width/height según necesites
             Story.append(img)
             Story.append(Spacer(1, 12))
         except FileNotFoundError:
@@ -441,7 +465,6 @@ class ProcesarSolicitudView(LoginRequiredMixin, LiderGeneralRequiredMixin, Updat
 
 
         header_text = """
-        Comité Local de Abastecimiento y Producción<br/>
         República Bolivariana de Venezuela<br/>
         Ministerio del Poder Popular para las Comunas y Protección Social<br/>
         Comité Local de abastecimiento y Producción "BALCONES DE PARAGUANÁ I"<br/>
@@ -522,7 +545,102 @@ class ProcesarSolicitudView(LoginRequiredMixin, LiderGeneralRequiredMixin, Updat
             [Paragraph("Jefe de Comunidad", estilo_firmas), Paragraph("Líder de Calle", estilo_firmas)]
         ], colWidths=[250, 250]))
 
-        # --- FIN MODIFICACIÓN 3 ---
+        doc.build(Story)
+        return response
+    
+    # NUEVO: Generador de PDF para Carta de Mudanza
+    def generar_pdf_mudanza(self, solicitud):
+        """Genera el PDF basado en el formato 'Carta de Mudanza.pdf'"""
+        response = HttpResponse(content_type='application/pdf')
+        filename = f"Carta_Mudanza_{solicitud.beneficiario.cedula}.pdf"
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+
+        doc = SimpleDocTemplate(response, pagesize=letter, 
+                                topMargin=72, bottomMargin=18, 
+                                leftMargin=72, rightMargin=72)
+        Story = []
+        styles = getSampleStyleSheet()
+
+        # Estilos Personalizados
+        estilo_titulo = ParagraphStyle('Titulo', parent=styles['Normal'], alignment=TA_CENTER, fontSize=12, leading=18, spaceAfter=20)
+        estilo_titulo_documento = ParagraphStyle('TituloDocumento', parent=styles['Normal'], alignment=TA_CENTER, fontSize=12,
+                                                leading=18, spaceAfter=20, fontName='Helvetica-Bold', underline=True, 
+                                                underlineColor=black, underlineOffset=-2)
+        
+        estilo_cuerpo = ParagraphStyle('Cuerpo', parent=styles['Normal'], alignment=TA_JUSTIFY, fontSize=12, leading=18, spaceAfter=12)
+        estilo_firma = ParagraphStyle('Firma', parent=styles['Normal'], alignment=TA_CENTER, fontSize=12, leading=14)
+        estilo_linea_firma = ParagraphStyle('LineaFirma', parent=styles['Normal'], alignment=TA_CENTER, fontSize=11, leading=14, spaceBefore=10, spaceAfter=0)
+        estilo_encabezado_linea = ParagraphStyle('EncabezadoLinea', parent=styles['Normal'], alignment=TA_CENTER, fontSize=10, spaceAfter=5)
+
+        try:
+            # Opción más robusta si la imagen está en App_Home/static/img/clap_logo.png
+            from django.conf import settings
+            image_path = os.path.join(settings.BASE_DIR, 'App_Home', 'static', 'img', 'clap_logo.png')
+            
+            img = Image(image_path, width=350, height=75) # Ajusta width/height según necesites
+            Story.append(img)
+            Story.append(Spacer(1, 12))
+        except FileNotFoundError:
+            # Si la imagen no se encuentra, vuelve a poner el texto.
+            Story.append(Paragraph("<b>CLAP</b>", estilo_titulo))
+            messages.error(self.request, "La imagen del logo CLAP no fue encontrada. Se usó texto en su lugar.")
+
+        # ENCABEZADO (Tomando texto de los PDFs)
+        header_text = """
+        República Bolivariana de Venezuela<br/>
+        Ministerio del Poder Popular para las Comunas y Protección Social<br/>
+        Comité Local de abastecimiento y Producción "BALCONES DE PARAGUANÁ I"<br/>
+        Municipio Carirubana - Parroquia Punta Cardón.<br/>
+        Sector Zarabón - Estado Falcón.<br/>
+        """
+        Story.append(Paragraph(header_text, estilo_titulo))
+        Story.append(Spacer(1, 12))
+
+        # TÍTULO DEL DOCUMENTO
+        Story.append(Paragraph("<u>CARTA DE MUDANZA</u>", estilo_titulo_documento))
+        Story.append(Spacer(1, 12))
+
+        # CUERPO DEL DOCUMENTO
+        nombre = f"{solicitud.beneficiario.nombres} {solicitud.beneficiario.apellidos}"
+        cedula = solicitud.beneficiario.cedula
+        torre = solicitud.beneficiario.tower.nombre
+        piso = solicitud.beneficiario.get_piso_display()
+        apto = solicitud.beneficiario.apartamento_letra
+        # Usamos los campos nuevos
+        anio_inicio = solicitud.mudanza_anio_inicio
+        fecha_fin = solicitud.mudanza_fecha_fin 
+        
+        torre_modificada = torre[1:] if torre.startswith('T') else torre
+
+        texto_principal = f"""
+        Por medio de la presente nosotros integrantes del El Comité de Abastecimiento y
+        Producción Balcones de Paraguaná I, hace constar que el ciudadano(a), {nombre}
+        Titular de la cédula de identidad N°V.<u>{cedula}</u> residía desde el año {anio_inicio} hasta
+        {fecha_fin} en el Conjunto Residencial Balcones de Paraguaná I, Torre {torre_modificada}, {piso},
+        Apartamento {apto}.
+        """
+        Story.append(Paragraph(texto_principal, estilo_cuerpo))
+
+        # FECHA Y CIERRE
+        fecha_hoy = timezone.now()
+        meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
+        fecha_texto = f"Constancia que se expide a petición de la parte interesada, en Zarabón a los {fecha_hoy.day} días del mes de {meses[fecha_hoy.month-1]} del año {fecha_hoy.year}."
+        Story.append(Paragraph(fecha_texto, estilo_cuerpo))
+        Story.append(Spacer(1, 40))
+
+        # FIRMA
+        Story.append(Paragraph("Atentamente", estilo_firma))
+        Story.append(Spacer(1, 30))
+
+        jefe_nombre = f"{self.request.user.first_name} {self.request.user.last_name}"
+        jefe_cedula = self.request.user.cedula if self.request.user.cedula else "V-XX.XXX.XXX"
+        
+        Story.append(Spacer(1, 0.5*inch))
+        Story.append(Paragraph("________________________", estilo_firma))
+        Story.append(Paragraph(f"{jefe_nombre}", estilo_firma))
+        Story.append(Paragraph(f"V- {jefe_cedula}", estilo_firma))
+        Story.append(Paragraph("Jefe de Comunidad", estilo_firma))
+        
 
         doc.build(Story)
         return response

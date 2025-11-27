@@ -67,8 +67,6 @@ def vista_login(request):
             password = formulario.cleaned_data.get('password')
             usuario = authenticate(username=username, password=password)
             if usuario is not None:
-                # 🔑 MODIFICACIÓN AQUÍ: Usar 'cedula' para forzar la redirección a completar perfil, 
-                # en lugar de 'is_active', si el login fue exitoso.
                 if not getattr(usuario, 'cedula', None):
                     messages.warning(request, 'Su perfil está incompleto. Por favor, complete sus datos.')
                     return redirect('url_completar_perfil', user_id=usuario.id)
@@ -117,7 +115,7 @@ def vista_registro(request):
                     messages.error(request, f"Error en {field_name}: {error}")
 
     formulario = FormularioCreacionUsuario()
-    return render(request, 'register.html', {'formulario': formulario})
+    return render(request, 'completar_perfil.html', {'formulario': formulario})
 
 @login_required
 def vista_completar_perfil(request, user_id):

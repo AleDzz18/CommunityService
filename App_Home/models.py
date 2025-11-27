@@ -289,7 +289,9 @@ class EntregaBeneficio(models.Model):
 class SolicitudDocumento(models.Model):
     TIPOS = [
         ('CARTA_CONDUCTA', 'Carta de Buena Conducta'),
-        # Aquí agregaremos los otros tipos (Mudanza, etc.) luego
+        ('CARTA_MUDANZA', 'Carta de Mudanza'),               
+        ('CONSTANCIA_RESIDENCIA', 'Constancia de Residencia'),
+        ('CONSTANCIA_MIGRATORIA', 'Constancia Migratoria'),
     ]
     
     ESTADOS = [
@@ -300,12 +302,16 @@ class SolicitudDocumento(models.Model):
     # Vinculamos con el Censo para sacar datos automáticos
     beneficiario = models.ForeignKey(CensoMiembro, on_delete=models.CASCADE, verbose_name='Vecino Solicitante')
     
-    tipo = models.CharField(max_length=20, choices=TIPOS, default='CARTA_CONDUCTA', verbose_name='Tipo de Documento')
+    tipo = models.CharField(max_length=30, choices=TIPOS, default='CARTA_CONDUCTA', verbose_name='Tipo de Documento')
     estado = models.CharField(max_length=15, choices=ESTADOS, default='PENDIENTE', verbose_name='Estado')
     fecha_solicitud = models.DateTimeField(auto_now_add=True, verbose_name='Fecha Solicitud')
     
     # -- Campos específicos para Carta de Buena Conducta (Se llenan al procesar) --
     anios_residencia = models.CharField(max_length=50, blank=True, null=True, verbose_name='Años de Residencia')
+
+    # -- NUEVOS CAMPOS para Carta de Mudanza --
+    mudanza_anio_inicio = models.CharField(max_length=4, blank=True, null=True, verbose_name='Año de Inicio (Mudanza)')
+    mudanza_fecha_fin = models.CharField(max_length=50, blank=True, null=True, verbose_name='Fecha Fin (Ej: Octubre del 2025)')
 
     # Auditoría
     procesado_por = models.ForeignKey('CustomUser', on_delete=models.SET_NULL, null=True, blank=True, verbose_name='Procesado por')
