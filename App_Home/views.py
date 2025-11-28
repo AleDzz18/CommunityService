@@ -359,7 +359,7 @@ def ver_ingresos_egresos(request, categoria_slug):
         movimientos_con_saldo.append({
             'fecha': mov.fecha,
             'descripcion': mov.descripcion,
-            'tasa_bcv': mov.tasa_bcv,
+            'tasa_bcv': round(mov.tasa_bcv, 2),
             'ingreso': ingreso_monto if ingreso_monto and ingreso_monto > 0 else None, 
             'egreso': egreso_monto if egreso_monto and egreso_monto > 0 else None,
             'torre': nombre_torre,
