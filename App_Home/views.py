@@ -95,27 +95,28 @@ def vista_registro(request):
         formulario = FormularioCreacionUsuario(request.POST)
         if formulario.is_valid():
             usuario = formulario.save(commit=False)
-            
-            # El usuario DEBE estar activo (True) para que autenticar_login funcione.
-            # Por defecto, Django lo guarda como is_active=True.
             usuario.save() 
             
-            # Iniciar sesión y redirigir al perfil.
             autenticar_login(request, usuario) 
             
             messages.success(request, f'Cuenta creada exitosamente para {usuario.username}. Por favor, complete su perfil.')
             
-            # Redirigir directamente al perfil para evitar el bucle inicial del dashboard.
+            # Éxito: Redirigir directamente al perfil para evitar el bucle inicial del dashboard.
             return redirect('url_completar_perfil', user_id=usuario.id) 
         else:
-            # Mostrar errores de validación del formulario de registro
+            # Fallo: Mostrar errores de validación del formulario de registro y redirigir al login
             for field, errors in formulario.errors.items():
                 for error in errors:
                     field_name = formulario.fields.get(field).label if field in formulario.fields and formulario.fields.get(field).label else field
                     messages.error(request, f"Error en {field_name}: {error}")
+            
+            # Corregido: Si falla el POST, debemos volver a la página de registro/login.
+            # NO DEBEMOS RENDERIZAR 'completar_perfil.html' aquí.
+            return redirect('url_login') 
 
-    formulario = FormularioCreacionUsuario()
-    return render(request, 'completar_perfil.html', {'formulario': formulario})
+    # Para solicitudes GET iniciales o si se llama directamente:
+    # Simplemente redirigimos a la página donde se muestra el formulario de registro.
+    return redirect('url_login')
 
 @login_required
 def vista_completar_perfil(request, user_id):
@@ -162,6 +163,26 @@ def vista_completar_perfil(request, user_id):
         'usuario': usuario
     })
 
+def cancelar_registro(request, user_id):
+    """
+    Elimina el usuario creado parcialmente si decide cancelar
+    en la pantalla de completar perfil.
+    """
+    try:
+        # Buscamos el usuario por su ID
+        usuario = get_object_or_404(CustomUser, pk=user_id)
+        
+        # Eliminamos el usuario de la base de datos
+        usuario.delete()
+        
+        # Mensaje de retroalimentación
+        messages.info(request, "El registro ha sido cancelado y los datos temporales eliminados.")
+        
+    except Exception as e:
+        messages.error(request, "Ocurrió un error al intentar cancelar el registro.")
+
+    # Redirigimos al Login
+    return redirect('url_login')
 
 # ------------------------------------------------------------------
 # --- ADMINISTRACIÓN DE INGRESOS Y EGRESOS (USUARIO BÁSICO) ---

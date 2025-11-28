@@ -7,6 +7,7 @@ urlpatterns = [
     path('logout/', views.vista_logout, name='url_logout'),
     path('register/', views.vista_registro, name='url_registro'),
     path('register/perfil/<int:user_id>/', views.vista_completar_perfil, name='url_completar_perfil'),
+    path('register/cancelar/<int:user_id>/', views.cancelar_registro, name='url_cancelar_registro'),
     
     # --- ADMINISTRACIÓN DE INGRESOS Y EGRESOS ---
     path('finanzas/<str:categoria_slug>/', views.ver_ingresos_egresos, name='ver_finanzas'),
