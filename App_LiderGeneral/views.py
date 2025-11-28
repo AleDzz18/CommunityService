@@ -641,18 +641,19 @@ class ProcesarSolicitudView(LoginRequiredMixin, UserPassesTestMixin, View):
         fecha_hoy = timezone.now()
         meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
         fecha_texto = f"Constancia que se expide a petición de la parte interesada, en Zarabón a los {fecha_hoy.day} días del mes de {meses[fecha_hoy.month-1]} del año {fecha_hoy.year}."
+        Story.append(Spacer(1, 0.2*inch))
         Story.append(Paragraph(fecha_texto, estilo_cuerpo))
-        Story.append(Spacer(1, 40))
 
         # FIRMA
+        Story.append(Spacer(1, 0.5*inch))
         Story.append(Paragraph("Atentamente", estilo_firma))
-        Story.append(Spacer(1, 30))
+        Story.append(Spacer(1, 0.5*inch))
 
         jefe_nombre = f"{self.request.user.first_name} {self.request.user.last_name}"
         jefe_cedula = self.request.user.cedula if self.request.user.cedula else "V-XX.XXX.XXX"
         
-        Story.append(Spacer(1, 0.5*inch))
         Story.append(Paragraph("________________________", estilo_firma))
+        Story.append(Spacer(1, 5))
         Story.append(Paragraph(f"{jefe_nombre}", estilo_firma))
         Story.append(Paragraph(f"V- {jefe_cedula}", estilo_firma))
         Story.append(Paragraph("Jefe de Comunidad", estilo_firma))
@@ -778,17 +779,20 @@ class ProcesarSolicitudView(LoginRequiredMixin, UserPassesTestMixin, View):
         response['Content-Disposition'] = f'attachment; filename="{filename}"'
 
         # Document Setup
-        doc = SimpleDocTemplate(response, pagesize=letter, topMargin=1*inch, bottomMargin=1*inch, leftMargin=1*inch, rightMargin=1*inch)
+        doc = SimpleDocTemplate(response, pagesize=letter, 
+                                topMargin=72, bottomMargin=18, 
+                                leftMargin=72, rightMargin=72)
         Story = []
         styles = getSampleStyleSheet()
 
         # Estilos (Usando los mismos que en los otros generadores)
         estilo_titulo = ParagraphStyle('Titulo', parent=styles['Normal'], alignment=TA_CENTER, fontSize=12, leading=18, spaceAfter=20)
-        estilo_titulo_documento = ParagraphStyle(name='Titulo_Documento', parent=styles['Heading1'], alignment=TA_CENTER, fontSize=14, spaceAfter=20)
+        estilo_titulo_documento = ParagraphStyle(name='TituloDocumento', parent=styles['Normal'], alignment=TA_CENTER, fontSize=12,
+                                                spaceAfter=20, leading=18, fontName='Helvetica-Bold', underline=True, 
+                                                underlineColor=black, underlineOffset=-2)
         estilo_cuerpo = ParagraphStyle(name='Cuerpo', parent=styles['Normal'], alignment=TA_JUSTIFY, fontSize=12, leading=18, spaceAfter=12)
-        estilo_firmas = ParagraphStyle(name='Firmas', parent=styles['Normal'], alignment=TA_CENTER, fontSize=12, leading=14, spaceAfter=0)
-        estilo_encabezado_linea = ParagraphStyle(name='EncabezadoLinea', parent=styles['Normal'], alignment=TA_CENTER, fontSize=10, spaceAfter=5)
-
+        estilo_firmas = ParagraphStyle(name='Firmas', parent=styles['Normal'], alignment=TA_CENTER, fontSize=12, leading=14)
+        
 
         # Obtención de Datos
         vecino = solicitud.beneficiario
@@ -826,12 +830,11 @@ class ProcesarSolicitudView(LoginRequiredMixin, UserPassesTestMixin, View):
         Story.append(Spacer(1, 12))
 
         # TÍTULO DEL DOCUMENTO
-        Story.append(Paragraph("<b><u>CONSTANCIA MIGRATORIA</u></b>", estilo_titulo_documento))
-        Story.append(Spacer(1, 0.2*inch))
+        Story.append(Paragraph("<u>CONSTANCIA MIGRATORIA</u>", estilo_titulo_documento))
+        Story.append(Spacer(1, 12))
 
         # CUERPO DEL DOCUMENTO
         # La Constancia Migratoria del ejemplo (CONSTANCIA MIGRATORIA.pdf) no incluye Piso/Apartamento, solo la Torre.
-        torre_texto = f"Torre {vecino.tower.nombre}" if vecino.tower else ""
         
         texto = f"""
         Por medio de la presente nosotros integrantes del El Comité de Abastecimiento y
