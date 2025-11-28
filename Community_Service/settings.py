@@ -22,7 +22,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-ign2m==4igmt%9@n_#a@1^8$p7n&9lv+g-vwkm(-*2oh39ne-!'
+SECRET_KEY = "django-insecure-ign2m==4igmt%9@n_#a@1^8$p7n&9lv+g-vwkm(-*2oh39ne-!"
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -33,55 +33,58 @@ ALLOWED_HOSTS = []
 # Application definition
 
 INSTALLED_APPS = [
-    'django.contrib.admin',
-    'django.contrib.auth',
-    'django.contrib.contenttypes',
-    'django.contrib.sessions',
-    'django.contrib.messages',
-    'django.contrib.staticfiles',
-    'App_Home',
-    'App_LiderTorre',
-    'App_LiderGeneral',
+    "django.contrib.admin",
+    "django.contrib.auth",
+    "django.contrib.contenttypes",
+    "django.contrib.sessions",
+    "django.contrib.messages",
+    "django.contrib.staticfiles",
+    "App_Home",
+    "App_LiderTorre",
+    "App_LiderGeneral",
+    "django_tailwind_cli",
 ]
 
 MIDDLEWARE = [
-    'django.middleware.security.SecurityMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
-    'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'django.contrib.messages.middleware.MessageMiddleware',
-    'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    "django.middleware.security.SecurityMiddleware",
+    "django.contrib.sessions.middleware.SessionMiddleware",
+    "django.middleware.common.CommonMiddleware",
+    "django.middleware.csrf.CsrfViewMiddleware",
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "django.contrib.messages.middleware.MessageMiddleware",
+    "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-ROOT_URLCONF = 'Community_Service.urls'
+ROOT_URLCONF = "Community_Service.urls"
 
 TEMPLATES = [
     {
-        'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR / 'templates'], # Asumo que tienes una carpeta de templates global
-        'APP_DIRS': True,
-        'OPTIONS': {
-            'context_processors': [
-                'django.template.context_processors.debug',
-                'django.template.context_processors.request',
-                'django.contrib.auth.context_processors.auth',
-                'django.contrib.messages.context_processors.messages',
+        "BACKEND": "django.template.backends.django.DjangoTemplates",
+        "DIRS": [
+            BASE_DIR / "templates"
+        ],  # Asumo que tienes una carpeta de templates global
+        "APP_DIRS": True,
+        "OPTIONS": {
+            "context_processors": [
+                "django.template.context_processors.debug",
+                "django.template.context_processors.request",
+                "django.contrib.auth.context_processors.auth",
+                "django.contrib.messages.context_processors.messages",
             ],
         },
     },
 ]
 
-WSGI_APPLICATION = 'Community_Service.wsgi.application'
+WSGI_APPLICATION = "Community_Service.wsgi.application"
 
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+    "default": {
+        "ENGINE": "django.db.backends.sqlite3",
+        "NAME": BASE_DIR / "db.sqlite3",
     }
 }
 
@@ -91,16 +94,16 @@ DATABASES = {
 
 AUTH_PASSWORD_VALIDATORS = [
     {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
+        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
+        "NAME": "django.contrib.auth.password_validation.CommonPasswordValidator",
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
+        "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator",
     },
 ]
 
@@ -108,8 +111,8 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
 
-LANGUAGE_CODE = 'es-ve' # Establecido a Venezuela por contexto
-TIME_ZONE = 'America/Caracas' # Establecido a Caracas por contexto
+LANGUAGE_CODE = "es-ve"  # Establecido a Venezuela por contexto
+TIME_ZONE = "America/Caracas"  # Establecido a Caracas por contexto
 
 USE_I18N = True
 
@@ -119,25 +122,31 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = "static/"
+
+STATICFILES_DIRS = [BASE_DIR / "static"]
+
+TAILWIND_CLI_SRC_CSS = "static/css/app.css"
+
+TAILWIND_CLI_USE_DAISY_UI = True
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
-DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # ----------------------------------------------------
 # CONFIGURACIÓN DE AUTENTICACIÓN PERSONALIZADA
 # ----------------------------------------------------
 
 # El modelo de usuario personalizado que se usa en el proyecto
-AUTH_USER_MODEL = 'App_Home.CustomUser'
+AUTH_USER_MODEL = "App_Home.CustomUser"
 
 # URL a la que se redirige cuando se requiere inicio de sesión
-LOGIN_URL = '/login/'
+LOGIN_URL = "/login/"
 
 # URL a la que se redirige a los usuarios después de iniciar sesión con éxito
-LOGIN_REDIRECT_URL = '/' 
+LOGIN_REDIRECT_URL = "/"
 
 # URL a la que se redirige a los usuarios después de cerrar sesión
-LOGOUT_REDIRECT_URL = '/login/'
+LOGOUT_REDIRECT_URL = "/login/"

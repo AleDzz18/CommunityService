@@ -1,0 +1,25 @@
+{% extends 'layouts/base.html' %}
+{% block main %}
+<!-- wrapper -->
+<div class="flex">
+    {% include 'components/sidebar.html' %}
+
+    <!-- content -->
+    <div class="relative flex flex-col flex-1">
+        <!-- dark overlay para el sidebar en dispositivos pequeños -->
+        {% include 'components/dark_color_overlay.html' %}
+
+        {% include 'components/navbar.html' %}
+
+        <main class="flex flex-col self-center max-w-[1536px] w-full">
+            {% block content %}
+            <div class="min-h-screen">
+
+            </div>
+            {% endblock content %}
+
+            {% include 'components/footer.html' %}
+        </main>
+    </div>
+</div>
+{% endblock main %}

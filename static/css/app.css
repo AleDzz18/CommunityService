@@ -1,0 +1,83 @@
+@import url("https://fonts.googleapis.com/css2?family=Outfit:wght@100..900&display=swap");
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&family=Roboto:ital,wght@0,100..900;1,100..900&display=swap');
+
+@import "tailwindcss";
+@plugin "daisyui";
+@plugin "daisyui/theme" {
+  name: "autumn";
+  default: true;
+  prefersdark: false;
+  color-scheme: "light";
+  --color-base-100: oklch(95.814% 0 0);
+  --color-base-200: oklch(89.107% 0 0);
+  --color-base-300: oklch(82.4% 0 0);
+  --color-base-content: oklch(19.162% 0 0);
+  --color-primary: oklch(40.723% 0.161 17.53);
+  --color-primary-content: oklch(88.144% 0.032 17.53);
+  --color-secondary: oklch(61.676% 0.169 23.865);
+  --color-secondary-content: oklch(12.335% 0.033 23.865);
+  --color-accent: oklch(73.425% 0.094 60.729);
+  --color-accent-content: oklch(14.685% 0.018 60.729);
+  --color-neutral: oklch(54.367% 0.037 51.902);
+  --color-neutral-content: oklch(90.873% 0.007 51.902);
+  --color-info: oklch(69.224% 0.097 207.284);
+  --color-info-content: oklch(13.844% 0.019 207.284);
+  --color-success: oklch(60.995% 0.08 174.616);
+  --color-success-content: oklch(12.199% 0.016 174.616);
+  --color-warning: oklch(70.081% 0.164 56.844);
+  --color-warning-content: oklch(14.016% 0.032 56.844);
+  --color-error: oklch(53.07% 0.241 24.16);
+  --color-error-content: oklch(90.614% 0.048 24.16);
+  --radius-selector: 1rem;
+  --radius-field: 0.5rem;
+  --radius-box: 1rem;
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
+  --border: 1px;
+  --depth: 1;
+  --noise: 0;
+}
+
+@theme {
+  --font-outfit: Outfit, sans-serif;
+  --font-montserrat: Montserrat, sans-serif;
+
+  --color-success-25: #f6fef9;
+  --color-success-50: #ecfdf3;
+  --color-success-100: #d1fadf;
+  --color-success-200: #a6f4c5;
+  --color-success-300: #6ce9a6;
+  --color-success-400: #32d583;
+  --color-success-500: #12b76a;
+  --color-success-600: #039855;
+  --color-success-700: #027a48;
+  --color-success-800: #05603a;
+  --color-success-900: #054f31;
+  --color-success-950: #053321;
+
+  --color-error-25: #fffbfa;
+  --color-error-50: #fef3f2;
+  --color-error-100: #fee4e2;
+  --color-error-200: #fecdca;
+  --color-error-300: #fda29b;
+  --color-error-400: #f97066;
+  --color-error-500: #f04438;
+  --color-error-600: #d92d20;
+  --color-error-700: #b42318;
+  --color-error-800: #912018;
+  --color-error-900: #7a271a;
+  --color-error-950: #55160c;
+
+  --color-warning-25: #fffcf5;
+  --color-warning-50: #fffaeb;
+  --color-warning-100: #fef0c7;
+  --color-warning-200: #fedf89;
+  --color-warning-300: #fec84b;
+  --color-warning-400: #fdb022;
+  --color-warning-500: #f79009;
+  --color-warning-600: #dc6803;
+  --color-warning-700: #b54708;
+  --color-warning-800: #93370d;
+  --color-warning-900: #7a2e0e;
+  --color-warning-950: #4e1d09;
+}

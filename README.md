@@ -88,3 +88,14 @@ Siempre comenta tu código.
 Utiliza comentarios claros y concisos para explicar el por qué y el qué de bloques de código complejos, funciones o decisiones de diseño.
 
 En Django, usa docstrings en las vistas (views.py), modelos (models.py) y funciones para describir su propósito, parámetros de entrada y valores de retorno. Esto facilita la revisión del código y el mantenimiento a largo plazo.
+
+
+
+NOTA: el proyecto tiene como dependencia tailwind
+ejecutar
+
+python manage.py tailwind download_cli  
+
+y para correr el servidor con tailwind
+
+python manage.py tailwind runserver
