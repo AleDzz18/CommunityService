@@ -4,16 +4,6 @@
 {% block content %}
 <div class="perfil-container-wrapper"> 
     <div class="perfil-container"> 
-        {% if messages %}
-            <div class="mensajes-django-container">
-                {% for message in messages %}
-                    <div class="alerta alerta-{{ message.tags }}">
-                        {{ message }}
-                    </div>
-                {% endfor %}
-            </div>
-        {% endif %}
-
         <h1>Completar Datos de Perfil</h1>
         <p>Casi terminas el registro, **{{ usuario.username }}**. Por favor, proporciona tus datos completos.</p>
         
@@ -68,6 +58,13 @@
             </div>
 
             <button type="submit" class="btn mt-4">Guardar y Acceder</button>
+
+            <a href="{% url 'url_cancelar_registro' user_id=usuario.id %}" 
+                class="btn btn-danger-outline"
+                style="flex: 1; text-align: center; text-decoration: none; background-color: transparent; border: 2px solid var(--md-sys-color-error); color: var(--md-sys-color-error);"
+                onclick="return confirm('¿Estás seguro de cancelar el registro? Tu cuenta creada será eliminada permanentemente.');">
+                Cancelar
+            </a>
         </form>
     </div>
 </div>

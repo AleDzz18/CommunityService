@@ -568,6 +568,10 @@ class SolicitudDocumento(models.Model):
     mudanza_anio_inicio = models.CharField(max_length=4, blank=True, null=True, verbose_name='AÃ±o de Inicio (Mudanza)')
     mudanza_fecha_fin = models.CharField(max_length=50, blank=True, null=True, verbose_name='Fecha Fin (Ej: Octubre del 2025)')
 
+    # -- NUEVOS CAMPOS para Constancia Migratoria --
+    migratoria_anio_inicio = models.CharField(max_length=4, blank=True, null=True, verbose_name='AÃ±o de Inicio (Migratoria)') # <-- AÃ‘ADIR ESTE
+    migratoria_anio_fin = models.CharField(max_length=4, blank=True, null=True, verbose_name='AÃ±o de Fin (Migratoria)') # <-- AÃ‘ADIR ESTE
+
     # AuditorÃ­a
     procesado_por = models.ForeignKey('CustomUser', on_delete=models.SET_NULL, null=True, blank=True, verbose_name='Procesado por')
     fecha_proceso = models.DateTimeField(null=True, blank=True)
@@ -2896,7 +2900,7 @@ class AppLidergeneralConfig(AppConfig):
 ================================================
 FILE: App_LiderGeneral/forms.py
 ================================================
-Error reading file with 'cp1252': 'charmap' codec can't decode byte 0x8d in position 1746: character maps to <undefined>
+Error reading file with 'cp1252': 'charmap' codec can't decode byte 0x8d in position 1781: character maps to <undefined>
 
 
 ================================================
@@ -2970,7 +2974,7 @@ urlpatterns = [
 ================================================
 FILE: App_LiderGeneral/views.py
 ================================================
-Error reading file with 'cp1252': 'charmap' codec can't decode byte 0x81 in position 21994: character maps to <undefined>
+Error reading file with 'cp1252': 'charmap' codec can't decode byte 0x81 in position 22531: character maps to <undefined>
 
 
 ================================================

@@ -3,16 +3,7 @@
 
 {% block content %}
 
-    <div class="message-container">
-        {% if messages %}
-            {% for message in messages %}
-                <div id="msg-{{ forloop.counter }}" class="alert alert-{{ message.tags }}">
-                    {{ message }}
-                </div>
-            {% endfor %}
-        {% endif %}
-    </div>
-    <div class="container" id="container">
+<div class="container" id="container">
     
     <div class="form-box login">
         <form method="POST" action="{% url 'url_login' %}">
