@@ -10,6 +10,8 @@ from django.shortcuts import redirect, get_object_or_404, render
 from django.contrib import messages
 from django.http import HttpResponse
 from django.utils import timezone
+from django.template.loader import get_template
+from django.conf import settings
 from App_Home.models import (CustomUser, MovimientoFinanciero, Tower, CensoMiembro,
                             CicloBeneficio, EntregaBeneficio, SolicitudDocumento)
 from App_Home.forms import CensoMiembroForm
@@ -19,14 +21,16 @@ from .forms import ( FormularioAdminUsuario, IngresoCondominioGeneralForm, Egres
                     ProcesarCartaMudanzaForm, ProcesarConstanciaSimpleForm, ProcesarConstanciaMigratoriaForm)
 from datetime import date
 from reportlab.pdfgen import canvas
-from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image , Table as PDFTable
+from reportlab.lib.pagesizes import letter, A4
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image , Table as PDFTable, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY, TA_RIGHT
 from reportlab.lib.utils import ImageReader
 from reportlab.lib.colors import black # Para el color del subrayado
 from reportlab.lib.units import inch
+from reportlab.lib import colors
 import os
+from io import BytesIO
 
 
 # --- MIXINS DE PERMISOS (Definirlos al principio) ---
@@ -878,4 +882,99 @@ class ProcesarSolicitudView(LoginRequiredMixin, UserPassesTestMixin, View):
 
 
         doc.build(Story)
+        return response
+    
+class LiderGeneralRequiredMixin(UserPassesTestMixin):
+    def test_func(self):
+        return self.request.user.is_authenticated and self.request.user.rol == 'LDG'
+
+class CensoPDFGeneralView(LoginRequiredMixin, LiderGeneralRequiredMixin, View):
+    """Genera un PDF con el listado completo del Censo Comunitario (Mejorado)."""
+    
+    def get(self, request, *args, **kwargs):
+        # 1. Obtener los datos
+        miembros = CensoMiembro.objects.select_related('tower').all().order_by('tower__nombre', 'piso', 'apartamento_letra')
+
+        # 2. Configuración del PDF
+        buffer = BytesIO()
+        # Ajustamos los márgenes (topMargin) para aprovechar mejor la hoja
+        doc = SimpleDocTemplate(buffer, pagesize=A4, title="Censo Comunitario General",
+                                topMargin=30, bottomMargin=30, leftMargin=30, rightMargin=30)
+        
+        Story = []
+        styles = getSampleStyleSheet()
+        
+        # Estilos personalizados
+        estilo_titulo = ParagraphStyle('TituloPDF', parent=styles['Normal'], alignment=TA_CENTER, fontSize=18, fontName='Helvetica-Bold', spaceAfter=5)
+        estilo_subtitulo = ParagraphStyle('SubtituloPDF', parent=styles['Normal'], alignment=TA_CENTER, fontSize=12, textColor=colors.grey, spaceAfter=15)
+        estilo_fecha = ParagraphStyle('FechaPDF', parent=styles['Normal'], alignment=TA_RIGHT, fontSize=9, spaceAfter=20)
+
+        # Encabezado
+        Story.append(Paragraph("Censo Comunitario General", estilo_titulo))
+        Story.append(Paragraph("Balcones de Paraguaná I", estilo_subtitulo))
+        Story.append(Paragraph(f"Generado el: {timezone.now().strftime('%d/%m/%Y %I:%M %p')}", estilo_fecha))
+        
+        # Eliminamos los Spacers gigantes que bajaban la tabla
+        Story.append(Spacer(1, 10)) 
+
+        # 3. Datos de la tabla
+        data = []
+        # Encabezados
+        headers = ['Torre', 'Ubicación', 'Cédula', 'Nombre Completo', 'Jefe Fam.', 'Teléfono']
+        data.append(headers)
+
+        for m in miembros:
+            piso_apto = f"{m.apartamento_completo}" # Usa la propiedad del modelo
+            nombre_completo = f"{m.nombres} {m.apellidos}"
+            
+            # Cortar nombres muy largos si es necesario para que no rompa la tabla
+            if len(nombre_completo) > 25:
+                nombre_completo = nombre_completo[:22] + "..."
+
+            data.append([
+                m.tower.nombre,
+                piso_apto,
+                m.cedula,
+                nombre_completo,
+                'SÍ' if m.es_jefe_familia else 'NO',
+                m.telefono if m.telefono else '-'
+            ])
+        
+        # 4. Configuración de la Tabla
+        # Ancho disponible en A4 (aprox 535 puntos con márgenes de 30)
+        # Ajustamos columnas: Torre(40), Ubic(50), Ced(70), Nombre(200), Jefe(50), Tel(80) = ~490
+        col_widths = [40, 60, 75, 210, 50, 90]
+        
+        table = PDFTable(data, colWidths=col_widths)
+        
+        # Estilo visual profesional
+        table.setStyle(TableStyle([
+            # Encabezado
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#003049')), # Azul oscuro
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('VALIGN', (0, 0), (-1, 0), 'MIDDLE'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 10),
+            
+            # Cuerpo
+            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 1), (-1, -1), 9),
+            ('VALIGN', (0, 1), (-1, -1), 'MIDDLE'),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey), # Cuadrícula fina
+            
+            # Filas alternas (Efecto Pijama) para facilitar lectura
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.whitesmoke, colors.white]),
+        ]))
+        
+        Story.append(table)
+        Story.append(Spacer(1, 20))
+        Story.append(Paragraph(f"Total de Registros: {len(miembros)}", estilo_fecha))
+
+        # 5. Generar
+        doc.build(Story)
+        response = HttpResponse(content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="Censo_General_{timezone.now().strftime("%Y%m%d")}.pdf"'
+        response.write(buffer.getvalue())
+        buffer.close()
         return response

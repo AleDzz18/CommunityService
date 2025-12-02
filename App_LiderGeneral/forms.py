@@ -14,6 +14,12 @@ class FormularioAdminUsuario(forms.ModelForm):
     por el Líder General. Incluye campos de edición de perfil, roles 
     y permisos avanzados.
     """
+
+    password = forms.CharField(
+        widget=forms.PasswordInput(attrs={'class': 'form-control'}),
+        label="Contraseña (Dejar vacío para no cambiar)",
+        required=False
+    )
     
     # CAMPOS BASE AÑADIDOS (Permiten al administrador editar datos básicos)
     username = forms.CharField(max_length=150, required=True, label='Nombre de Usuario')
@@ -30,7 +36,7 @@ class FormularioAdminUsuario(forms.ModelForm):
         # Incluimos TODOS los campos que un administrador puede editar
         fields = [
             'username', 'email', 'cedula', 
-            'first_name', 'last_name', 'apartamento', 'tower', 'rol',
+            'first_name', 'last_name', 'tower', 'rol',
             'is_active', 'is_staff', 'is_superuser', # Permisos avanzados de Django
             'es_admin_basura', 'es_admin_clap', 'es_admin_bombonas'
         ]
@@ -59,6 +65,7 @@ class FormularioAdminUsuario(forms.ModelForm):
     def save(self, commit=True):
         """Asegura el guardado correcto de permisos y roles secundarios."""
         user = super().save(commit=False)
+        password = self.cleaned_data.get("password")
         
         # 1. Guardar los datos de los Checkboxes de Roles Secundarios
         user.es_admin_basura = self.cleaned_data.get('es_admin_basura', user.es_admin_basura)
@@ -67,6 +74,10 @@ class FormularioAdminUsuario(forms.ModelForm):
         
         # 2. Asignar is_staff automáticamente al ser Líder General
         user.is_staff = (user.rol == user.ROL_LIDER_GENERAL)
+
+        # 3. Actualizar la contraseña solo si se proporcionó una nueva
+        if password:
+            user.set_password(password)
 
         if commit:
             user.save()
