@@ -1,0 +1,17 @@
+{% extends 'layouts/base.html' %}
+{% block content %}
+<div class="dashboard-container" style="max-width: 500px;">
+    <h2 class="text-danger"><i class="fas fa-exclamation-triangle"></i> Confirmar Eliminación</h2>
+    <hr>
+    <div class="alert alert-warning">
+        ¿Estás seguro de que deseas eliminar el ítem: <strong>{{ object.descripcion }}</strong>?
+        <br>Esta acción no se puede deshacer.
+    </div>
+    
+    <form method="post" class="d-flex justify-content-end gap-2">
+        {% csrf_token %}
+        <a href="{% url 'lider_general:inventario_lista' %}" class="btn btn-secondary">Cancelar</a>
+        <button type="submit" class="btn btn-danger">Sí, Eliminar</button>
+    </form>
+</div>
+{% endblock %}

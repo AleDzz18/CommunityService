@@ -60,6 +60,10 @@
                 <a href="{% url 'descargar_pdf' categoria_slug=categoria_slug %}?{{ request.GET.urlencode }}" class="btn btn-danger float-end">
                     <i class="fas fa-file-pdf"></i> Descargar PDF
                 </a>
+
+                <a href="{% url 'lider_general:inventario_lista' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-boxes"></i> Ver Inventario de Basura
+                </a>
             </div>
         </form>
 

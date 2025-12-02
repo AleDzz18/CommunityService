@@ -2805,7 +2805,7 @@ class AppLidergeneralConfig(AppConfig):
 ================================================
 FILE: App_LiderGeneral/forms.py
 ================================================
-Error reading file with 'cp1252': 'charmap' codec can't decode byte 0x8d in position 1781: character maps to <undefined>
+Error reading file with 'cp1252': 'charmap' codec can't decode byte 0x8d in position 1963: character maps to <undefined>
 
 
 ================================================
@@ -2864,6 +2864,8 @@ urlpatterns = [
     path('censo/nuevo/', views.CensoGeneralCreateView.as_view(), name='censo_crear'),
     path('censo/editar/<int:pk>/', views.CensoGeneralUpdateView.as_view(), name='censo_editar'),
     path('censo/eliminar/<int:pk>/', views.CensoGeneralDeleteView.as_view(), name='censo_eliminar'),
+    # NUEVA RUTA Censo PDF General
+    path('censo/descargar/pdf/', views.CensoPDFGeneralView.as_view(), name='censo_pdf_general'),
 
     # GestiÃ³n de Ciclos y Beneficios
     path('ciclos/crear/', views.CrearCicloView.as_view(), name='crear_ciclo'),
@@ -2879,7 +2881,7 @@ urlpatterns = [
 ================================================
 FILE: App_LiderGeneral/views.py
 ================================================
-Error reading file with 'cp1252': 'charmap' codec can't decode byte 0x81 in position 22531: character maps to <undefined>
+Error reading file with 'cp1252': 'charmap' codec can't decode byte 0x81 in position 22688: character maps to <undefined>
 
 
 ================================================
@@ -3204,6 +3206,10 @@ FILE: App_LiderGeneral/templates/lider_general/censo_list_general.html
         
         <a href="{% url 'lider_general:censo_crear' %}" class="btn btn-primary">
             <i class="fas fa-user-plus"></i> Registrar Nuevo Residente
+        </a>
+
+        <a href="{% url 'lider_general:censo_pdf_general' %}" class="btn btn-danger">
+            <i class="fas fa-file-pdf"></i> Descargar Censo General PDF
         </a>
     </div>
     <hr>
@@ -3826,6 +3832,8 @@ urlpatterns = [
     path('censo/nuevo/', views.CensoTorreCreateView.as_view(), name='censo_crear'),
     path('censo/editar/<int:pk>/', views.CensoTorreUpdateView.as_view(), name='censo_editar'),
     path('censo/eliminar/<int:pk>/', views.CensoTorreDeleteView.as_view(), name='censo_eliminar'),
+    # NUEVA RUTA Censo PDF por Torre
+    path('censo/descargar/pdf/', views.CensoPDFTorreView.as_view(), name='censo_pdf_torre'),
 
     # Beneficios para Vecinos
     path('beneficios/agregar/<str:tipo_slug>/', views.AgregarVecinosTorreView.as_view(), name='agregar_vecinos'),
@@ -3836,7 +3844,7 @@ urlpatterns = [
 ================================================
 FILE: App_LiderTorre/views.py
 ================================================
-Error reading file with 'cp1252': 'charmap' codec can't decode byte 0x8d in position 4917: character maps to <undefined>
+Error reading file with 'cp1252': 'charmap' codec can't decode byte 0x8d in position 5371: character maps to <undefined>
 
 
 ================================================
@@ -4066,6 +4074,10 @@ FILE: App_LiderTorre/templates/lider_torre/censo_list_torre.html
         
         <a href="{% url 'lider_torre:censo_crear' %}" class="btn btn-success">
             <i class="fas fa-user-plus"></i> Registrar Vecino
+        </a>
+
+        <a href="{% url 'lider_torre:censo_pdf_torre' %}" class="btn btn-danger">
+            <i class="fas fa-file-pdf"></i> Descargar Censo de Mi Torre PDF
         </a>
     </div>
     <hr>

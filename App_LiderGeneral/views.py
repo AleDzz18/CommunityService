@@ -13,12 +13,14 @@ from django.utils import timezone
 from django.template.loader import get_template
 from django.conf import settings
 from App_Home.models import (CustomUser, MovimientoFinanciero, Tower, CensoMiembro,
-                            CicloBeneficio, EntregaBeneficio, SolicitudDocumento)
+                            CicloBeneficio, EntregaBeneficio, SolicitudDocumento,
+                            InventarioBasura)
 from App_Home.forms import CensoMiembroForm
 from App_LiderTorre.views import BaseMovimientoCreateView 
 from .forms import ( FormularioAdminUsuario, IngresoCondominioGeneralForm, EgresoCondominioGeneralForm, 
                     IngresoBasuraGeneralForm, EgresoBasuraGeneralForm, ProcesarCartaConductaForm,
-                    ProcesarCartaMudanzaForm, ProcesarConstanciaSimpleForm, ProcesarConstanciaMigratoriaForm)
+                    ProcesarCartaMudanzaForm, ProcesarConstanciaSimpleForm, ProcesarConstanciaMigratoriaForm,
+                    InventarioBasuraForm)
 from datetime import date
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter, A4
@@ -978,3 +980,57 @@ class CensoPDFGeneralView(LoginRequiredMixin, LiderGeneralRequiredMixin, View):
         response.write(buffer.getvalue())
         buffer.close()
         return response
+    
+# --- GESTIÓN DE INVENTARIO CUARTO DE BASURA ---
+
+class InventarioBasuraListView(ListView):
+    """
+    Vista pública para la comunidad: Muestra la lista de instrumentos.
+    Automáticamente verifica en el template si el usuario tiene permisos para mostrar los botones de edición.
+    """
+    model = InventarioBasura
+    template_name = 'lider_general/inventario_lista.html'
+    context_object_name = 'inventario'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        
+        # 1. Definimos si el usuario actual es administrador (solo si está autenticado)
+        user = self.request.user
+        
+        # Usamos user.is_authenticated para evitar errores si el usuario no está logueado (AnonymousUser)
+        if user.is_authenticated:
+            context['es_admin_basura'] = user.rol == 'LDG' or user.es_admin_basura
+        else:
+            context['es_admin_basura'] = False # Si no está logueado, nunca puede ser administrador.
+            
+        return context
+
+class InventarioBasuraCreateView(LoginRequiredMixin, LiderGeneralOrAdminBasuraRequiredMixin, CreateView):
+    model = InventarioBasura
+    form_class = InventarioBasuraForm
+    template_name = 'lider_general/inventario_form.html'
+    success_url = reverse_lazy('lider_general:inventario_lista')
+
+    def form_valid(self, form):
+        messages.success(self.request, "Ítem agregado al inventario correctamente.")
+        return super().form_valid(form)
+
+class InventarioBasuraUpdateView(LoginRequiredMixin, LiderGeneralOrAdminBasuraRequiredMixin, UpdateView):
+    model = InventarioBasura
+    form_class = InventarioBasuraForm
+    template_name = 'lider_general/inventario_form.html'
+    success_url = reverse_lazy('lider_general:inventario_lista')
+
+    def form_valid(self, form):
+        messages.success(self.request, "Inventario actualizado correctamente.")
+        return super().form_valid(form)
+
+class InventarioBasuraDeleteView(LoginRequiredMixin, LiderGeneralOrAdminBasuraRequiredMixin, DeleteView):
+    model = InventarioBasura
+    template_name = 'lider_general/inventario_confirm_delete.html'
+    success_url = reverse_lazy('lider_general:inventario_lista')
+
+    def form_valid(self, form):
+        messages.success(self.request, "Ítem eliminado del inventario.")
+        return super().form_valid(form)
