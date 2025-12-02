@@ -33,6 +33,8 @@ urlpatterns = [
     path('censo/nuevo/', views.CensoGeneralCreateView.as_view(), name='censo_crear'),
     path('censo/editar/<int:pk>/', views.CensoGeneralUpdateView.as_view(), name='censo_editar'),
     path('censo/eliminar/<int:pk>/', views.CensoGeneralDeleteView.as_view(), name='censo_eliminar'),
+    # NUEVA RUTA Censo PDF General
+    path('censo/descargar/pdf/', views.CensoPDFGeneralView.as_view(), name='censo_pdf_general'),
 
     # Gestión de Ciclos y Beneficios
     path('ciclos/crear/', views.CrearCicloView.as_view(), name='crear_ciclo'),

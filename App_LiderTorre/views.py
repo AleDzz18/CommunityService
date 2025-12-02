@@ -6,12 +6,21 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib import messages
 from django.db import IntegrityError
 from django.shortcuts import redirect, get_object_or_404
-from django.http import HttpResponseRedirect
+from django.http import HttpResponseRedirect, HttpResponse
+from django.utils import timezone
+from django.views import View
 from App_Home.models import MovimientoFinanciero, CustomUser, CensoMiembro, CicloBeneficio, EntregaBeneficio
 from App_Home.forms import CensoMiembroForm
 from .mixins import LiderTorreRequiredMixin 
 from .forms import IngresoCondominioForm, EgresoCondominioForm, IngresoBasuraForm
 from decimal import Decimal
+from io import BytesIO
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import letter, A4
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image , Table as PDFTable, TableStyle
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.enums import TA_CENTER, TA_RIGHT
+from reportlab.lib import colors
 
 # ==============================================================
 # La plantilla del formulario será la misma para todos los tipos de movimiento
@@ -383,3 +392,85 @@ class ProcesarAgregarTorreView(LoginRequiredMixin, View):
         
         slug = 'clap' if ciclo.tipo == 'CLAP' else 'gas'
         return redirect('lider_torre:agregar_vecinos', tipo_slug=slug)
+    
+
+class CensoPDFTorreView(LoginRequiredMixin, View): # O LiderTorreRequiredMixin si lo usas
+    """Genera un PDF con el censo específico de la torre del líder."""
+    
+    def get(self, request, *args, **kwargs):
+        # 1. Obtener los datos FILTRADOS por la torre del usuario
+        torre_usuario = request.user.tower
+        miembros = CensoMiembro.objects.filter(tower=torre_usuario).order_by('piso', 'apartamento_letra')
+
+        # 2. Configuración del PDF
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=A4, title=f"Censo Torre {torre_usuario.nombre}",
+                                topMargin=30, bottomMargin=30, leftMargin=30, rightMargin=30)
+        
+        Story = []
+        styles = getSampleStyleSheet()
+        
+        estilo_titulo = ParagraphStyle('TituloPDF', parent=styles['Normal'], alignment=TA_CENTER, fontSize=18, fontName='Helvetica-Bold', spaceAfter=5)
+        estilo_subtitulo = ParagraphStyle('SubtituloPDF', parent=styles['Normal'], alignment=TA_CENTER, fontSize=12, textColor=colors.grey, spaceAfter=15)
+        estilo_fecha = ParagraphStyle('FechaPDF', parent=styles['Normal'], alignment=TA_RIGHT, fontSize=9, spaceAfter=20)
+
+        # Encabezado
+        Story.append(Paragraph(f"Censo Comunitario - Torre {torre_usuario.nombre}", estilo_titulo))
+        Story.append(Paragraph("Balcones de Paraguaná I", estilo_subtitulo))
+        Story.append(Paragraph(f"Generado el: {timezone.now().strftime('%d/%m/%Y %I:%M %p')}", estilo_fecha))
+        
+        Story.append(Spacer(1, 10)) 
+
+        # 3. Datos de la tabla (Quitamos columna Torre, agregamos Email si cabe)
+        data = []
+        headers = ['Apto', 'Cédula', 'Nombre Completo', 'Jefe Fam.', 'Teléfono']
+        data.append(headers)
+
+        for m in miembros:
+            nombre_completo = f"{m.nombres} {m.apellidos}"
+            if len(nombre_completo) > 30: # Un poco más de espacio al quitar la columna Torre
+                nombre_completo = nombre_completo[:27] + "..."
+
+            data.append([
+                m.apartamento_completo, # Ejemplo: P1-A
+                m.cedula,
+                nombre_completo,
+                'SÍ' if m.es_jefe_familia else 'NO',
+                m.telefono if m.telefono else '-'
+            ])
+        
+        # 4. Configuración de la Tabla
+        # Ancho disponible ~535.
+        # Ajustamos columnas: Apto(60), Ced(80), Nombre(235), Jefe(60), Tel(100)
+        col_widths = [60, 80, 235, 60, 100]
+        
+        table = PDFTable(data, colWidths=col_widths)
+        
+        # Estilo (Mismo tema visual)
+        table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2a9d8f')), # Un verde azulado para diferenciar Torre
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('VALIGN', (0, 0), (-1, 0), 'MIDDLE'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 10),
+            
+            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 1), (-1, -1), 9),
+            ('VALIGN', (0, 1), (-1, -1), 'MIDDLE'),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.whitesmoke, colors.white]),
+        ]))
+        
+        Story.append(table)
+        Story.append(Spacer(1, 20))
+        Story.append(Paragraph(f"Total de Vecinos: {len(miembros)}", estilo_fecha))
+
+        # 5. Generar
+        doc.build(Story)
+        response = HttpResponse(content_type='application/pdf')
+        filename = f"Censo_Torre_{torre_usuario.nombre}_{timezone.now().strftime('%Y%m%d')}.pdf"
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        response.write(buffer.getvalue())
+        buffer.close()
+        return response
