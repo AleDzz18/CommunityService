@@ -475,19 +475,19 @@ class ProcesarSolicitudView(LoginRequiredMixin, UserPassesTestMixin, View):
         # --- FIN MODIFICACIÓN 3 ---
 
         # --- MODIFICACIÓN 1: Insertar la imagen del CLAP ---
-        try:
-            # Opción más robusta si la imagen está en App_Home/static/img/clap_logo.png
-            from django.conf import settings
-            image_path = os.path.join(settings.BASE_DIR, 'App_Home', 'static', 'img', 'clap_logo.png')
-            
-            img = Image(image_path, width=350, height=75) # Ajusta width/height según necesites
-            Story.append(img)
-            Story.append(Spacer(1, 12))
-        except FileNotFoundError:
-            # Si la imagen no se encuentra, vuelve a poner el texto.
-            Story.append(Paragraph("<b>CLAP</b>", estilo_titulo))
-            messages.error(self.request, "La imagen del logo CLAP no fue encontrada. Se usó texto en su lugar.")
+        if solicitud.logo_clap == True:
+            try:
+                # Opción más robusta si la imagen está en App_Home/static/img/clap_logo.png
+                from django.conf import settings
+                image_path = os.path.join(settings.BASE_DIR, 'App_Home', 'static', 'img', 'clap_logo.png')
 
+                img = Image(image_path, width=350, height=75) # Ajusta width/height según necesites
+                Story.append(img)
+                Story.append(Spacer(1, 12))
+            except FileNotFoundError:
+                # Si la imagen no se encuentra, vuelve a poner el texto.
+                Story.append(Paragraph("<b>CLAP</b>", estilo_titulo))
+                messages.error(self.request, "La imagen del logo CLAP no fue encontrada. Se usó texto en su lugar.")
 
         header_text = """
         República Bolivariana de Venezuela<br/>
@@ -594,18 +594,20 @@ class ProcesarSolicitudView(LoginRequiredMixin, UserPassesTestMixin, View):
         
         estilo_cuerpo = ParagraphStyle('Cuerpo', parent=styles['Normal'], alignment=TA_JUSTIFY, fontSize=12, leading=18, spaceAfter=12)
         estilo_firma = ParagraphStyle('Firma', parent=styles['Normal'], alignment=TA_CENTER, fontSize=12, leading=14)
-        try:
-            # Opción más robusta si la imagen está en App_Home/static/img/clap_logo.png
-            from django.conf import settings
-            image_path = os.path.join(settings.BASE_DIR, 'App_Home', 'static', 'img', 'clap_logo.png')
-            
-            img = Image(image_path, width=350, height=75) # Ajusta width/height según necesites
-            Story.append(img)
-            Story.append(Spacer(1, 12))
-        except FileNotFoundError:
-            # Si la imagen no se encuentra, vuelve a poner el texto.
-            Story.append(Paragraph("<b>CLAP</b>", estilo_titulo))
-            messages.error(self.request, "La imagen del logo CLAP no fue encontrada. Se usó texto en su lugar.")
+
+        if solicitud.logo_clap == True:
+            try:
+                # Opción más robusta si la imagen está en App_Home/static/img/clap_logo.png
+                from django.conf import settings
+                image_path = os.path.join(settings.BASE_DIR, 'App_Home', 'static', 'img', 'clap_logo.png')
+
+                img = Image(image_path, width=350, height=75) # Ajusta width/height según necesites
+                Story.append(img)
+                Story.append(Spacer(1, 12))
+            except FileNotFoundError:
+                # Si la imagen no se encuentra, vuelve a poner el texto.
+                Story.append(Paragraph("<b>CLAP</b>", estilo_titulo))
+                messages.error(self.request, "La imagen del logo CLAP no fue encontrada. Se usó texto en su lugar.")
 
         # ENCABEZADO (Tomando texto de los PDFs)
         header_text = """
@@ -689,18 +691,20 @@ class ProcesarSolicitudView(LoginRequiredMixin, UserPassesTestMixin, View):
         estilo_cuerpo = ParagraphStyle('Cuerpo', parent=styles['Normal'], alignment=TA_JUSTIFY, fontSize=12, leading=18, spaceAfter=12)
         estilo_firmas = ParagraphStyle('Firmas', parent=styles['Normal'], alignment=TA_CENTER, fontSize=12, leading=14)
         estilo_linea_firma = ParagraphStyle(name='LineaFirma', parent=styles['Normal'], alignment=TA_CENTER, fontSize=12, leading=1, spaceAfter=0)
-        try:
-            # Opción más robusta si la imagen está en App_Home/static/img/clap_logo.png
-            from django.conf import settings
-            image_path = os.path.join(settings.BASE_DIR, 'App_Home', 'static', 'img', 'clap_logo.png')
-            
-            img = Image(image_path, width=350, height=75) # Ajusta width/height según necesites
-            Story.append(img)
-            Story.append(Spacer(1, 12))
-        except FileNotFoundError:
-            # Si la imagen no se encuentra, vuelve a poner el texto.
-            Story.append(Paragraph("<b>CLAP</b>", estilo_titulo))
-            messages.error(self.request, "La imagen del logo CLAP no fue encontrada. Se usó texto en su lugar.")
+
+        if solicitud.logo_clap == True:
+            try:
+                # Opción más robusta si la imagen está en App_Home/static/img/clap_logo.png
+                from django.conf import settings
+                image_path = os.path.join(settings.BASE_DIR, 'App_Home', 'static', 'img', 'clap_logo.png')
+
+                img = Image(image_path, width=350, height=75) # Ajusta width/height según necesites
+                Story.append(img)
+                Story.append(Spacer(1, 12))
+            except FileNotFoundError:
+                # Si la imagen no se encuentra, vuelve a poner el texto.
+                Story.append(Paragraph("<b>CLAP</b>", estilo_titulo))
+                messages.error(self.request, "La imagen del logo CLAP no fue encontrada. Se usó texto en su lugar.")
 
         # ENCABEZADO
         header_text = """
@@ -811,18 +815,19 @@ class ProcesarSolicitudView(LoginRequiredMixin, UserPassesTestMixin, View):
         
         torre_modificada = torre[1:] if torre.startswith('T') else torre
         
-        try:
-            # Opción más robusta si la imagen está en App_Home/static/img/clap_logo.png
-            from django.conf import settings
-            image_path = os.path.join(settings.BASE_DIR, 'App_Home', 'static', 'img', 'clap_logo.png')
-            
-            img = Image(image_path, width=350, height=75) # Ajusta width/height según necesites
-            Story.append(img)
-            Story.append(Spacer(1, 12))
-        except FileNotFoundError:
-            # Si la imagen no se encuentra, vuelve a poner el texto.
-            Story.append(Paragraph("<b>CLAP</b>", estilo_titulo))
-            messages.error(self.request, "La imagen del logo CLAP no fue encontrada. Se usó texto en su lugar.")
+        if solicitud.logo_clap == True:
+            try:
+                # Opción más robusta si la imagen está en App_Home/static/img/clap_logo.png
+                from django.conf import settings
+                image_path = os.path.join(settings.BASE_DIR, 'App_Home', 'static', 'img', 'clap_logo.png')
+                
+                img = Image(image_path, width=350, height=75) # Ajusta width/height según necesites
+                Story.append(img)
+                Story.append(Spacer(1, 12))
+            except FileNotFoundError:
+                # Si la imagen no se encuentra, vuelve a poner el texto.
+                Story.append(Paragraph("<b>CLAP</b>", estilo_titulo))
+                messages.error(self.request, "La imagen del logo CLAP no fue encontrada. Se usó texto en su lugar.")
         
         # ENCABEZADO (Adaptado de la plantilla)
         header_text = """
