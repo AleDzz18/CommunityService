@@ -315,7 +315,10 @@ class SolicitudDocumento(models.Model):
 
     # -- NUEVOS CAMPOS para Constancia Migratoria --
     migratoria_anio_inicio = models.CharField(max_length=4, blank=True, null=True, verbose_name='Año de Inicio (Migratoria)') # <-- AÑADIR ESTE
-    migratoria_anio_fin = models.CharField(max_length=4, blank=True, null=True, verbose_name='Año de Fin (Migratoria)') # <-- AÑADIR ESTE
+    migratoria_anio_fin = models.CharField(max_length=4, blank=True, null=True, verbose_name='Año de Fin (Migratoria)')
+    
+    # -- NUEVOS CAMPOS para Logo CLAP --
+    logo_clap = models.BooleanField(default=False, verbose_name='Incluir Logo CLAP en la Carta')
 
     # Auditoría
     procesado_por = models.ForeignKey('CustomUser', on_delete=models.SET_NULL, null=True, blank=True, verbose_name='Procesado por')

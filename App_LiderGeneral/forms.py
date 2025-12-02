@@ -174,19 +174,25 @@ class ProcesarCartaConductaForm(forms.ModelForm):
         help_text='Ejemplo: "10 años" o "5 años y 2 meses"',
         widget=forms.TextInput(attrs={'class': 'form-control', 'required': 'required'})
     )
+    logo_clap = forms.BooleanField(
+        required=False,
+        label='Incluir Logo CLAP en la Carta',
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
+    )
 
     class Meta:
         model = SolicitudDocumento
-        fields = ['anios_residencia']
+        fields = ['anios_residencia', 'logo_clap']
 
 # --- NUEVO: Formulario para Carta de Mudanza ---
 class ProcesarCartaMudanzaForm(forms.ModelForm):
     class Meta:
         model = SolicitudDocumento
-        fields = ['mudanza_anio_inicio', 'mudanza_fecha_fin']
+        fields = ['mudanza_anio_inicio', 'mudanza_fecha_fin', 'logo_clap']
         labels = {
             'mudanza_anio_inicio': 'Año de Inicio de Residencia',
-            'mudanza_fecha_fin': 'Fecha de Finalización (Mes y Año)'
+            'mudanza_fecha_fin': 'Fecha de Finalización (Mes y Año)',
+            'logo_clap': 'Incluir Logo CLAP en la Carta'
         }
         widgets = {
             'mudanza_anio_inicio': forms.TextInput(attrs={
@@ -198,6 +204,7 @@ class ProcesarCartaMudanzaForm(forms.ModelForm):
                 'class': 'form-control', 
                 'placeholder': 'Ej: Octubre del 2025'
             }),
+            'logo_clap': forms.CheckboxInput(attrs={'class': 'form-check-input'})
         }
 
 class ProcesarConstanciaSimpleForm(forms.ModelForm):
@@ -205,16 +212,24 @@ class ProcesarConstanciaSimpleForm(forms.ModelForm):
     # Esto le permite a la vista 'validar' y 'guardar' el modelo sin pedir input al usuario.
     class Meta:
         model = SolicitudDocumento
-        fields = [] # Lista vacía: NO SE PIDE NINGÚN CAMPO.
+        fields = ['logo_clap']
+        labels = {
+            'logo_clap': 'Incluir Logo CLAP en la Constancia'
+        }
+        widgets = {
+            'logo_clap': forms.CheckboxInput(attrs={'class': 'form-check-input'})
+        }
+
 
 # --- NUEVO: Formulario para Constancia Migratoria ---
 class ProcesarConstanciaMigratoriaForm(forms.ModelForm):
     class Meta:
         model = SolicitudDocumento
-        fields = ['migratoria_anio_inicio', 'migratoria_anio_fin']
+        fields = ['migratoria_anio_inicio', 'migratoria_anio_fin', 'logo_clap']
         labels = {
             'migratoria_anio_inicio': 'Año en que comenzó a residir',
-            'migratoria_anio_fin': 'Año en que cesó la residencia'
+            'migratoria_anio_fin': 'Año en que cesó la residencia',
+            'logo_clap': 'Incluir Logo CLAP en la Constancia'
         }
         widgets = {
             'migratoria_anio_inicio': forms.TextInput(attrs={
@@ -231,6 +246,7 @@ class ProcesarConstanciaMigratoriaForm(forms.ModelForm):
                 'min': '1900',
                 'max': str(timezone.now().year + 1)
             }),
+            'logo_clap': forms.CheckboxInput(attrs={'class': 'form-check-input'})
         }
 
 class InventarioBasuraForm(forms.ModelForm):
