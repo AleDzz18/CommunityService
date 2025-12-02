@@ -328,3 +328,16 @@ class SolicitudDocumento(models.Model):
         verbose_name = "Solicitud de Documento"
         verbose_name_plural = "Solicitudes de Documentos"
         ordering = ['-fecha_solicitud']
+
+class InventarioBasura(models.Model):
+    descripcion = models.CharField(max_length=100, verbose_name='Descripción del Ítem')
+    cantidad = models.IntegerField(default=0, verbose_name='Cantidad Disponible')
+    ultima_actualizacion = models.DateTimeField(auto_now=True, verbose_name='Última Actualización')
+
+    def __str__(self):
+        return f"{self.descripcion} ({self.cantidad})"
+
+    class Meta:
+        verbose_name = "Inventario Cuarto de Basura"
+        verbose_name_plural = "Inventario Cuarto de Basura"
+        ordering = ['descripcion']

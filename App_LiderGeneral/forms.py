@@ -4,7 +4,7 @@ from django import forms
 from django.core.exceptions import ValidationError
 from django.db.models import Count
 from django.utils import timezone
-from App_Home.models import CustomUser, Tower, SolicitudDocumento 
+from App_Home.models import CustomUser, Tower, SolicitudDocumento, InventarioBasura
 from App_LiderTorre.forms import MovimientoFormBase
 
 
@@ -231,4 +231,17 @@ class ProcesarConstanciaMigratoriaForm(forms.ModelForm):
                 'min': '1900',
                 'max': str(timezone.now().year + 1)
             }),
+        }
+
+class InventarioBasuraForm(forms.ModelForm):
+    class Meta:
+        model = InventarioBasura
+        fields = ['descripcion', 'cantidad']
+        widgets = {
+            'descripcion': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: Bolsas de Basura Negras'}),
+            'cantidad': forms.NumberInput(attrs={'class': 'form-control', 'min': '0'}),
+        }
+        labels = {
+            'descripcion': 'Nombre del Instrumento / Ítem',
+            'cantidad': 'Cantidad en Existencia',
         }
