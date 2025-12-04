@@ -256,7 +256,7 @@ Error reading file with 'cp1252': 'charmap' codec can't decode byte 0x81 in posi
 ================================================
 FILE: App_Home/models.py
 ================================================
-Error reading file with 'cp1252': 'charmap' codec can't decode byte 0x8d in position 14777: character maps to <undefined>
+Error reading file with 'cp1252': 'charmap' codec can't decode byte 0x8d in position 14904: character maps to <undefined>
 
 
 ================================================
@@ -2561,7 +2561,7 @@ urlpatterns = [
 ================================================
 FILE: App_LiderGeneral/views.py
 ================================================
-Error reading file with 'cp1252': 'charmap' codec can't decode byte 0x81 in position 22778: character maps to <undefined>
+Error reading file with 'cp1252': 'charmap' codec can't decode byte 0x81 in position 22849: character maps to <undefined>
 
 
 ================================================

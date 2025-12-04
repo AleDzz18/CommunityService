@@ -1,0 +1,12 @@
+Hola {{ user.username }},
+
+Has solicitado un código de verificación para restablecer tu contraseña en {{ site_name }}.
+
+Tu código de verificación es: {{ code }}
+
+Este código expirará en {{ expiration_minutes }} minutos.
+
+Si no solicitaste este código, por favor, ignora este correo.
+
+Gracias,
+El equipo de {{ site_name }}

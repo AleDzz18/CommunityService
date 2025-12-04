@@ -1,0 +1,38 @@
+{% extends 'layouts/base.html' %}
+{% load static %}
+
+{% block title %}Solicitar Código - MyGYM{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="login-box">
+        <h2>Restablecer Contraseña</h2>
+        <div class="form-container">
+            <p class="message-text">Introduce tu dirección de correo electrónico para recibir un código de verificación.</p> 
+            
+            <form method="POST">
+                {% csrf_token %} 
+                
+                {% if messages %}
+                    {% for message in messages %}
+                        <p class="{% if message.tags %}alert alert-{{ message.tags }}{% endif %}">{{ message }}</p> 
+                    {% endfor %}
+                {% endif %}
+
+                <div class="input-box">
+                    {{ form.email.errors }}
+                    <input type="email" name="email" id="id_email" required 
+                           placeholder=" " 
+                           value="{% if form.email.value %}{{ form.email.value }}{% endif %}">
+                    <label for="id_email">Correo Electrónico</label> 
+                </div>
+                
+                <button type="submit" class="btn">Solicitar Código</button>
+                <div class="signup-link">
+                    <a href="{% url 'url_login' %}">Volver al Login</a> 
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock content %}
