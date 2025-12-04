@@ -2,12 +2,15 @@
 
 from django.db import models
 from django.contrib.auth.models import AbstractUser
+from django.utils import timezone
 from django.db.models.signals import post_migrate
 from django.dispatch import receiver
 from django.db.models import Sum # Necesario para la función de saldo
 from django.db.utils import OperationalError # Importación clave para manejar el error
 from decimal import Decimal
 from datetime import date
+from django.conf import settings
+
 
 # Modelo para las 24 Torres
 class Tower(models.Model):
@@ -344,3 +347,22 @@ class InventarioBasura(models.Model):
         verbose_name = "Inventario Cuarto de Basura"
         verbose_name_plural = "Inventario Cuarto de Basura"
         ordering = ['descripcion']
+
+# --- Modelo para códigos de restablecimiento de contraseña ---
+class PasswordResetCode(models.Model):
+    # CORRECTO: Apunta al modelo de usuario definido en settings.AUTH_USER_MODEL (CustomUser)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE) 
+    code = models.CharField(max_length=6) # Código de 6 dígitos
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+
+    def is_valid(self):
+        return timezone.now() < self.expires_at
+
+    def __str__(self):
+        # Usamos user.username o user.email para una mejor representación
+        return f"Code for {self.user.username} - {self.code}"
+
+    class Meta:
+        # Añadir un índice para búsquedas rápidas si es necesario, pero es opcional
+        pass

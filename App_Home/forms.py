@@ -1,10 +1,12 @@
 # App_Home/forms.py
 
-from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth.forms import UserCreationForm, PasswordResetForm
 from django import forms
 from django.core.exceptions import ValidationError
 from django.db.models import Count
 from .models import CustomUser, Tower, CensoMiembro, SolicitudDocumento
+from django.template import loader
+from django.core.mail import EmailMultiAlternatives
 
 # Formulario de Registro para el PASO 1 (Solo autenticación)
 class FormularioCreacionUsuario(UserCreationForm):
@@ -246,3 +248,41 @@ class SolicitudDocumentoForm(forms.Form):
         if not CensoMiembro.objects.filter(cedula=cedula).exists():
             raise ValidationError("Esta cédula no se encuentra registrada en el Censo. Por favor contacte a su Líder de Torre.")
         return cedula
+
+# --- Clase para el restablecimiento de contraseña (CORREGIDA) ---
+class CustomPasswordResetForm(PasswordResetForm):
+    def send_mail(self, subject_template_name, email_template_name,
+                  context, from_email, to_email, html_email_template_name=None):
+        """
+        Sends a django.core.mail.EmailMultiAlternatives to `to_email`.
+        """
+        subject = loader.render_to_string(subject_template_name, context)
+        # Email subject *must not* contain newlines
+        subject = "".join(subject.splitlines())
+
+        body = loader.render_to_string(email_template_name, context)
+
+        email_message = EmailMultiAlternatives(
+            subject,
+            body,
+            from_email,
+            [to_email],
+            # ELIMINAMOS charset='utf-8' aquí. Django 5.x lo maneja por defecto.
+        )
+        if html_email_template_name is not None:
+            html_email = loader.render_to_string(html_email_template_name, context)
+            email_message.attach_alternative(html_email, "text/html")
+
+        email_message.send()
+
+# --- NUEVO FORMULARIO: Para la verificación del código de restablecimiento ---
+class VerifyResetCodeForm(forms.Form):
+    email = forms.EmailField(
+        label="Correo Electrónico",
+        widget=forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'Tu correo electrónico'})
+    )
+    code = forms.CharField(
+        label="Código de Verificación",
+        max_length=6,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Introduce el código de 6 dígitos'})
+    )

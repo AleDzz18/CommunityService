@@ -141,3 +141,11 @@ LOGIN_REDIRECT_URL = '/'
 
 # URL a la que se redirige a los usuarios después de cerrar sesión
 LOGOUT_REDIRECT_URL = '/login/'
+
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True # Es el método de encriptación estándar para el puerto 587
+EMAIL_HOST_USER = 'balconesdeparaguana1.cs@gmail.com@gmail.com' # <-- ¡Verifica tu correo de envío!
+EMAIL_HOST_PASSWORD = '' # <-- ¡ESTO DEBE SER LA CONTRASEÑA DE APLICACIÓN DE GMAIL! (ej: 'abcd efgh ijkl mnop')
+DEFAULT_FROM_EMAIL = 'Balcones de Paraguana I <balconesdeparaguana1.cs@gmail.com>' # <-- Opcional: El correo que aparecerá como remitente.

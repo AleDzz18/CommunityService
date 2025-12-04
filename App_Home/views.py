@@ -2,7 +2,7 @@
 
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import authenticate, login as autenticar_login, logout
-from django.contrib.auth.forms import AuthenticationForm
+from django.contrib.auth.forms import AuthenticationForm, SetPasswordForm
 from django.contrib.auth.decorators import login_required 
 from django.contrib import messages
 from django.contrib.messages import get_messages
@@ -15,10 +15,20 @@ from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.units import inch
-from .forms import FormularioCreacionUsuario, FormularioPerfilUsuario, FormularioFiltroMovimientos, SolicitudDocumentoForm
+from .forms import (FormularioCreacionUsuario, FormularioPerfilUsuario, FormularioFiltroMovimientos, 
+                    SolicitudDocumentoForm, VerifyResetCodeForm, CustomPasswordResetForm)
 from .models import (CustomUser, Tower, MovimientoFinanciero, CicloBeneficio, 
-                    EntregaBeneficio, CensoMiembro, SolicitudDocumento)
+                    EntregaBeneficio, CensoMiembro, SolicitudDocumento, PasswordResetCode)
 from decimal import Decimal
+
+from django.views.generic import FormView, TemplateView
+from django.urls import reverse_lazy
+import random
+import string
+from datetime import datetime, timedelta
+from django.template.loader import render_to_string
+from django.core.mail import EmailMultiAlternatives
+from django.conf import settings
 
 def vista_dashboard(request):
     """
@@ -663,3 +673,144 @@ def vista_solicitar_documento(request):
         form = SolicitudDocumentoForm()
 
     return render(request, 'solicitudes/crear_solicitud.html', {'form': form})
+
+# --- Vistas para el restablecimiento de contraseña con CÓDIGO ---
+
+class RequestResetCodeView(FormView):
+    template_name = 'registration/request_reset_code_form.html'
+    form_class = CustomPasswordResetForm # Usa CustomPasswordResetForm aquí
+    success_url = reverse_lazy('reset_code_sent')
+
+    def form_valid(self, form):
+        email = form.cleaned_data['email']
+        try:
+            user = CustomUser.objects.get(email=email)
+            # Generar un código de 6 dígitos
+            code = ''.join(random.choices(string.digits, k=6))
+            # Crear o actualizar PasswordResetCode
+            # Establecer una fecha de expiración (ej. 15 minutos)
+            expires_at = timezone.now() + timedelta(minutes=15)
+            
+            # Eliminar códigos antiguos para este usuario si existen
+            PasswordResetCode.objects.filter(user=user).delete()
+
+            PasswordResetCode.objects.create(
+                user=user,
+                code=code,
+                expires_at=expires_at
+            )
+
+            # Enviar el correo electrónico con el código
+            context = {
+                'user': user,
+                'code': code,
+                'expiration_time': expires_at.strftime('%H:%M'), # Formato de hora
+            }
+            subject = 'Tu código de restablecimiento de contraseña'
+            email_html_message = render_to_string('registration/reset_code_email.html', context)
+            email_plain_message = render_to_string('registration/reset_code_email.txt', context)
+
+            msg = EmailMultiAlternatives(
+                subject,
+                email_plain_message,
+                settings.DEFAULT_FROM_EMAIL,
+                [email]
+            )
+            msg.attach_alternative(email_html_message, "text/html")
+            msg.send()
+
+            messages.success(self.request, 'Se ha enviado un código a tu correo electrónico.')
+        except CustomUser.DoesNotExist:
+            messages.error(self.request, 'No existe un usuario con ese correo electrónico.')
+        
+        return super().form_valid(form)
+
+def reset_code_sent(request):
+    return render(request, 'registration/reset_code_sent.html')
+
+class VerifyResetCodeView(FormView):
+    template_name = 'registration/verify_reset_code_form.html'
+    form_class = VerifyResetCodeForm
+    success_url = reverse_lazy('set_new_password')
+
+    def form_valid(self, form):
+        email = form.cleaned_data['email']
+        code = form.cleaned_data['code']
+
+        try:
+            user = CustomUser.objects.get(email=email)
+            reset_code_obj = PasswordResetCode.objects.get(user=user, code=code)
+
+            if reset_code_obj.is_valid():
+                # El código es válido, almacenar el user_id y el código en la sesión
+                # para usarlos en SetNewPasswordView
+                self.request.session['password_reset_user_id'] = user.id
+                self.request.session['password_reset_code'] = code # Opcional, pero útil para verificar de nuevo
+                messages.success(self.request, 'Código verificado con éxito. Ahora puedes establecer una nueva contraseña.')
+                return super().form_valid(form)
+            else:
+                messages.error(self.request, 'El código ha expirado o es inválido.')
+        except (CustomUser.DoesNotExist, PasswordResetCode.DoesNotExist):
+            messages.error(self.request, 'Correo electrónico o código incorrectos.')
+        
+        return self.form_invalid(form)
+
+class SetNewPasswordView(FormView):
+    template_name = 'registration/set_new_password_form.html'
+    form_class = SetPasswordForm
+    success_url = reverse_lazy('password_reset_complete_custom')
+
+    def dispatch(self, request, *args, **kwargs):
+        # Verificar si el usuario ha pasado por la verificación del código
+        user_id = request.session.get('password_reset_user_id')
+        reset_code = request.session.get('password_reset_code')
+
+        if not user_id:
+            messages.error(request, 'Acceso denegado. Por favor, solicita un código de restablecimiento primero.')
+            return redirect('request_reset_code')
+        
+        # Opcional: verificar el código de nuevo por si se usa la URL directamente
+        try:
+            user = CustomUser.objects.get(id=user_id)
+            password_code = PasswordResetCode.objects.get(user=user, code=reset_code)
+            if not password_code.is_valid():
+                messages.error(request, 'El código ha expirado. Por favor, solicita uno nuevo.')
+                return redirect('request_reset_code')
+        except (CustomUser.DoesNotExist, PasswordResetCode.DoesNotExist):
+            messages.error(request, 'Verificación de código inválida. Por favor, solicita uno nuevo.')
+            return redirect('request_reset_code')
+            
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        user_id = self.request.session.get('password_reset_user_id')
+        user = CustomUser.objects.get(id=user_id)
+        kwargs['user'] = user
+        return kwargs
+
+    def form_valid(self, form):
+        user_id = self.request.session.get('password_reset_user_id')
+        user = CustomUser.objects.get(id=user_id)
+        
+        # Eliminar todos los códigos de restablecimiento para este usuario una vez que la contraseña es cambiada
+        PasswordResetCode.objects.filter(user=user).delete()
+
+        form.save() # Guarda la nueva contraseña
+        messages.success(self.request, 'Tu contraseña ha sido restablecida con éxito. Ya puedes iniciar sesión.')
+        
+        # Limpiar la sesión después de cambiar la contraseña
+        if 'password_reset_user_id' in self.request.session:
+            del self.request.session['password_reset_user_id']
+        if 'password_reset_code' in self.request.session:
+            del self.request.session['password_reset_code']
+
+        return super().form_valid(form)
+
+    def form_invalid(self, form):
+        messages.error(self.request, 'Por favor, corrige los errores en la contraseña. Asegúrate de que coincidan y cumplan con los requisitos.')
+        return super().form_invalid(form)
+
+class PasswordResetCompleteCustomView(TemplateView):
+    """Muestra un mensaje de éxito después de que la contraseña ha sido cambiada."""
+    template_name = "registration/password_reset_complete_custom.html" # Nombre de tu nueva plantilla
