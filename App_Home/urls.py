@@ -23,10 +23,10 @@ urlpatterns = [
     # --- VISTAS DE DOCUMENTOS ---
     path('solicitudes/nueva/', views.vista_solicitar_documento, name='solicitar_documento'),
 
+    # --- VISTAS DE RESTABLECIMIENTO DE CONTRASEÑA PERSONALIZADAS ---
     path('password/request-code/', views.RequestResetCodeView.as_view(), name='request_reset_code'),
     path('password/code-sent/', views.reset_code_sent, name='reset_code_sent'),
     path('password/verify-code/', views.VerifyResetCodeView.as_view(), name='verify_reset_code'),
     path('password/set-new/', views.SetNewPasswordView.as_view(), name='set_new_password'),
-
     path('password/reset/complete/', views.PasswordResetCompleteCustomView.as_view(), name='password_reset_complete_custom'),
 ]

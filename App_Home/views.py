@@ -1,34 +1,33 @@
 # App_Home/views.py
 
-from django.shortcuts import render, redirect, get_object_or_404
+from datetime import datetime, timedelta
+from decimal import Decimal
+from django.contrib import messages
 from django.contrib.auth import authenticate, login as autenticar_login, logout
 from django.contrib.auth.forms import AuthenticationForm, SetPasswordForm
 from django.contrib.auth.decorators import login_required 
-from django.contrib import messages
 from django.contrib.messages import get_messages
-from django.http import HttpResponse # Importación para manejar la respuesta de PDF
-from django.utils import timezone # Importación para manejar la fecha/hora actual
-from django.db.models import Q # Para búsquedas complejas
-from reportlab.pdfgen import canvas # Importaciones para generar PDF (Reportlab)
-from reportlab.lib.pagesizes import letter, A4
-from reportlab.lib import colors
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph
-from reportlab.lib.styles import getSampleStyleSheet
-from reportlab.lib.units import inch
-from .forms import (FormularioCreacionUsuario, FormularioPerfilUsuario, FormularioFiltroMovimientos, 
-                    SolicitudDocumentoForm, VerifyResetCodeForm, CustomPasswordResetForm)
-from .models import (CustomUser, Tower, MovimientoFinanciero, CicloBeneficio, 
-                    EntregaBeneficio, CensoMiembro, SolicitudDocumento, PasswordResetCode)
-from decimal import Decimal
-
-from django.views.generic import FormView, TemplateView
+from django.conf import settings
+from django.core.mail import EmailMultiAlternatives
+from django.db.models import Q
+from django.http import HttpResponse
+from django.shortcuts import render, redirect, get_object_or_404
+from django.template.loader import render_to_string
 from django.urls import reverse_lazy
+from django.utils import timezone
+from django.views.generic import FormView, TemplateView
+from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.pagesizes import letter, A4
+from reportlab.lib.units import inch
+from reportlab.pdfgen import canvas
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph
+from .forms import (FormularioCreacionUsuario, FormularioPerfilUsuario, FormularioFiltroMovimientos, SolicitudDocumentoForm, 
+                    VerifyResetCodeForm, CustomPasswordResetForm)
+from .models import (CustomUser, Tower, MovimientoFinanciero, CicloBeneficio, EntregaBeneficio, 
+                    CensoMiembro, SolicitudDocumento, PasswordResetCode)
 import random
 import string
-from datetime import datetime, timedelta
-from django.template.loader import render_to_string
-from django.core.mail import EmailMultiAlternatives
-from django.conf import settings
 
 def vista_dashboard(request):
     """
