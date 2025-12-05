@@ -1,4 +1,5 @@
 .venv/
+.django_tailwind_cli
 *.pyc
 **/__pycache__
 **/migrations/*.py
