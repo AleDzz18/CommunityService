@@ -67,14 +67,14 @@
                         d="M140 180a12 12 0 1 1-12-12a12 12 0 0 1 12 12M128 72c-22.06 0-40 16.15-40 36v4a8 8 0 0 0 16 0v-4c0-11 10.77-20 24-20s24 9 24 20s-10.77 20-24 20a8 8 0 0 0-8 8v8a8 8 0 0 0 16 0v-.72c18.24-3.35 32-17.9 32-35.28c0-19.85-17.94-36-40-36m104 56A104 104 0 1 1 128 24a104.11 104.11 0 0 1 104 104m-16 0a88 88 0 1 0-88 88a88.1 88.1 0 0 0 88-88" />
                 </svg><span :class="{'lg:hidden': !sidebar.open}">Solicitar Documentos</span>
             </a></li>
-        {% if True %} <!-- request.user.is_authenticated -->
+        {% if request.user.is_authenticated %}
         <li class=" menu-title"><span :class="{'lg:hidden': !sidebar.open}">Administración</span><span class="hidden"
                 :class="{'lg:block': !sidebar.open}"><svg xmlns="http://www.w3.org/2000/svg" width="32" height="32"
                     viewBox="0 0 256 256"><!-- Icon from Phosphor by Phosphor Icons - https://github.com/phosphor-icons/core/blob/main/LICENSE -->
                     <path fill="currentColor"
                         d="M144 128a16 16 0 1 1-16-16a16 16 0 0 1 16 16m-84-16a16 16 0 1 0 16 16a16 16 0 0 0-16-16m136 0a16 16 0 1 0 16 16a16 16 0 0 0-16-16" />
                 </svg></span></li>
-        {%if True %} <!-- request.user.rol == 'LDG' -->
+        {%if request.user.rol == 'LDG' %}
         <li>
             <a href="{% url 'lider_general:lista_solicitudes' %}"
                 :class="{'menu-active': sidebar.path == '/general/solicitudes/'}" class="tooltip tooltip-right"
@@ -103,7 +103,7 @@
                         d="M152 80a8 8 0 0 1 8-8h88a8 8 0 0 1 0 16h-88a8 8 0 0 1-8-8m96 40h-88a8 8 0 0 0 0 16h88a8 8 0 0 0 0-16m0 48h-64a8 8 0 0 0 0 16h64a8 8 0 0 0 0-16m-96.25 22a8 8 0 0 1-5.76 9.74a7.6 7.6 0 0 1-2 .26a8 8 0 0 1-7.75-6c-6.16-23.94-30.34-42-56.25-42s-50.09 18.05-56.25 42a8 8 0 0 1-15.5-4c5.59-21.71 21.84-39.29 42.46-48a48 48 0 1 1 58.58 0c20.63 8.71 36.88 26.29 42.47 48M80 136a32 32 0 1 0-32-32a32 32 0 0 0 32 32" />
                 </svg><span :class="{'lg:hidden': !sidebar.open}">Censo General</span></a></li>
         {% endif %}
-        {% if True %} <!-- request.user.rol == 'LDT' and request.user.tower -->
+        {% if request.user.rol == 'LDT' and request.user.tower %}
         <li><a href="{% url 'lider_torre:censo_lista' %}" :class="{'menu-active': sidebar.path == '/lider/censo/'}"
                 class="tooltip tooltip-right" :data-tip="!sidebar.open ? `Censo torre
                     ${sidebar.django_data.user_tower}` : ''"><svg xmlns="http://www.w3.org/2000/svg" width="32"

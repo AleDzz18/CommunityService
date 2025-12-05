@@ -1,4 +1,4 @@
-{% extends 'layouts/base.html' %}
+{% extends 'layouts/complete.html' %}
 {% load static %}
 
 {% block title %}{{ titulo }}{% endblock %}
@@ -86,7 +86,7 @@
             <button type="submit" class="btn btn-primary me-2">
                 <i class="fas fa-save"></i> Registrar Movimiento
             </button>
-            <a href="{% url 'url_dashboard' %}" class="btn btn-secondary">
+            <a href="{{request.META.HTTP_REFERER}}" class="btn btn-secondary">
                 <i class="fas fa-times"></i> Cancelar
             </a>
         </div>

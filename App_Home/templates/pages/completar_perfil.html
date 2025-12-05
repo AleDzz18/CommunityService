@@ -1,0 +1,139 @@
+{% extends 'layouts/complete.html' %}
+{% block content %}
+<div v-scope="{cedula: {{ usuario.cedula|default:'null' }}}"
+    class="min-h-svh flex flex-col justify-start items-stretch px-6 py-8 gap-4">
+    <h1 class="text-xl">Perfil</h1>
+    <div v-if="cedula == null" role="alert" class="alert alert-warning alert-outline">
+        <span>Casi terminas el registro, <b>{{ usuario.username }}</b>. Por favor, proporciona tus datos
+            completos</span>
+    </div>
+    <div class="card w-full card-border bg-base-100 card-md shadow-sm">
+        <div class="card-body">
+            <h2 class="card-title"> Datos de Perfil</h2>
+            <div class="divider divider-primary"></div>
+            <form method="POST">
+                {% csrf_token %}
+                <h3 class="text-lg text-primary mb-2">Información Personal</h3>
+                <div class="grid grid-cols-3 gap-4 w-fit">
+                    <div>
+                        <label for="{{ formulario.first_name.id_for_label }}"
+                            class="block text-sm/6 font-medium text-primary">{{ formulario.first_name.label }}</label>
+                        <div class="mt-2">
+                            <input type="text" name="{{ formulario.first_name.html_name }}"
+                                id="{{ formulario.first_name.id_for_label }}"
+                                value="{{ formulario.first_name.value|default:'' }}" required placeholder="John"
+                                class="block rounded-md w-48 bg-white px-3 py-1.5 text-base text-primary outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-accent sm:text-sm/6 {% if formulario.first_name.errors %} input-error {% endif %}" />
+                        </div>
+                        {% if formulario.first_name.errors %}
+                        <div class="label text-error text-sm">
+                            {{ formulario.first_name.errors }}
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <div>
+                        <label for="{{ formulario.last_name.id_for_label }}"
+                            class="block text-sm/6 font-medium text-primary">{{ formulario.last_name.label }}</label>
+                        <div class="mt-2">
+                            <input type="text" name="{{ formulario.last_name.html_name }}"
+                                id="{{ formulario.last_name.id_for_label }}"
+                                value="{{ formulario.last_name.value|default:'' }}" required placeholder="Doe Foo"
+                                class="block rounded-md w-48 bg-white px-3 py-1.5 text-base text-primary outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-accent sm:text-sm/6 {% if formulario.last_name.errors %} input-error {% endif %}" />
+                        </div>
+                        {% if formulario.last_name.errors %}
+                        <div class="label text-error text-sm">
+                            {{ formulario.last_name.errors }}
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <div>
+                        <label for="{{ formulario.cedula.id_for_label }}"
+                            class="block text-sm/6 font-medium text-primary">{{ formulario.cedula.label }}</label>
+                        <div class="mt-2">
+                            <input type="text" name="{{ formulario.cedula.html_name }}"
+                                id="{{ formulario.cedula.id_for_label }}"
+                                value="{{ formulario.cedula.value|default:'' }}" required placeholder="XXXXXXXX"
+                                class="block rounded-md w-48 bg-white px-3 py-1.5 text-base text-primary outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-accent sm:text-sm/6 {% if formulario.cedula.errors %} input-error {% endif %}" />
+                        </div>
+                        {% if formulario.cedula.errors %}
+                        <div class="label text-error text-sm">
+                            {{ formulario.cedula.errors }}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="divider"></div>
+                <h3 class="text-lg text-primary mb-2">Asignación de Rol</h3>
+                <div class="grid grid-cols-3 gap-4 w-fit">
+                    <div>
+                        <label for="{{ formulario.rol.id_for_label }}"
+                            class="block text-sm/6 font-medium text-primary">{{ formulario.rol.label }}</label>
+                        <div class="mt-2">
+                            <select name="{{ formulario.rol.html_name }}" id="{{ formulario.rol.id_for_label }}"
+                                value="{{ formulario.rol.value|default:'' }}" required
+                                class="select block rounded-md w-48 bg-white px-3 py-1.5 text-base text-primary outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-accent sm:text-sm/6 {% if formulario.rol.errors %} input-error {% endif %}"">
+                                <option disabled selected>Selecciona</option>
+                                {% for value, label in formulario.rol.field.choices %}
+                                <option value='{{ value }}'>
+                                {{ label }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        {% if formulario.rol.errors %}
+                        <div class=" label text-error text-sm">
+                                {{ formulario.rol.errors }}
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div>
+                        <label for="{{ formulario.tower.id_for_label }}"
+                            class="block text-sm/6 font-medium text-primary">{{ formulario.tower.label }}</label>
+                        <div class="mt-2">
+                            <select name="{{ formulario.tower.html_name }}" id="{{ formulario.tower.id_for_label }}"
+                                value="{{ formulario.tower.value|default:'' }}" required
+                                class="select block rounded-md w-48 bg-white px-3 py-1.5 text-base text-primary outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-accent sm:text-sm/6 {% if formulario.tower.errors %} input-error {% endif %}"">
+                                                    
+                                {% for value, label in formulario.tower.field.choices %}
+                                <option value='{{ value }}'>
+                                {{ label }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        {% if formulario.tower.errors %}
+                        <div class=" label text-error text-sm">
+                                {{ formulario.tower.errors }}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="divider"></div>
+                <h3 class="text-lg text-primary mb-1">Optar por Roles Secundarios (Opcional)</h3>
+                <p class="text-neutral mb-2">Marca si deseas colaborar con roles de gestión específicos.</p>
+
+                <div class="join">
+                    <input type="checkbox" name="{{ formulario.es_admin_basura.name }}"
+                        aria-label="{{ formulario.es_admin_basura.label}}"
+                        id="{{ formulario.es_admin_basura.id_for_label }}" class="join-item btn btn-dash btn-primary "
+                        v-scope="{dchecked: '{{ formulario.es_admin_basura.value }}'}"
+                        @vue:mounted="if (dchecked != 'False'){ $el.checked = true}" />
+                    <input type="checkbox" name="{{ formulario.es_admin_clap.name }}"
+                        aria-label="{{ formulario.es_admin_clap.label}}"
+                        id="{{ formulario.es_admin_clap.id_for_label }}" class="join-item btn btn-dash btn-primary"
+                        v-scope="{dchecked: '{{ formulario.es_admin_clap.value }}'}"
+                        @vue:mounted="if (dchecked != 'False'){ $el.checked = true}" />
+                    <input type="checkbox" name="{{ formulario.es_admin_bombonas.name }}"
+                        aria-label="{{ formulario.es_admin_bombonas.label}}"
+                        id="{{ formulario.es_admin_bombonas.id_for_label }}" class="join-item btn btn-dash btn-primary"
+                        v-scope="{dchecked: '{{ formulario.es_admin_bombonas.value }}'}"
+                        @vue:mounted="if (dchecked != 'False'){ $el.checked = true}" />
+                </div>
+                <button type="submit" class="flex mt-8 text-sm/6 font-semibold btn btn-neutral ">Guardar y
+                    Acceder</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock content %}

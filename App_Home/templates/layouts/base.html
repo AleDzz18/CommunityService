@@ -1,33 +1,17 @@
 <!-- Carga Archivos Estaticos -->
 {% load static tailwind_cli %}
 <!DOCTYPE html>
-<html lang="en" data-theme="autumn">
+<html lang="es" data-theme="autumn">
 
 <head>
     <!-- Configuracion basica del documento HTML -->
     <meta charset="UTF-8" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><!-- Titulo General de la Pagina -->
+    <title>{% block metaTitle %}Balcones de Paraguana I{% endblock metaTitle%}</title>
+
     <!-- Estilos  -->
     {% tailwind_css %}
-
-    <!---
-    YA no se usa xd 
-
-    <link rel="stylesheet" href="{% static 'css/styles-perfil.css' %}">
-    <link rel="stylesheet" href="{% static 'css/styles-listado.css' %}">
-    <link rel="stylesheet" href="{% static 'css/styles-lidergeneral.css' %}">
-    <link rel="stylesheet" href="{% static 'css/styles-navbar.css' %}" />
-    <link rel="stylesheet" href="{% static 'css/styles-login.css' %}" />
-    <link rel="stylesheet" href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css">
-    <link rel="stylesheet" href="{% static 'css/styles-HD.css' %}" />
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
-        integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA=="
-        crossorigin="anonymous" referrerpolicy="no-referrer" />
-    
-    -->
-
 
     <!-- scipts -->
     <script src="{% static 'js/scripts-login.js' %}" defer></script>
@@ -43,21 +27,107 @@
         const sidebar = reactive({
             open: false,
             django_data: {
-                user_tower: '{{ request.user.tower.nombre|default:"4" }}'
+                user_tower: '{{ request.user.tower.nombre }}'
             },
             path: "{{ request.path }}",
-            forceOpen(){
+            forceOpen() {
                 this.open = true
             },
-            toggle(){
+            toggle() {
                 this.open = !this.open
             }
         })
 
         const navbar = reactive({
-            title: 'def',
-            change(value){
+            title: 'Administración',
+            change(value) {
                 this.title = value
+            }
+        })
+
+        function AlertComponent(id, message, durationMs, mode) {
+            // Definimos el tiempo total y el tiempo en que se inició la cuenta
+            const startTime = Date.now();
+            // Duración de la animación de fade-out (debe coincidir con el CSS)
+            const animationDurationMs = 500;
+            const DaisyClass = `alert-${mode}`;
+
+            return {
+                $template: '#alert-template',
+                // Data properties
+                id: id,
+                message: message,
+                durationMs: durationMs,
+                mode: mode,
+                isVisible: true, // CLAVE para la animación (Entrada/Salida)
+                progress: 100,
+                intervalId: null,
+                modeClass: DaisyClass,
+
+
+                // Método que se ejecuta para iniciar el proceso de destrucción y limpieza.
+                cleanup() {
+                    clearInterval(this.intervalId);
+                    alertsManager.removeAlert(this.id);
+                },
+
+                // Permite cerrar la alerta manualmente (botón ✕)
+                closeManually() {
+                    this.isVisible = false; // Inicia la animación de salida
+                    setTimeout(() => {
+                        this.cleanup();
+                    }, animationDurationMs); // Espera la duración de la animación
+                },
+
+                // Método principal de inicialización que se ejecuta al montarse (v-init o @vue:mounted)
+                init() {
+                    // 1. Iniciar el intervalo para actualizar la barra de progreso
+                    this.intervalId = setInterval(() => {
+                        const elapsed = Date.now() - startTime;
+                        let remaining = 100 - (elapsed / this.durationMs) * 100;
+
+                        if (remaining <= 0) {
+                            remaining = 0;
+                            clearInterval(this.intervalId); // Detener la actualización
+                            this.isVisible = false;       // Iniciar la animación de fade-out
+
+                            // Programar la destrucción final después de que termine la animación
+                            setTimeout(() => {
+                                this.cleanup();
+                            }, animationDurationMs);
+
+                        }
+                        this.progress = remaining;
+
+                    }, 50); // Actualizar cada 50 milisegundos
+                },
+            };
+        }
+
+        const alertsManager = reactive({
+            alerts: [],
+            nextId: 0,
+            MAX_ALERTS: 5,
+            removeAlert(alertId) {
+                this.alerts = this.alerts.filter(alert => alert.id !== alertId);
+                console.log(`Alerta #${alertId} removida del array. activos: ${this.alerts.length}`);
+            },
+            createAlert(message, duration, mode = 'info') { // Default mode = info
+                const newAlert = AlertComponent(this.nextId++, message, duration, mode);
+                this.alerts.push(newAlert);
+
+                if (this.alerts.length > this.MAX_ALERTS) {
+                    // .shift() remueve el primer elemento del array (el más antiguo).
+                    const oldestAlertScope = this.alerts.shift();
+
+                    console.log(`Límite alcanzado (${this.MAX_ALERTS}). Removida la alerta más antigua: #${oldestAlertScope.id}`);
+
+                    // Importante: Si la alerta removida aún tenía su temporizador activo, 
+                    // debemos limpiarlo para evitar que se ejecute en el fondo.
+                    if (oldestAlertScope.intervalId) {
+                        clearInterval(oldestAlertScope.intervalId);
+                    }
+                }
             }
         })
 
@@ -65,17 +135,55 @@
             $delimiters: ['${', '}'],
             globals,
             sidebar,
-            navbar
+            navbar,
+            AlertComponent,
+            alertsManager
         }).mount()
     </script>
 
-    <!-- Titulo General de la Pagina -->
-    <title>{% block metaTitle %}Balcones de Paraguana I{% endblock metaTitle%}</title>
+
+    <template id="alert-template">
+        <div @vue:mounted="init" :key="id" role="alert" :class="{ 
+                        'opacity-100 translate-y-0': isVisible, 
+                        'opacity-0 translate-y-4': !isVisible,
+                        [modeClass]: true
+                    }" class="
+                        alert alert-soft shadow-lg 
+                        transition-all duration-500 ease-out 
+                        flex flex-col gap-2 p-3 w-full max-w-md
+                    ">
+            <div class="flex justify-between items-start">
+                <span>${message}</span>
+                <button @click="closeManually" class="btn btn-xs btn-circle btn-ghost">
+                    ✕
+                </button>
+            </div>
+
+            <progress class="progress progress-accent w-full" :class="[`progress-${mode}`]" :value="progress"
+                max="100"></progress>
+        </div>
+    </template>
 </head>
 
 <body class="font-outfit" {% block body_attributes %}{% endblock %}>
     {% block main %}
     {% endblock main %}
+
+    <div class="fixed flex flex-col gap-2 bottom-5 right-5 z-50 items-end" v-scope @vue:mounted="
+    {% if messages %}
+    {% for message in messages %}
+    alertsManager.createAlert('{{message.message|escapejs }}', 6000, '{{ message.tags|default:'info' }}' );
+    {% endfor %}
+    {% endif %}
+    ">
+        <div v-for="alert in alertsManager.alerts" :key="alert.id" v-scope="alert"></div>
+        <div class="hidden">
+
+            <span class="alert-info alert-success alert-warning alert-error alert-soft"></span>
+            <span class="progress-info progress-success progress-warning progress-error progress-soft"></span>
+        </div>
+    </div>
 </body>
+
 
 </html>

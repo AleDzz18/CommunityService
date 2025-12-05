@@ -1,5 +1,6 @@
 # App_Home/views.py
 
+import json
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import authenticate, login as autenticar_login, logout
 from django.contrib.auth.forms import AuthenticationForm
@@ -15,6 +16,8 @@ from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.units import inch
+
+from Community_Service.decorators import complete_profile
 from .forms import (
     FormularioCreacionUsuario,
     FormularioPerfilUsuario,
@@ -33,30 +36,8 @@ from .models import (
 from decimal import Decimal
 
 
+@complete_profile
 def vista_index(request):
-    return render(request, "index.html")
-
-
-def vista_dashboard(request):
-    """
-    Muestra la página principal o dashboard. Permite acceso a espectadores.
-    """
-
-    # REDIRECCIÓN FORZOSA A COMPLETAR PERFIL
-    if request.user.is_authenticated:
-        usuario = request.user
-
-        # Utilizamos la Cédula (cedula) como el indicador principal de Perfil Incompleto.
-        # Si está logueado y NO tiene cédula, lo enviamos a completar perfil.
-        # Se usa getattr para seguridad en caso de que el campo no exista o sea None.
-        if not getattr(usuario, "cedula", None):
-            messages.warning(
-                request, "Debe completar su perfil para acceder al sistema."
-            )
-            return redirect("url_completar_perfil", user_id=usuario.id)
-
-    # -------------------------------------------------------------------
-
     contexto = {
         "usuario_autenticado": request.user.is_authenticated,
         "rol_usuario": (
@@ -70,24 +51,16 @@ def vista_dashboard(request):
             else None
         ),
     }
-    return render(request, "homeDashboard.html", contexto)
+    return render(request, "index.html", contexto)
 
 
-@login_required
-def vista_logout(request):
-    """
-    Cierra la sesión del usuario y redirige al dashboard en modo espectador.
-    """
-    logout(request)
-    return redirect("url_dashboard")
-
-
+@complete_profile
 def vista_login(request):
     """Maneja la autenticación del usuario."""
 
     # Si el usuario ya está autenticado, simplemente se redirige.
     if request.user.is_authenticated:
-        return redirect("url_dashboard")
+        return redirect("url_index")
 
     if request.method == "POST":
         formulario = AuthenticationForm(request, data=request.POST)
@@ -98,6 +71,10 @@ def vista_login(request):
             if usuario is not None:
                 # 🔑 MODIFICACIÓN AQUÍ: Usar 'cedula' para forzar la redirección a completar perfil,
                 # en lugar de 'is_active', si el login fue exitoso.
+                # Si todo está completo, inicia sesión y redirige al dashboard
+                # ALEJANDRO, PRIMERO LOGEA AL USUARIO ANTES DE REDIRIGIRLO CABRON, SINO COMO ESPERAS
+                # QUE CARGUE LA PAGINA DE COMPLETAR PERFIL
+                autenticar_login(request, usuario)
                 if not getattr(usuario, "cedula", None):
                     messages.warning(
                         request,
@@ -105,9 +82,7 @@ def vista_login(request):
                     )
                     return redirect("url_completar_perfil", user_id=usuario.id)
 
-                # Si todo está completo, inicia sesión y redirige al dashboard
-                autenticar_login(request, usuario)
-                return redirect("url_dashboard")
+                return redirect("url_index")
             else:
                 messages.error(request, "Nombre de usuario o contraseña incorrectos.")
         else:
@@ -119,14 +94,24 @@ def vista_login(request):
     storage = get_messages(request)
 
     return render(
-        request, "login.html", {"formulario": formulario, "messages": storage}
+        request, "pages/login.html", {"formulario": formulario, "messages": storage}
     )
 
 
+@login_required
+def vista_logout(request):
+    """
+    Cierra la sesión del usuario y redirige al dashboard en modo espectador.
+    """
+    logout(request)
+    return redirect("url_index")
+
+
+@complete_profile
 def vista_registro(request):
     """Maneja la creación de nuevos usuarios."""
     if request.user.is_authenticated:
-        return redirect("url_dashboard")
+        return redirect("url_index")
 
     if request.method == "POST":
         formulario = FormularioCreacionUsuario(request.POST)
@@ -160,7 +145,8 @@ def vista_registro(request):
                     messages.error(request, f"Error en {field_name}: {error}")
 
     formulario = FormularioCreacionUsuario()
-    return render(request, "register.html", {"formulario": formulario})
+    contexto = {"formulario": formulario, "vue": json.dumps({"register": True})}
+    return render(request, "pages/login.html", contexto)
 
 
 @login_required
@@ -176,12 +162,12 @@ def vista_completar_perfil(request, user_id):
         messages.error(
             request, "No tiene permisos para editar el perfil de otro usuario."
         )
-        return redirect("url_dashboard")
+        return redirect("url_index")
 
     # Si el usuario tiene Cédula (perfil completo), lo redirigimos
     if getattr(usuario, "cedula", None):
         messages.info(request, "Su perfil ya está completo.")
-        return redirect("url_dashboard")
+        return redirect("url_index")
 
     if request.method == "POST":
         formulario = FormularioPerfilUsuario(request.POST, instance=usuario)
@@ -191,7 +177,7 @@ def vista_completar_perfil(request, user_id):
             messages.success(
                 request, "Perfil completado con éxito. ¡Bienvenido a la comunidad!"
             )
-            return redirect("url_dashboard")
+            return redirect("url_index")
         else:
             messages.error(
                 request,
@@ -215,7 +201,9 @@ def vista_completar_perfil(request, user_id):
         formulario = FormularioPerfilUsuario(instance=usuario)
 
     return render(
-        request, "completar_perfil.html", {"formulario": formulario, "usuario": usuario}
+        request,
+        "pages/completar_perfil.html",
+        {"formulario": formulario, "usuario": usuario},
     )
 
 
@@ -240,7 +228,7 @@ def ver_ingresos_egresos(request, categoria_slug):
         monto_field = "monto_basura"  # Campo de monto dinámico
     else:
         # Si la URL es inválida, se redirige al dashboard.
-        return redirect("url_dashboard")
+        return redirect("url_index")
 
     # =========================================================================
     # LÓGICA DE MANEJO DE POST (REGISTRO DE MOVIMIENTO)
@@ -441,7 +429,7 @@ def ver_ingresos_egresos(request, categoria_slug):
         "filtro_form": filtro_form,  # Formulario de filtro para la plantilla
     }
 
-    return render(request, "finanzas/listado_movimientos.html", context)
+    return render(request, "pages/finanzas/listado_movimientos.html", context)
 
 
 def descargar_pdf(request, categoria_slug):
@@ -459,7 +447,7 @@ def descargar_pdf(request, categoria_slug):
         monto_field = "monto_basura"
     else:
         # Redireccionar si el slug es inválido
-        return redirect("url_dashboard")
+        return redirect("url_index")
 
     # 2. Obtener QuerySet Base
     movimientos_query = (
@@ -661,7 +649,7 @@ def vista_beneficio(request, tipo_slug):
     # Mapeo de slug a tipo de modelo
     tipo_map = {"clap": "CLAP", "gas": "GAS"}
     if tipo_slug not in tipo_map:
-        return redirect("url_dashboard")
+        return redirect("url_index")
 
     tipo_db = tipo_map[tipo_slug]
     titulo = "Bolsa CLAP" if tipo_db == "CLAP" else "Bombona de Gas"
@@ -709,7 +697,7 @@ def vista_beneficio(request, tipo_slug):
         "es_admin": es_admin,
         "busqueda": request.GET.get("q", ""),
     }
-    return render(request, "beneficios/lista_beneficio.html", context)
+    return render(request, "pages/beneficios/lista_beneficio.html", context)
 
 
 def descargar_pdf_beneficio(request, ciclo_id):
@@ -805,8 +793,16 @@ def vista_solicitar_documento(request):
                     request,
                     "¡Solicitud enviada con éxito! Tu Líder General procesará el documento pronto.",
                 )
-                return redirect("url_dashboard")
+                return redirect("url_index")
     else:
         form = SolicitudDocumentoForm()
 
-    return render(request, "solicitudes/crear_solicitud.html", {"form": form})
+    return render(request, "pages/solicitudes/crear_solicitud.html", {"form": form})
+
+
+def handler404(request, exception):
+    return render(request=request, template_name="c404.html", status=404)
+
+
+def handler500(request):
+    return render(request=request, template_name="c500.html", status=500)

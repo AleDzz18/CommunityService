@@ -3,7 +3,6 @@ from . import views
 
 urlpatterns = [
     path("", views.vista_index, name="url_index"),
-    path("dashboard", views.vista_dashboard, name="url_dashboard"),
     path("login/", views.vista_login, name="url_login"),
     path("logout/", views.vista_logout, name="url_logout"),
     path("register/", views.vista_registro, name="url_registro"),

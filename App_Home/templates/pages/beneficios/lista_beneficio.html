@@ -1,5 +1,4 @@
-{% extends 'layouts/navbar.html' %}
-{% load static %}
+{% extends 'layouts/complete.html' %}
 
 {% block title %}Listado de Beneficio - {{ titulo }}{% endblock %}
 
@@ -15,7 +14,7 @@
             {% endif %}
             Gestión de {{ titulo }}
         </h2>
-        <a href="{% url 'url_dashboard' %}" class="btn btn-secondary">
+        <a href="{% url 'url_index' %}" class="btn btn-secondary">
             <i class="fas fa-arrow-left"></i> Volver al Inicio
         </a>
     </div>

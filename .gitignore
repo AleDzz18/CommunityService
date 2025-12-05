@@ -1,8 +1,8 @@
 .venv/
-__pycache__/
 *.pyc
-migrations/
-!migrations/__init__.py
+**/__pycache__
+**/migrations/*.py
+!**/migrations/__init__.py
 db.sqlite3
 staticfiles/
 media/
