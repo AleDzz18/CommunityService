@@ -1,20 +1,25 @@
 # App_Home/views.py
 
 import json
-from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth import authenticate, login as autenticar_login, logout
-from django.contrib.auth.forms import AuthenticationForm
-from django.contrib.auth.decorators import login_required
+from datetime import datetime, timedelta
+from decimal import Decimal
 from django.contrib import messages
+from django.contrib.auth import authenticate, login as autenticar_login, logout
+from django.contrib.auth.forms import AuthenticationForm, SetPasswordForm
+from django.contrib.auth.decorators import login_required
 from django.contrib.messages import get_messages
-from django.http import HttpResponse  # Importación para manejar la respuesta de PDF
-from django.utils import timezone  # Importación para manejar la fecha/hora actual
-from django.db.models import Q  # Para búsquedas complejas
-from reportlab.pdfgen import canvas  # Importaciones para generar PDF (Reportlab)
-from reportlab.lib.pagesizes import letter, A4
+from django.conf import settings
+from django.core.mail import EmailMultiAlternatives
+from django.db.models import Q
+from django.http import HttpResponse
+from django.shortcuts import render, redirect, get_object_or_404
+from django.template.loader import render_to_string
+from django.urls import reverse_lazy
+from django.utils import timezone
+from django.views.generic import FormView, TemplateView
 from reportlab.lib import colors
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph
 from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.pagesizes import letter, A4
 from reportlab.lib.units import inch
 
 from Community_Service.decorators import complete_profile
@@ -34,6 +39,28 @@ from .models import (
     SolicitudDocumento,
 )
 from decimal import Decimal
+from reportlab.pdfgen import canvas
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph
+from .forms import (
+    FormularioCreacionUsuario,
+    FormularioPerfilUsuario,
+    FormularioFiltroMovimientos,
+    SolicitudDocumentoForm,
+    VerifyResetCodeForm,
+    CustomPasswordResetForm,
+)
+from .models import (
+    CustomUser,
+    Tower,
+    MovimientoFinanciero,
+    CicloBeneficio,
+    EntregaBeneficio,
+    CensoMiembro,
+    SolicitudDocumento,
+    PasswordResetCode,
+)
+import random
+import string
 
 
 @complete_profile
@@ -117,12 +144,8 @@ def vista_registro(request):
         formulario = FormularioCreacionUsuario(request.POST)
         if formulario.is_valid():
             usuario = formulario.save(commit=False)
-
-            # El usuario DEBE estar activo (True) para que autenticar_login funcione.
-            # Por defecto, Django lo guarda como is_active=True.
             usuario.save()
 
-            # Iniciar sesión y redirigir al perfil.
             autenticar_login(request, usuario)
 
             messages.success(
@@ -130,10 +153,10 @@ def vista_registro(request):
                 f"Cuenta creada exitosamente para {usuario.username}. Por favor, complete su perfil.",
             )
 
-            # Redirigir directamente al perfil para evitar el bucle inicial del dashboard.
+            # Éxito: Redirigir directamente al perfil para evitar el bucle inicial del dashboard.
             return redirect("url_completar_perfil", user_id=usuario.id)
         else:
-            # Mostrar errores de validación del formulario de registro
+            # Fallo: Mostrar errores de validación del formulario de registro y redirigir al login
             for field, errors in formulario.errors.items():
                 for error in errors:
                     field_name = (
@@ -205,6 +228,30 @@ def vista_completar_perfil(request, user_id):
         "pages/completar_perfil.html",
         {"formulario": formulario, "usuario": usuario},
     )
+
+
+def cancelar_registro(request, user_id):
+    """
+    Elimina el usuario creado parcialmente si decide cancelar
+    en la pantalla de completar perfil.
+    """
+    try:
+        # Buscamos el usuario por su ID
+        usuario = get_object_or_404(CustomUser, pk=user_id)
+
+        # Eliminamos el usuario de la base de datos
+        usuario.delete()
+
+        # Mensaje de retroalimentación
+        messages.info(
+            request, "El registro ha sido cancelado y los datos temporales eliminados."
+        )
+
+    except Exception as e:
+        messages.error(request, "Ocurrió un error al intentar cancelar el registro.")
+
+    # Redirigimos al Login
+    return redirect("url_login")
 
 
 # ------------------------------------------------------------------
@@ -407,7 +454,7 @@ def ver_ingresos_egresos(request, categoria_slug):
             {
                 "fecha": mov.fecha,
                 "descripcion": mov.descripcion,
-                "tasa_bcv": mov.tasa_bcv,
+                "tasa_bcv": round(mov.tasa_bcv, 2),
                 "ingreso": (
                     ingreso_monto if ingreso_monto and ingreso_monto > 0 else None
                 ),
@@ -806,3 +853,173 @@ def handler404(request, exception):
 
 def handler500(request):
     return render(request=request, template_name="c500.html", status=500)
+
+
+# --- Vistas para el restablecimiento de contraseña con CÓDIGO ---
+
+
+class RequestResetCodeView(FormView):
+    template_name = "registration/request_reset_code_form.html"
+    form_class = CustomPasswordResetForm  # Usa CustomPasswordResetForm aquí
+    success_url = reverse_lazy("reset_code_sent")
+
+    def form_valid(self, form):
+        email = form.cleaned_data["email"]
+        try:
+            user = CustomUser.objects.get(email=email)
+            # Generar un código de 6 dígitos
+            code = "".join(random.choices(string.digits, k=6))
+            # Crear o actualizar PasswordResetCode
+            # Establecer una fecha de expiración (ej. 15 minutos)
+            expires_at = timezone.now() + timedelta(minutes=15)
+
+            # Eliminar códigos antiguos para este usuario si existen
+            PasswordResetCode.objects.filter(user=user).delete()
+
+            PasswordResetCode.objects.create(
+                user=user, code=code, expires_at=expires_at
+            )
+
+            # Enviar el correo electrónico con el código
+            context = {
+                "user": user,
+                "code": code,
+                "expiration_time": expires_at.strftime("%H:%M"),  # Formato de hora
+            }
+            subject = "Tu código de restablecimiento de contraseña"
+            email_html_message = render_to_string(
+                "registration/reset_code_email.html", context
+            )
+            email_plain_message = render_to_string(
+                "registration/reset_code_email.txt", context
+            )
+
+            msg = EmailMultiAlternatives(
+                subject, email_plain_message, settings.DEFAULT_FROM_EMAIL, [email]
+            )
+            msg.attach_alternative(email_html_message, "text/html")
+            msg.send()
+
+            messages.success(
+                self.request, "Se ha enviado un código a tu correo electrónico."
+            )
+        except CustomUser.DoesNotExist:
+            messages.error(
+                self.request, "No existe un usuario con ese correo electrónico."
+            )
+
+        return super().form_valid(form)
+
+
+def reset_code_sent(request):
+    return render(request, "registration/reset_code_sent.html")
+
+
+class VerifyResetCodeView(FormView):
+    template_name = "registration/verify_reset_code_form.html"
+    form_class = VerifyResetCodeForm
+    success_url = reverse_lazy("set_new_password")
+
+    def form_valid(self, form):
+        email = form.cleaned_data["email"]
+        code = form.cleaned_data["code"]
+
+        try:
+            user = CustomUser.objects.get(email=email)
+            reset_code_obj = PasswordResetCode.objects.get(user=user, code=code)
+
+            if reset_code_obj.is_valid():
+                # El código es válido, almacenar el user_id y el código en la sesión
+                # para usarlos en SetNewPasswordView
+                self.request.session["password_reset_user_id"] = user.id
+                self.request.session["password_reset_code"] = (
+                    code  # Opcional, pero útil para verificar de nuevo
+                )
+                messages.success(
+                    self.request,
+                    "Código verificado con éxito. Ahora puedes establecer una nueva contraseña.",
+                )
+                return super().form_valid(form)
+            else:
+                messages.error(self.request, "El código ha expirado o es inválido.")
+        except (CustomUser.DoesNotExist, PasswordResetCode.DoesNotExist):
+            messages.error(self.request, "Correo electrónico o código incorrectos.")
+
+        return self.form_invalid(form)
+
+
+class SetNewPasswordView(FormView):
+    template_name = "registration/set_new_password_form.html"
+    form_class = SetPasswordForm
+    success_url = reverse_lazy("password_reset_complete_custom")
+
+    def dispatch(self, request, *args, **kwargs):
+        # Verificar si el usuario ha pasado por la verificación del código
+        user_id = request.session.get("password_reset_user_id")
+        reset_code = request.session.get("password_reset_code")
+
+        if not user_id:
+            messages.error(
+                request,
+                "Acceso denegado. Por favor, solicita un código de restablecimiento primero.",
+            )
+            return redirect("request_reset_code")
+
+        # Opcional: verificar el código de nuevo por si se usa la URL directamente
+        try:
+            user = CustomUser.objects.get(id=user_id)
+            password_code = PasswordResetCode.objects.get(user=user, code=reset_code)
+            if not password_code.is_valid():
+                messages.error(
+                    request, "El código ha expirado. Por favor, solicita uno nuevo."
+                )
+                return redirect("request_reset_code")
+        except (CustomUser.DoesNotExist, PasswordResetCode.DoesNotExist):
+            messages.error(
+                request,
+                "Verificación de código inválida. Por favor, solicita uno nuevo.",
+            )
+            return redirect("request_reset_code")
+
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        user_id = self.request.session.get("password_reset_user_id")
+        user = CustomUser.objects.get(id=user_id)
+        kwargs["user"] = user
+        return kwargs
+
+    def form_valid(self, form):
+        user_id = self.request.session.get("password_reset_user_id")
+        user = CustomUser.objects.get(id=user_id)
+
+        # Eliminar todos los códigos de restablecimiento para este usuario una vez que la contraseña es cambiada
+        PasswordResetCode.objects.filter(user=user).delete()
+
+        form.save()  # Guarda la nueva contraseña
+        messages.success(
+            self.request,
+            "Tu contraseña ha sido restablecida con éxito. Ya puedes iniciar sesión.",
+        )
+
+        # Limpiar la sesión después de cambiar la contraseña
+        if "password_reset_user_id" in self.request.session:
+            del self.request.session["password_reset_user_id"]
+        if "password_reset_code" in self.request.session:
+            del self.request.session["password_reset_code"]
+
+        return super().form_valid(form)
+
+    def form_invalid(self, form):
+        messages.error(
+            self.request,
+            "Por favor, corrige los errores en la contraseña. Asegúrate de que coincidan y cumplan con los requisitos.",
+        )
+        return super().form_invalid(form)
+
+
+class PasswordResetCompleteCustomView(TemplateView):
+    """Muestra un mensaje de éxito después de que la contraseña ha sido cambiada."""
+
+    template_name = "registration/password_reset_complete_custom.html"  # Nombre de tu nueva plantilla

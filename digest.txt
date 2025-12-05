@@ -38,9 +38,11 @@ Directory structure:
     │       │   └── lista_beneficio.html
     │       ├── finanzas/
     │       │   └── listado_movimientos.html
-    │       └── layouts/
-    │           ├── base.html
-    │           └── navbar.html
+    │       ├── layouts/
+    │       │   ├── base.html
+    │       │   └── navbar.html
+    │       └── solicitudes/
+    │           └── crear_solicitud.html
     ├── App_LiderGeneral/
     │   ├── __init__.py
     │   ├── admin.py
@@ -57,7 +59,12 @@ Directory structure:
     │           ├── censo_form_general.html
     │           ├── censo_list_general.html
     │           ├── estado_solvencia_basura.html
+    │           ├── inventario_confirm_delete.html
+    │           ├── inventario_form.html
+    │           ├── inventario_lista.html
     │           ├── lista_usuarios.html
+    │           ├── solicitudes_lista.html
+    │           ├── solicitudes_procesar.html
     │           ├── usuario_confirm_delete.html
     │           └── usuario_form.html
     ├── App_LiderTorre/
@@ -243,297 +250,13 @@ class AppHomeConfig(AppConfig):
 ================================================
 FILE: App_Home/forms.py
 ================================================
-Error reading file with 'cp1252': 'charmap' codec can't decode byte 0x81 in position 2448: character maps to <undefined>
+Error reading file with 'cp1252': 'charmap' codec can't decode byte 0x81 in position 2468: character maps to <undefined>
 
 
 ================================================
 FILE: App_Home/models.py
 ================================================
-# App_Home/models.py
-
-from django.db import models
-from django.contrib.auth.models import AbstractUser
-from django.db.models.signals import post_migrate
-from django.dispatch import receiver
-from django.db.models import Sum # Necesario para la funciÃ³n de saldo
-from django.db.utils import OperationalError # ImportaciÃ³n clave para manejar el error
-from decimal import Decimal
-from datetime import date
-
-# Modelo para las 24 Torres
-class Tower(models.Model):
-    nombre = models.CharField(max_length=50, unique=True, verbose_name='Nombre de la Torre')
-    
-    def __str__(self):
-        return self.nombre  # Ejemplo: 'T01'
-    
-    class Meta:
-        verbose_name = "Torre"
-        verbose_name_plural = "Torres"
-        ordering = ['nombre'] # Ordenar alfabÃ©ticamente
-
-class MovimientoFinancieroManager(models.Manager):
-    def calcular_saldo_torre(self, tower, categoria):
-        """Calcula el saldo actual para una torre y categorÃ­a especÃ­fica."""
-        
-        # Determina el campo de monto a usar basado en la categorÃ­a
-        monto_field = 'monto_condominio' if categoria == 'CON' else 'monto_basura'
-        
-        # Filtra por torre y categorÃ­a
-        qs = self.filter(
-            tower=tower, 
-            categoria=categoria
-        )
-
-        # Suma los ingresos
-        ingresos = qs.filter(tipo='ING').aggregate(total=Sum(monto_field))['total'] or Decimal('0.00')
-        
-        # Suma los egresos
-        egresos = qs.filter(tipo='EGR').aggregate(total=Sum(monto_field))['total'] or Decimal('0.00')
-
-        return ingresos - egresos
-    
-    def calcular_saldo_general_basura(self):
-        """Calcula el saldo total de la categorÃ­a 'BASURA' (BAS) de TODAS las torres."""
-        
-        # El campo de monto a usar para la categorÃ­a Basura es 'monto_basura'
-        monto_field = 'monto_basura'
-        
-        # Filtra solo por la categorÃ­a de Basura (BAS) de todas las torres
-        qs = self.filter(categoria='BAS')
-
-        # Suma los ingresos
-        ingresos = qs.filter(tipo='ING').aggregate(total=Sum(monto_field))['total'] or Decimal(0)
-        
-        # Suma los egresos
-        egresos = qs.filter(tipo='EGR').aggregate(total=Sum(monto_field))['total'] or Decimal(0)
-        
-        # Retorna el saldo total de la categorÃ­a 'BAS'
-        return ingresos - egresos
-
-# --- MOVIMIENTO FINANCIERO ---
-class MovimientoFinanciero(models.Model):
-
-    objects = MovimientoFinancieroManager()  # Asignar el Manager personalizado
-    # Opciones de CategorÃ­a: Condominio General o Cuarto de Basura
-    CATEGORIAS = [
-        ('CON', 'Condominio'),
-        ('BAS', 'Cuarto de Basura'),
-    ]
-    # Opciones de Tipo: Ingreso o Egreso
-    TIPOS = [
-        ('ING', 'Ingreso'),
-        ('EGR', 'Egreso'),
-    ]
-
-    fecha = models.DateField(verbose_name='Fecha del Movimiento')
-    descripcion = models.CharField(max_length=255, verbose_name='DescripciÃ³n')
-    
-    tasa_bcv = models.DecimalField(
-        max_digits=10, 
-        decimal_places=4, 
-        verbose_name='Tasa BCV (Bs/USD)',
-        # Se elimina null=True y blank=True para hacerlo obligatorio
-        null=False, 
-        blank=False,
-        help_text="Tasa de referencia del BCV del dÃ­a en que se realizÃ³ el movimiento."
-    )
-
-    # Campos separados para mejor manejo en consultas
-    monto_condominio = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name='Monto Condominio')
-    monto_basura = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name='Monto Basura')
-    
-    tipo = models.CharField(max_length=3, choices=TIPOS, verbose_name='Tipo de Movimiento')
-    categoria = models.CharField(max_length=3, choices=CATEGORIAS, verbose_name='CategorÃ­a')
-    
-    # RelaciÃ³n con la Torre (Si es un ingreso/egreso de una torre especÃ­fica)
-    tower = models.ForeignKey(Tower, on_delete=models.CASCADE, null=True, blank=True, verbose_name='Torre Asociada')
-    
-    creado_por = models.ForeignKey('CustomUser', on_delete=models.SET_NULL, null=True, blank=True, verbose_name='Registrado por')
-
-    def __str__(self):
-        return f"{self.get_tipo_display()} - {self.get_categoria_display()} ({self.fecha})"
-    
-    class Meta:
-        verbose_name = "Movimiento Financiero"
-        verbose_name_plural = "Movimientos Financieros"
-        ordering = ['-fecha', '-id']
-
-    @staticmethod
-    def calcular_saldo_condominio(tower=None):
-        """Calcula el saldo total de Condominio, opcionalmente filtrado por Torre."""
-        qs = MovimientoFinanciero.objects.filter(categoria='CON')
-        if tower:
-            qs = qs.filter(tower=tower)
-
-        ingresos = qs.filter(tipo='ING').aggregate(total=Sum('monto_condominio'))['total'] or 0
-        egresos = qs.filter(tipo='EGR').aggregate(total=Sum('monto_condominio'))['total'] or 0
-        return ingresos - egresos
-
-    @staticmethod
-    def calcular_saldo_basura(tower=None):
-        """Calcula el saldo total de Basura, opcionalmente filtrado por Torre."""
-        qs = MovimientoFinanciero.objects.filter(categoria='BAS')
-        if tower:
-            qs = qs.filter(tower=tower)
-
-        ingresos = qs.filter(tipo='ING').aggregate(total=Sum('monto_basura'))['total'] or 0
-        egresos = qs.filter(tipo='EGR').aggregate(total=Sum('monto_basura'))['total'] or 0
-        return ingresos - egresos
-
-
-# --- MODELO PRINCIPAL: USUARIO PERSONALIZADO ---
-class CustomUser(AbstractUser):
-    
-    # OPCIONES DE ROL
-    ROL_LIDER_TORRE = 'LDT'
-    ROL_LIDER_GENERAL = 'LDG'
-    
-    ROLES = [
-        (ROL_LIDER_TORRE, 'LÃ­der de Torre'),
-        (ROL_LIDER_GENERAL, 'LÃ­der General'),
-    ]
-
-    # CAMPOS PERSONALIZADOS
-    cedula = models.CharField(max_length=15, unique=True, null=True, blank=True, verbose_name='CÃ©dula de Identidad')
-    rol = models.CharField(max_length=3, choices=ROLES, default=ROL_LIDER_TORRE, verbose_name='Rol en la Comunidad')
-    tower = models.ForeignKey(Tower, on_delete=models.SET_NULL, null=True, blank=True, verbose_name='Torre Asignada')
-    apartamento = models.CharField(max_length=10, null=True, blank=True, verbose_name='Apartamento (Ej: P1-A)')
-
-    # Campos de Roles Secundarios (Permisos)
-    es_admin_basura = models.BooleanField(default=False, verbose_name='Administrador de Cuarto de Basura')
-    es_admin_clap = models.BooleanField(default=False, verbose_name='Administrador de Bolsas CLAP')
-    es_admin_bombonas = models.BooleanField(default=False, verbose_name='Administrador de Bombonas')
-    
-    def __str__(self):
-        return self.username
-
-    class Meta:
-        verbose_name = "Usuario Personalizado"
-        verbose_name_plural = "Usuarios Personalizados"
-
-# ----------------------------------------------------
-# SEÃ‘AL PARA CREAR TORRES INICIALES (CORREGIDA)
-# ----------------------------------------------------
-@receiver(post_migrate)
-def crear_torres_iniciales(sender, apps, **kwargs): # AÃ±adimos 'apps' como argumento
-    # Asegurarse de que el cÃ³digo se ejecute solo para esta aplicaciÃ³n
-    if sender.name == 'App_Home':
-        print("Verificando la creaciÃ³n de Torres iniciales (T01 a T24)...")
-        
-        # Obtenemos el modelo de Tower del estado actual de la BD
-        try:
-            Tower = apps.get_model('App_Home', 'Tower')
-        except LookupError:
-            return
-
-        # Generar los nombres de las 24 torres (T01 a T24)
-        nombres_torres = [f"T{i:02d}" for i in range(1, 25)]
-        
-        try:
-            # LÃ³gica de creaciÃ³n de torres, envuelta en try-except
-            torres_existentes = Tower.objects.values_list('nombre', flat=True)
-            torres_a_crear = []
-            
-            for nombre in nombres_torres:
-                if nombre not in torres_existentes:
-                    torres_a_crear.append(Tower(nombre=nombre))
-            
-            if torres_a_crear:
-                Tower.objects.bulk_create(torres_a_crear)
-                print(f"Se crearon {len(torres_a_crear)} torres faltantes.")
-            else:
-                print("Todas las torres ya existen.")
-        
-        except OperationalError as e:
-            # Capturamos el error especÃ­fico de tabla no existente y salimos limpiamente
-            if 'no such table' in str(e):
-                print(f"ADVERTENCIA: La tabla 'App_Home_tower' aÃºn no existe. La creaciÃ³n de torres se pospone hasta que se complete la migraciÃ³n.")
-            else:
-                raise e # Re-lanzar cualquier otro error
-        except Exception as e:
-            # Capturamos otros posibles errores de Django
-            if 'no such table' in str(e):
-                print(f"ADVERTENCIA: La tabla 'App_Home_tower' aÃºn no existe. La creaciÃ³n de torres se pospone hasta que se complete la migraciÃ³n.")
-            else:
-                raise e
-
-class CensoMiembro(models.Model):
-    GENEROS = [
-        ('M', 'Masculino'),
-        ('F', 'Femenino'),
-    ]
-    
-    # Opciones para Apartamentos (3 Pisos, 4 Letras)
-    PISOS = [('P1', 'Piso 1'), ('P2', 'Piso 2'), ('P3', 'Piso 3')]
-    LETRAS = [('A', 'A'), ('B', 'B'), ('C', 'C'), ('D', 'D')]
-
-    nombres = models.CharField(max_length=100, verbose_name='Nombres')
-    apellidos = models.CharField(max_length=100, verbose_name='Apellidos')
-    cedula = models.CharField(max_length=15, unique=True, verbose_name='CÃ©dula')
-    fecha_nacimiento = models.DateField(verbose_name='Fecha de Nacimiento')
-    genero = models.CharField(max_length=1, choices=GENEROS, verbose_name='GÃ©nero')
-    telefono = models.CharField(max_length=20, blank=True, null=True, verbose_name='TelÃ©fono')
-    
-    # UbicaciÃ³n
-    tower = models.ForeignKey(Tower, on_delete=models.CASCADE, verbose_name='Torre')
-    piso = models.CharField(max_length=2, choices=PISOS, verbose_name='Piso')
-    apartamento_letra = models.CharField(max_length=1, choices=LETRAS, verbose_name='Letra Apto')
-    
-    es_jefe_familia = models.BooleanField(default=False, verbose_name='Â¿Es Jefe de Familia?')
-
-    @property
-    def edad(self):
-        today = date.today()
-        return today.year - self.fecha_nacimiento.year - ((today.month, today.day) < (self.fecha_nacimiento.month, self.fecha_nacimiento.day))
-
-    @property
-    def apartamento_completo(self):
-        return f"{self.piso}-{self.apartamento_letra}"
-
-    def __str__(self):
-        return f"{self.nombres} {self.apellidos} ({self.tower} - {self.apartamento_completo})"
-
-    class Meta:
-        verbose_name = "Miembro del Censo"
-        verbose_name_plural = "Miembros del Censo"
-        # Ordenar por Torre, luego Piso, luego Letra
-        ordering = ['tower', 'piso', 'apartamento_letra']
-
-class CicloBeneficio(models.Model):
-    TIPOS = [
-        ('CLAP', 'Bolsa CLAP'),
-        ('GAS', 'Bombona de Gas'),
-    ]
-
-    tipo = models.CharField(max_length=4, choices=TIPOS, verbose_name='Tipo de Beneficio')
-    nombre = models.CharField(max_length=50, verbose_name='Nombre del Ciclo (Ej: Noviembre 2024)')
-    fecha_apertura = models.DateField(auto_now_add=True, verbose_name='Fecha de Apertura')
-    activo = models.BooleanField(default=True, verbose_name='Â¿Ciclo Activo?')
-
-    def __str__(self):
-        return f"{self.get_tipo_display()} - {self.nombre}"
-
-    class Meta:
-        verbose_name = "Ciclo de Beneficio"
-        verbose_name_plural = "Ciclos de Beneficios"
-        ordering = ['-fecha_apertura']
-
-class EntregaBeneficio(models.Model):
-    ciclo = models.ForeignKey(CicloBeneficio, on_delete=models.CASCADE, related_name='entregas')
-    beneficiario = models.ForeignKey(CensoMiembro, on_delete=models.CASCADE, verbose_name='Vecino Beneficiado')
-    fecha_agregado = models.DateTimeField(auto_now_add=True)
-    
-    # Opcional: Para saber quiÃ©n lo agregÃ³ a la lista
-    agregado_por = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, blank=True)
-
-    class Meta:
-        verbose_name = "Beneficiario en Lista"
-        verbose_name_plural = "Beneficiarios en Lista"
-        unique_together = ('ciclo', 'beneficiario') # Evita duplicados en la misma lista
-
-    def __str__(self):
-        return f"{self.beneficiario} - {self.ciclo}"
+Error reading file with 'cp1252': 'charmap' codec can't decode byte 0x8d in position 14904: character maps to <undefined>
 
 
 ================================================
@@ -557,6 +280,7 @@ urlpatterns = [
     path('logout/', views.vista_logout, name='url_logout'),
     path('register/', views.vista_registro, name='url_registro'),
     path('register/perfil/<int:user_id>/', views.vista_completar_perfil, name='url_completar_perfil'),
+    path('register/cancelar/<int:user_id>/', views.cancelar_registro, name='url_cancelar_registro'),
     
     # --- ADMINISTRACIÃ“N DE INGRESOS Y EGRESOS ---
     path('finanzas/<str:categoria_slug>/', views.ver_ingresos_egresos, name='ver_finanzas'),
@@ -567,13 +291,16 @@ urlpatterns = [
     # --- VISTAS DE BENEFICIOS (PÃšBLICO + GESTIÃ“N VISUAL) ---
     path('beneficios/<str:tipo_slug>/', views.vista_beneficio, name='ver_beneficio'),
     path('beneficios/pdf/<int:ciclo_id>/', views.descargar_pdf_beneficio, name='pdf_beneficio'),
+
+    # --- VISTAS DE DOCUMENTOS ---
+    path('solicitudes/nueva/', views.vista_solicitar_documento, name='solicitar_documento'),
 ]
 
 
 ================================================
 FILE: App_Home/views.py
 ================================================
-Error reading file with 'cp1252': 'charmap' codec can't decode byte 0x8d in position 3234: character maps to <undefined>
+Error reading file with 'cp1252': 'charmap' codec can't decode byte 0x81 in position 8572: character maps to <undefined>
 
 
 ================================================
@@ -2117,34 +1844,6 @@ loginBtn.addEventListener("click", () => {
     container.classList.remove("active");
 });
 
-// --- CÓDIGO DE DESAPARICIÓN ---
-
-document.addEventListener('DOMContentLoaded', function() {
-    // Selecciona todos los mensajes de alerta dentro del contenedor
-    const alerts = document.querySelectorAll('.message-container .alert');
-    const DURATION = 7000; // 7 segundos para que el mensaje desaparezca
-    
-    // *** LÍNEA DE DEBUGGING: Abrir Consola (F12) para confirmar que se ejecuta. ***
-    console.log(`[DEBUG] Alertas encontradas: ${alerts.length}`);
-    // *************************************************************************
-
-    if (alerts.length > 0) {
-        alerts.forEach(alert => {
-            // 1. Inicia el temporizador de desaparición (5 segundos)
-            setTimeout(() => {
-                // Añade la clase 'hide' para iniciar la transición CSS (opacidad y desplazamiento)
-                alert.classList.add('hide');
-
-                // 2. Opcional: Elimina el elemento del DOM después de que termine la transición
-                // El tiempo (500ms) debe ser igual a la duración de la transición en styles-login.css
-                setTimeout(() => {
-                    alert.remove();
-                }, 500); 
-            }, DURATION); 
-        });
-    }
-});
-
 
 ================================================
 FILE: App_Home/templates/completar_perfil.html
@@ -2155,16 +1854,6 @@ FILE: App_Home/templates/completar_perfil.html
 {% block content %}
 <div class="perfil-container-wrapper"> 
     <div class="perfil-container"> 
-        {% if messages %}
-            <div class="mensajes-django-container">
-                {% for message in messages %}
-                    <div class="alerta alerta-{{ message.tags }}">
-                        {{ message }}
-                    </div>
-                {% endfor %}
-            </div>
-        {% endif %}
-
         <h1>Completar Datos de Perfil</h1>
         <p>Casi terminas el registro, **{{ usuario.username }}**. Por favor, proporciona tus datos completos.</p>
         
@@ -2219,6 +1908,13 @@ FILE: App_Home/templates/completar_perfil.html
             </div>
 
             <button type="submit" class="btn mt-4">Guardar y Acceder</button>
+
+            <a href="{% url 'url_cancelar_registro' user_id=usuario.id %}" 
+                class="btn btn-danger-outline"
+                style="flex: 1; text-align: center; text-decoration: none; background-color: transparent; border: 2px solid var(--md-sys-color-error); color: var(--md-sys-color-error);"
+                onclick="return confirm('Â¿EstÃ¡s seguro de cancelar el registro? Tu cuenta creada serÃ¡ eliminada permanentemente.');">
+                Cancelar
+            </a>
         </form>
     </div>
 </div>
@@ -2275,10 +1971,17 @@ FILE: App_Home/templates/homeDashboard.html
             Bombona
         </a>
 
-        <a href="#carta-residencia" class="boton-principal">
+        <a href="{% url 'solicitar_documento' %}" class="boton-principal">
             <i class="fas fa-file-alt"></i>
-            Carta de Residencia
+            Solicitar Documentos
         </a>
+
+        {% if request.user.is_authenticated and request.user.rol == 'LDG' %}
+            <a href="{% url 'lider_general:lista_solicitudes' %}" class="boton-principal">
+                <i class="fas fa-tasks"></i>
+                GestiÃ³n de Solicitudes
+            </a>
+        {% endif %}
         
         {% if request.user.is_authenticated and request.user.rol == 'LDT' or request.user.is_authenticated and request.user.rol == 'LDG' %}
             {% if request.user.is_authenticated %}
@@ -2334,16 +2037,7 @@ FILE: App_Home/templates/login.html
 
 {% block content %}
 
-    <div class="message-container">
-        {% if messages %}
-            {% for message in messages %}
-                <div id="msg-{{ forloop.counter }}" class="alert alert-{{ message.tags }}">
-                    {{ message }}
-                </div>
-            {% endfor %}
-        {% endif %}
-    </div>
-    <div class="container" id="container">
+<div class="container" id="container">
     
     <div class="form-box login">
         <form method="POST" action="{% url 'url_login' %}">
@@ -2615,51 +2309,7 @@ Error reading file with 'cp1252': 'charmap' codec can't decode byte 0x8d in posi
 ================================================
 FILE: App_Home/templates/layouts/base.html
 ================================================
-<!DOCTYPE html>
-<html lang="en">
-
-<head>
-    <!-- Carga Archivos Estaticos -->
-    {% load static %}
-    <!-- Configuracion basica del documento HTML -->
-    <meta charset="UTF-8" />
-    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <!-- Estilos y Funciones asociados al Navbar -->
-    <link rel="stylesheet" href="{% static 'css/styles-navbar.css' %}" />
-    <!-- Estilos y Funciones asociados al Login-->
-    <link rel="stylesheet" href="{% static 'css/styles-login.css' %}" />
-    <link rel="stylesheet" href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css">
-    <script src="{% static 'js/scripts-login.js' %}" defer></script>
-    <!-- Estilos y Funciones asociados al homeDashboard -->
-    <link rel="stylesheet" href="{% static 'css/styles-HD.css' %}" />
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
-        integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA=="
-        crossorigin="anonymous" referrerpolicy="no-referrer" />
-    <script src="{% static 'js/scripts-HD.js' %}" defer></script>
-    <!-- Estilos y Funciones asociados al completar perfil -->
-    <link rel="stylesheet" href="{% static 'css/styles-perfil.css' %}">
-    <!-- Estilos y Funciones asociados a Condominio y Cuarto de Basura -->
-    <link rel="stylesheet" href="{% static 'css/styles-listado.css' %}">
-    <!-- Estilos y Funciones de Gestions de Usuarios -->
-    <link rel="stylesheet" href="{% static 'css/styles-lidergeneral.css' %}">
-    <!-- Titulo General de la Pagina -->
-    <title>Balcones de Paraguana I</title>
-</head>
-
-<body class="light" {% block body_attributes %}{% endblock %}>
-    <!-- Bloque de Django para insertar el contenido del navbar. -->
-    <!-- Este bloque se define en la plantilla que extiende a esta (navbar.html). -->
-    {% block navbar %}
-    {% endblock navbar %}
-
-    <!-- Bloque de Django para insertar el contenido del login. -->
-    <!-- Este bloque se define en la plantilla que extiende a esta (login.html). -->
-    {% block content %}
-    {% endblock content %}
-</body>
-
-</html>
+Error reading file with 'cp1252': 'charmap' codec can't decode byte 0x8d in position 3034: character maps to <undefined>
 
 
 ================================================
@@ -2697,10 +2347,18 @@ FILE: App_Home/templates/layouts/navbar.html
         <span class="label">Gas</span>
     </a>
 
-    <a href="#" class="nav-item" title="Carta de Residencia">
+    <a href="{% url 'solicitar_documento' %}" class="nav-item" title="Solicitar Documento">
         <span class="icon">📄</span>
-        <span class="label">Carta</span>
+        <span class="label">Documentos</span>
     </a>
+
+    {% if request.user.is_authenticated and request.user.rol == 'LDG' %}
+        <a href="{% url 'lider_general:lista_solicitudes' %}" class="nav-item" title="Gestión de Solicitudes">
+            <span class="icon">🗂️</span>
+            <span class="label">Solicitudes</span>
+        </a>
+    {% endif %}
+
 
     {% if request.user.is_authenticated and request.user.rol == 'LDT' or request.user.is_authenticated and request.user.rol == 'LDG' %}
         {% if request.user.is_authenticated %}
@@ -2738,6 +2396,60 @@ FILE: App_Home/templates/layouts/navbar.html
 
 
 ================================================
+FILE: App_Home/templates/solicitudes/crear_solicitud.html
+================================================
+{% extends 'layouts/base.html' %} 
+{% load static %}
+{% block title %}Solicitar Documento{% endblock %}
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card shadow-lg">
+                <div class="card-header bg-primary text-white text-center">
+                    <h4 class="mb-0">Solicitar Documento Comunitario</h4>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted text-center">
+                        Ingresa tu **CÃ©dula de Identidad** y selecciona el tipo de documento. Tu solicitud serÃ¡ enviada al LÃ­der General para su procesamiento.
+                    </p>
+                    
+                    <form method="post" class="mt-4">
+                        {% csrf_token %}
+                        
+                        {# Campos del formulario (cedula y tipo_documento) #}
+                        <div class="mb-3">
+                            <label for="{{ form.cedula.id_for_label }}" class="form-label fw-bold">{{ form.cedula.label }}</label>
+                            {{ form.cedula }}
+                            {% if form.cedula.errors %}
+                                <div class="text-danger small">{{ form.cedula.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="{{ form.tipo_documento.id_for_label }}" class="form-label fw-bold">{{ form.tipo_documento.label }}</label>
+                            {{ form.tipo_documento }}
+                            {% if form.tipo_documento.errors %}
+                                <div class="text-danger small">{{ form.tipo_documento.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-success btn-lg mt-3">
+                                <i class="fas fa-paper-plane"></i> Enviar Solicitud
+                            </button>
+                            <a href="{% url 'url_dashboard' %}" class="btn btn-outline-secondary">Volver al Inicio</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+
+================================================
 FILE: App_LiderGeneral/__init__.py
 ================================================
 [Empty file]
@@ -2767,7 +2479,7 @@ class AppLidergeneralConfig(AppConfig):
 ================================================
 FILE: App_LiderGeneral/forms.py
 ================================================
-Error reading file with 'cp1252': 'charmap' codec can't decode byte 0x8d in position 1724: character maps to <undefined>
+Error reading file with 'cp1252': 'charmap' codec can't decode byte 0x8d in position 1980: character maps to <undefined>
 
 
 ================================================
@@ -2821,350 +2533,35 @@ urlpatterns = [
     path('basura/egresar/', views.RegistrarEgresoBasuraGeneralView.as_view(), name='egresar_basura_general'),
     path('basura/estado-solvencia/', views.EstadoSolvenciaBasuraView.as_view(), name='estado_solvencia_basura'),
 
+    # GESTIÃ“N DE INVENTARIO (BASURA)
+    path('basura/inventario/', views.InventarioBasuraListView.as_view(), name='inventario_lista'),
+    path('basura/inventario/nuevo/', views.InventarioBasuraCreateView.as_view(), name='inventario_crear'),
+    path('basura/inventario/editar/<int:pk>/', views.InventarioBasuraUpdateView.as_view(), name='inventario_editar'),
+    path('basura/inventario/eliminar/<int:pk>/', views.InventarioBasuraDeleteView.as_view(), name='inventario_eliminar'),
+
     # Censo de Miembros
     path('censo/', views.CensoGeneralListView.as_view(), name='censo_lista'),
     path('censo/nuevo/', views.CensoGeneralCreateView.as_view(), name='censo_crear'),
     path('censo/editar/<int:pk>/', views.CensoGeneralUpdateView.as_view(), name='censo_editar'),
     path('censo/eliminar/<int:pk>/', views.CensoGeneralDeleteView.as_view(), name='censo_eliminar'),
+    # NUEVA RUTA Censo PDF General
+    path('censo/descargar/pdf/', views.CensoPDFGeneralView.as_view(), name='censo_pdf_general'),
 
     # GestiÃ³n de Ciclos y Beneficios
     path('ciclos/crear/', views.CrearCicloView.as_view(), name='crear_ciclo'),
     path('ciclos/eliminar/<int:pk>/', views.EliminarCicloView.as_view(), name='eliminar_ciclo'),
     path('beneficios/agregar-global/<str:tipo_slug>/', views.AgregarBeneficiarioGeneralView.as_view(), name='agregar_beneficiario_global'),
+
+    # GESTIÃ“N DE SOLICITUDES DE DOCUMENTOS
+    path('solicitudes/', views.ListaSolicitudesView.as_view(), name='lista_solicitudes'),
+    path('solicitudes/procesar/<int:pk>/', views.ProcesarSolicitudView.as_view(), name='procesar_solicitud'),
 ]
 
 
 ================================================
 FILE: App_LiderGeneral/views.py
 ================================================
-# App_LiderGeneral/views.py
-
-from django.contrib.auth.mixins import AccessMixin, LoginRequiredMixin, UserPassesTestMixin
-from django.views.generic import ListView, CreateView, UpdateView, DeleteView, TemplateView
-from django.urls import reverse_lazy
-from django.views import View
-from django.contrib.auth.mixins import LoginRequiredMixin
-from django.db import IntegrityError
-from django.shortcuts import redirect, get_object_or_404
-from django.contrib import messages
-from App_Home.models import CustomUser, MovimientoFinanciero, Tower, CensoMiembro, CicloBeneficio, EntregaBeneficio
-from App_Home.forms import CensoMiembroForm
-from App_LiderTorre.views import BaseMovimientoCreateView 
-from .forms import ( FormularioAdminUsuario, IngresoCondominioGeneralForm, EgresoCondominioGeneralForm, 
-    IngresoBasuraGeneralForm, EgresoBasuraGeneralForm
-)
-from datetime import date
-
-
-# --- MIXINS DE PERMISOS (Definirlos al principio) ---
-
-class LiderGeneralRequiredMixin(AccessMixin):
-    """Verifica que el usuario actual tenga el rol de Lider General."""
-    def dispatch(self, request, *args, **kwargs):
-        # Aseguramos que el usuario estÃ© autenticado
-        if not request.user.is_authenticated:
-            return self.handle_no_permission()
-        
-        # Usamos la constante del modelo para la comparaciÃ³n
-        if request.user.rol != CustomUser.ROL_LIDER_GENERAL:
-            messages.error(request, "No tienes permiso para acceder a esta secciÃ³n administrativa.")
-            # Redirigir al dashboard si no tiene el rol
-            return redirect('url_dashboard') 
-            
-        return super().dispatch(request, *args, **kwargs)
-
-class LiderGeneralOrAdminBasuraRequiredMixin(UserPassesTestMixin):
-    """Permite el acceso solo a LÃ­der General o a un Lider con rol de Admin Basura."""
-    def test_func(self):
-        user = self.request.user
-        # Verificamos si estÃ¡ autenticado primero para evitar errores
-        if not user.is_authenticated:
-            return False
-        return user.rol == CustomUser.ROL_LIDER_GENERAL or user.es_admin_basura
-
-# ******************************************************************
-# 1. GESTIÃ“N DE USUARIOS
-# ******************************************************************
-
-class ListaUsuariosView(LoginRequiredMixin, LiderGeneralRequiredMixin, ListView):
-    model = CustomUser
-    template_name = 'lider_general/lista_usuarios.html' 
-    context_object_name = 'usuarios'
-    ordering = ['username'] 
-
-class CrearUsuarioView(LoginRequiredMixin, LiderGeneralRequiredMixin, CreateView):
-    model = CustomUser
-    form_class = FormularioAdminUsuario 
-    template_name = 'lider_general/usuario_form.html'
-    success_url = reverse_lazy('lider_general:lista_usuarios')
-    
-    def form_valid(self, form):
-        messages.success(self.request, f"Usuario '{form.instance.username}' creado con Ã©xito.")
-        return super().form_valid(form)
-
-class EditarUsuarioView(LoginRequiredMixin, LiderGeneralRequiredMixin, UpdateView):
-    model = CustomUser
-    form_class = FormularioAdminUsuario 
-    template_name = 'lider_general/usuario_form.html'
-    success_url = reverse_lazy('lider_general:lista_usuarios')
-    
-    def form_valid(self, form):
-        messages.success(self.request, f"Usuario '{form.instance.username}' editado con Ã©xito.")
-        return super().form_valid(form)
-
-class EliminarUsuarioView(LoginRequiredMixin, LiderGeneralRequiredMixin, DeleteView):
-    model = CustomUser
-    template_name = 'lider_general/usuario_confirm_delete.html'
-    success_url = reverse_lazy('lider_general:lista_usuarios')
-    context_object_name = 'usuario'
-
-    def form_valid(self, form):
-        messages.success(self.request, f"Usuario '{self.object.username}' eliminado con Ã©xito.")
-        return super().form_valid(form)
-
-# ******************************************************************
-# 2. GESTIÃ“N FINANCIERA (CONDOMINIO Y BASURA)
-# ******************************************************************
-
-# Condominio (Requiere ser LDG)
-class RegistrarIngresoCondominioGeneralView(LiderGeneralRequiredMixin, BaseMovimientoCreateView):
-    form_class = IngresoCondominioGeneralForm
-    TIPO_MOVIMIENTO = 'Ingreso'
-    CATEGORIA_MOVIMIENTO = 'Condominio'
-    MONTO_FIELD = 'monto_condominio'
-
-class RegistrarEgresoCondominioGeneralView(LiderGeneralRequiredMixin, BaseMovimientoCreateView):
-    form_class = EgresoCondominioGeneralForm
-    TIPO_MOVIMIENTO = 'Egreso'
-    CATEGORIA_MOVIMIENTO = 'Condominio'
-    MONTO_FIELD = 'monto_condominio'
-
-# Cuarto de Basura (Ingreso: Requiere ser LDG)
-class RegistrarIngresoBasuraGeneralView(LiderGeneralRequiredMixin, BaseMovimientoCreateView):
-    form_class = IngresoBasuraGeneralForm
-    TIPO_MOVIMIENTO = 'Ingreso'
-    CATEGORIA_MOVIMIENTO = 'Cuarto de Basura'
-    MONTO_FIELD = 'monto_basura'
-
-# Cuarto de Basura (Egreso: Requiere ser LDG O Admin Basura)
-class RegistrarEgresoBasuraGeneralView(LiderGeneralOrAdminBasuraRequiredMixin, BaseMovimientoCreateView):
-    form_class = EgresoBasuraGeneralForm
-    TIPO_MOVIMIENTO = 'Egreso'
-    CATEGORIA_MOVIMIENTO = 'Cuarto de Basura'
-    MONTO_FIELD = 'monto_basura'
-    
-class EstadoSolvenciaBasuraView(LoginRequiredMixin, LiderGeneralOrAdminBasuraRequiredMixin, TemplateView):
-    template_name = 'lider_general/estado_solvencia_basura.html'
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        
-        hoy = date.today()
-        try:
-            mes = int(self.request.GET.get('mes', hoy.month))
-            anio = int(self.request.GET.get('anio', hoy.year))
-        except ValueError:
-            mes = hoy.month
-            anio = hoy.year
-
-        torres = Tower.objects.all().order_by('nombre')
-        
-        pagos_registrados = MovimientoFinanciero.objects.filter(
-            categoria='BAS',
-            tipo='ING',
-            fecha__year=anio,
-            fecha__month=mes,
-            tower__isnull=False
-        ).values_list('tower_id', flat=True).distinct()
-
-        reporte_solvencia = []
-        for torre in torres:
-            es_solvente = torre.id in pagos_registrados
-            reporte_solvencia.append({
-                'torre': torre,
-                'status': 'SOLVENTE' if es_solvente else 'PENDIENTE',
-                'css_class': 'bg-success text-white' if es_solvente else 'bg-warning text-dark'
-            })
-
-        context.update({
-            'reporte': reporte_solvencia,
-            'mes_actual': mes,
-            'anio_actual': anio,
-            'meses_choices': range(1, 13),
-            'anios_choices': range(hoy.year - 2, hoy.year + 3),
-        })
-        return context
-    
-# ******************************************************************
-# 3. GESTIÃ“N DE CENSO GLOBAL
-# ******************************************************************
-
-class CensoGeneralListView(LiderGeneralRequiredMixin, ListView):
-    model = CensoMiembro
-    template_name = 'lider_general/censo_list_general.html'
-    context_object_name = 'miembros'
-    ordering = ['tower', 'piso', 'apartamento_letra']
-
-    def get_queryset(self):
-        qs = super().get_queryset().select_related('tower')
-        # Filtro por Torre desde el GET
-        torre_id = self.request.GET.get('torre')
-        if torre_id and torre_id.isdigit():
-            qs = qs.filter(tower_id=int(torre_id))
-        return qs
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['torres'] = Tower.objects.all() # Para el dropdown del filtro
-        context['torre_seleccionada'] = self.request.GET.get('torre')
-        return context
-
-class CensoGeneralCreateView(LiderGeneralRequiredMixin, CreateView):
-    model = CensoMiembro
-    form_class = CensoMiembroForm
-    template_name = 'lider_general/censo_form_general.html'
-    success_url = reverse_lazy('lider_general:censo_lista') 
-
-class CensoGeneralUpdateView(LiderGeneralRequiredMixin, UpdateView):
-    model = CensoMiembro
-    form_class = CensoMiembroForm
-    template_name = 'lider_general/censo_form_general.html'
-    success_url = reverse_lazy('lider_general:censo_lista')
-
-class CensoGeneralDeleteView(LiderGeneralRequiredMixin, DeleteView):
-    model = CensoMiembro
-    template_name = 'lider_general/censo_confirm_delete.html'
-    success_url = reverse_lazy('lider_general:censo_lista')
-
-# --- GESTIÃ“N DE CICLOS (CREAR / ELIMINAR) ---
-
-class CrearCicloView(LoginRequiredMixin, View):
-    """Crea una nueva lista mensual y cierra la anterior si existe."""
-    
-    def post(self, request, *args, **kwargs):
-        tipo = request.POST.get('tipo') # CLAP o GAS
-        nombre = request.POST.get('nombre') # Ej: "Octubre 2024"
-        
-        # ValidaciÃ³n de permisos (LDG o Admin EspecÃ­fico)
-        permiso = False
-        if request.user.rol == 'LDG': permiso = True
-        elif tipo == 'CLAP' and request.user.es_admin_clap: permiso = True
-        elif tipo == 'GAS' and request.user.es_admin_bombonas: permiso = True
-        
-        if not permiso:
-            messages.error(request, "No tienes permiso para crear listas.")
-            return redirect('url_dashboard')
-
-        # 1. Desactivar ciclos anteriores del mismo tipo
-        CicloBeneficio.objects.filter(tipo=tipo, activo=True).update(activo=False)
-        
-        # 2. Crear nuevo ciclo
-        CicloBeneficio.objects.create(tipo=tipo, nombre=nombre, activo=True)
-        
-        slug = 'clap' if tipo == 'CLAP' else 'gas'
-        messages.success(request, f"Nueva lista de {tipo} creada exitosamente.")
-        return redirect('ver_beneficio', tipo_slug=slug)
-
-class EliminarCicloView(LoginRequiredMixin, View):
-    """Elimina (Cierra) la lista actual."""
-    def post(self, request, pk):
-        ciclo = get_object_or_404(CicloBeneficio, pk=pk)
-        
-        ciclo.delete()
-        
-        messages.warning(request, "Lista eliminada.")
-        return redirect('url_dashboard')
-
-# --- AGREGAR PERSONAS GLOBALMENTE ---
-class AgregarBeneficiarioGeneralView(LoginRequiredMixin, LiderGeneralRequiredMixin, ListView):
-    model = CensoMiembro
-    template_name = 'lider_general/agregar_beneficiario_global.html' # AsegÃºrate de crear/usar este template
-    context_object_name = 'miembros_disponibles'
-
-    def get_queryset(self):
-        tipo_slug = self.kwargs['tipo_slug']
-        tipo_db = tipo_slug.upper() # CLAP o GAS
-
-        try:
-            # 1. Obtener el ciclo activo
-            ciclo = CicloBeneficio.objects.get(tipo=tipo_db, activo=True)
-        except CicloBeneficio.DoesNotExist:
-            # Si no hay ciclo activo, no hay miembros que listar para agregar.
-            messages.error(self.request, f"No existe un ciclo activo para {tipo_db}.")
-            return CensoMiembro.objects.none()
-
-        # 2. Obtener IDs de miembros que YA estÃ¡n en la lista (EntregaBeneficio)
-        ids_en_lista = EntregaBeneficio.objects.filter(ciclo=ciclo).values_list('beneficiario_id', flat=True)
-
-        # 3. Obtener todos los CensoMiembro que NO estÃ¡n en la lista
-        # El LÃ­der General puede ver todas las torres
-        qs = CensoMiembro.objects.all().exclude(id__in=ids_en_lista).select_related('tower').order_by('tower__nombre', 'piso', 'apartamento_letra')
-        
-        # Opcional: Filtro por Torre (Ãºtil para el LÃ­der General)
-        torre_id = self.request.GET.get('torre')
-        if torre_id and torre_id.isdigit():
-            qs = qs.filter(tower_id=int(torre_id))
-
-        return qs
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        tipo_slug = self.kwargs['tipo_slug']
-        tipo_db = tipo_slug.upper()
-        
-        # Intentar obtener el ciclo activo para mostrar la informaciÃ³n en el template
-        ciclo = CicloBeneficio.objects.filter(tipo=tipo_db, activo=True).first()
-
-        context['tipo_slug'] = tipo_slug
-        context['titulo'] = f"Agregar Beneficiarios ({tipo_db})"
-        context['ciclo_activo'] = ciclo
-        context['torres'] = Tower.objects.all() # Para un posible filtro en el template
-        context['torre_seleccionada'] = self.request.GET.get('torre')
-        
-        return context
-
-    # El mÃ©todo POST se debe redefinir aquÃ­ para manejar la adiciÃ³n masiva de la lista.
-    # Recibe 'tipo_slug' desde el argumento de la URL.
-    def post(self, request, tipo_slug):
-        miembros_ids = request.POST.getlist('miembros_ids') # Esperamos una lista de IDs de checkboxes
-        
-        if not miembros_ids:
-            messages.error(request, "No seleccionaste a ningÃºn miembro para agregar.")
-            return redirect('lider_general:agregar_beneficiario_global', tipo_slug=tipo_slug)
-            
-        tipo_db = tipo_slug.upper()
-        
-        try:
-            ciclo_activo = CicloBeneficio.objects.get(tipo=tipo_db, activo=True)
-        except CicloBeneficio.DoesNotExist:
-            messages.error(request, f"No existe un ciclo activo para {tipo_db}.")
-            return redirect('ver_beneficio', tipo_slug=tipo_slug)
-
-        # 4. Crear los objetos EntregaBeneficio
-        objetos_a_crear = []
-        miembros_seleccionados = CensoMiembro.objects.filter(id__in=miembros_ids)
-        
-        for miembro in miembros_seleccionados:
-            objetos_a_crear.append(
-                EntregaBeneficio(
-                    ciclo=ciclo_activo,
-                    beneficiario=miembro,
-                    agregado_por=request.user
-                )
-            )
-
-        # 5. Guardar en la base de datos de forma masiva
-        try:
-            # Usamos ignore_conflicts=True para evitar fallos si un beneficiario ya fue agregado
-            EntregaBeneficio.objects.bulk_create(objetos_a_crear, ignore_conflicts=True)
-            messages.success(request, f"Se agregaron **{len(objetos_a_crear)}** miembros a la lista de {tipo_db}.")
-        except IntegrityError:
-            messages.warning(request, "Algunos miembros ya estaban en la lista y fueron omitidos.")
-        except Exception as e:
-            messages.error(request, f"Error al guardar los beneficiarios: {e}")
-
-        # 6. Redirigir a la lista principal de beneficios
-        return redirect('ver_beneficio', tipo_slug=tipo_slug)
+Error reading file with 'cp1252': 'charmap' codec can't decode byte 0x81 in position 22849: character maps to <undefined>
 
 
 ================================================
@@ -3490,6 +2887,10 @@ FILE: App_LiderGeneral/templates/lider_general/censo_list_general.html
         <a href="{% url 'lider_general:censo_crear' %}" class="btn btn-primary">
             <i class="fas fa-user-plus"></i> Registrar Nuevo Residente
         </a>
+
+        <a href="{% url 'lider_general:censo_pdf_general' %}" class="btn btn-danger">
+            <i class="fas fa-file-pdf"></i> Descargar Censo General PDF
+        </a>
     </div>
     <hr>
 
@@ -3671,6 +3072,165 @@ FILE: App_LiderGeneral/templates/lider_general/estado_solvencia_basura.html
 
 
 ================================================
+FILE: App_LiderGeneral/templates/lider_general/inventario_confirm_delete.html
+================================================
+{% extends 'layouts/base.html' %}
+{% block content %}
+<div class="dashboard-container" style="max-width: 500px;">
+    <h2 class="text-danger"><i class="fas fa-exclamation-triangle"></i> Confirmar EliminaciÃ³n</h2>
+    <hr>
+    <div class="alert alert-warning">
+        Â¿EstÃ¡s seguro de que deseas eliminar el Ã­tem: <strong>{{ object.descripcion }}</strong>?
+        <br>Esta acciÃ³n no se puede deshacer.
+    </div>
+    
+    <form method="post" class="d-flex justify-content-end gap-2">
+        {% csrf_token %}
+        <a href="{% url 'lider_general:inventario_lista' %}" class="btn btn-secondary">Cancelar</a>
+        <button type="submit" class="btn btn-danger">SÃ­, Eliminar</button>
+    </form>
+</div>
+{% endblock %}
+
+
+================================================
+FILE: App_LiderGeneral/templates/lider_general/inventario_form.html
+================================================
+{% extends 'layouts/base.html' %}
+{% block title %}{% if form.instance.pk %}Editar{% else %}Registrar{% endif %} Ítem{% endblock %}
+
+{% block content %}
+<div class="dashboard-container" style="max-width: 600px;">
+    <h2>
+        <i class="fas fa-box"></i> 
+        {% if form.instance.pk %}Editar Ítem{% else %}Registrar Nuevo Instrumento{% endif %}
+    </h2>
+    <hr>
+    
+    <form method="post">
+        {% csrf_token %}
+        
+        {% if form.non_field_errors %}
+            <div class="alert alert-danger">
+                {% for error in form.non_field_errors %}{{ error }}{% endfor %}
+            </div>
+        {% endif %}
+
+        <div class="mb-3">
+            <label class="form-label fw-bold">{{ form.descripcion.label }}</label>
+            {{ form.descripcion }}
+            {% if form.descripcion.errors %}<div class="text-danger small">{{ form.descripcion.errors.0 }}</div>{% endif %}
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label fw-bold">{{ form.cantidad.label }}</label>
+            {{ form.cantidad }}
+            {% if form.cantidad.errors %}<div class="text-danger small">{{ form.cantidad.errors.0 }}</div>{% endif %}
+        </div>
+
+        <div class="mt-4 d-flex justify-content-end gap-2">
+            <a href="{% url 'lider_general:inventario_lista' %}" class="btn btn-secondary">Cancelar</a>
+            <button type="submit" class="btn btn-success">
+                <i class="fas fa-save"></i> Guardar
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+
+================================================
+FILE: App_LiderGeneral/templates/lider_general/inventario_lista.html
+================================================
+{% extends 'layouts/navbar.html' %}
+{% load static %}
+
+{% block title %}Inventario Cuarto de Basura{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>
+            <i class="fas fa-boxes text-warning"></i> 
+            Inventario: Cuarto de Basura
+        </h2>
+        
+        <div>
+            <a href="{% url 'url_dashboard' %}" class="btn btn-secondary me-2">
+                <i class="fas fa-arrow-left"></i> Volver
+            </a>
+            
+            {% if es_admin_basura %}
+                <a href="{% url 'lider_general:inventario_crear' %}" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> Nuevo Ítem
+                </a>
+            {% endif %}
+        </div>
+    </div>
+    <hr>
+
+    {% if messages %}
+        <div class="mensajes-django-container mb-3">
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <div class="table-responsive">
+        <table class="table table-striped table-hover align-middle">
+            <thead class="table-dark">
+                <tr>
+                    <th>Descripción del Instrumento</th>
+                    <th class="text-center">Cantidad Disponible</th>
+                    <th class="text-center">Última Actualización</th>
+                    {% if es_admin_basura %}
+                        <th class="text-end">Acciones</th>
+                    {% endif %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in inventario %}
+                <tr>
+                    <td class="fw-bold">{{ item.descripcion }}</td>
+                    
+                    <td class="text-center">
+                        <span class="badge {% if item.cantidad > 0 %}bg-success{% else %}bg-danger{% endif %} fs-6">
+                            {{ item.cantidad }}
+                        </span>
+                    </td>
+                    
+                    <td class="text-center small text-muted">
+                        {{ item.ultima_actualizacion|date:"d/m/Y H:i" }}
+                    </td>
+
+                    {% if es_admin_basura %}
+                        <td class="text-end">
+                            <a href="{% url 'lider_general:inventario_editar' item.pk %}" class="btn btn-sm btn-info text-white" title="Editar">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            <a href="{% url 'lider_general:inventario_eliminar' item.pk %}" class="btn btn-sm btn-danger" title="Eliminar">
+                                <i class="fas fa-trash"></i>
+                            </a>
+                        </td>
+                    {% endif %}
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4" class="text-center py-5 text-muted">
+                        <i class="fas fa-box-open fa-3x mb-3"></i><br>
+                        No hay instrumentos registrados en el inventario actualmente.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+
+================================================
 FILE: App_LiderGeneral/templates/lider_general/lista_usuarios.html
 ================================================
 {% extends 'layouts/navbar.html' %}
@@ -3739,6 +3299,98 @@ FILE: App_LiderGeneral/templates/lider_general/lista_usuarios.html
             </tbody>
         </table>
     </div>
+</div>
+{% endblock %}
+
+
+================================================
+FILE: App_LiderGeneral/templates/lider_general/solicitudes_lista.html
+================================================
+{% extends 'layouts/navbar.html' %}
+{% block title %}Solicitudes de Documentos{% endblock %}
+{% block content %}
+<div class="dashboard-container">
+    <h2><i class="fas fa-inbox"></i> Solicitudes Pendientes</h2>
+    <hr>
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead class="table-dark">
+                <tr>
+                    <th>Fecha</th>
+                    <th>Vecino</th>
+                    <th>Torre/Apto</th>
+                    <th>Documento</th>
+                    <th>AcciÃ³n</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for sol in solicitudes %}
+                <tr>
+                    <td>{{ sol.fecha_solicitud|date:"d/m/Y" }}</td>
+                    <td>{{ sol.beneficiario.nombres }} {{ sol.beneficiario.apellidos }}</td>
+                    <td><span class="badge bg-secondary">{{ sol.beneficiario.tower.nombre }} - {{ sol.beneficiario.apartamento_completo }}</span></td>
+                    <td>{{ sol.get_tipo_display }}</td>
+                    <td>
+                        <a href="{% url 'lider_general:procesar_solicitud' sol.pk %}" class="btn btn-primary btn-sm">
+                            <i class="fas fa-cog"></i> Procesar
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" class="text-center text-muted py-4">No hay solicitudes pendientes.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+
+================================================
+FILE: App_LiderGeneral/templates/lider_general/solicitudes_procesar.html
+================================================
+{% extends 'layouts/base.html' %}
+{% block title %}Procesar Documento{% endblock %}
+{% block content %}
+<div class="dashboard-container" style="max-width: 600px;">
+    <h2>Procesar: {{ solicitud.get_tipo_display }}</h2>
+    
+    <div class="alert alert-info">
+        <strong>Solicitante:</strong> {{ solicitud.beneficiario.nombres }} {{ solicitud.beneficiario.apellidos }}<br>
+        <strong>Cédula:</strong> {{ solicitud.beneficiario.cedula }}<br>
+        
+        {# Se muestra la ubicación completa si está disponible #}
+        {% if solicitud.beneficiario.tower %}
+            <strong>Ubicación:</strong> Torre {{ solicitud.beneficiario.tower.nombre }} - Apto {{ solicitud.beneficiario.apartamento_letra }}
+        {% endif %}
+    </div>
+    
+    <form method="post">
+        {% csrf_token %}
+        
+        {# ESTE BUCLE RENDERIZA AUTOMÁTICAMENTE CUALQUIER FORMULARIO (Conducta o Mudanza) #}
+        {% for field in form %}
+        <div class="mb-3">
+            <label class="form-label fw-bold" for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {{ field }}
+            {% if field.help_text %}
+                <div class="form-text">{{ field.help_text }}</div>
+            {% endif %}
+            {% for error in field.errors %}
+                <div class="text-danger small">{{ error }}</div>
+            {% endfor %}
+        </div>
+        {% endfor %}
+        
+        <div class="d-flex justify-content-between mt-4">
+            <a href="{% url 'lider_general:lista_solicitudes' %}" class="btn btn-secondary">Cancelar</a>
+            <button type="submit" class="btn btn-success">
+                <i class="fas fa-file-pdf"></i> Guardar y Generar PDF
+            </button>
+        </div>
+    </form>
 </div>
 {% endblock %}
 
@@ -4019,6 +3671,8 @@ urlpatterns = [
     path('censo/nuevo/', views.CensoTorreCreateView.as_view(), name='censo_crear'),
     path('censo/editar/<int:pk>/', views.CensoTorreUpdateView.as_view(), name='censo_editar'),
     path('censo/eliminar/<int:pk>/', views.CensoTorreDeleteView.as_view(), name='censo_eliminar'),
+    # NUEVA RUTA Censo PDF por Torre
+    path('censo/descargar/pdf/', views.CensoPDFTorreView.as_view(), name='censo_pdf_torre'),
 
     # Beneficios para Vecinos
     path('beneficios/agregar/<str:tipo_slug>/', views.AgregarVecinosTorreView.as_view(), name='agregar_vecinos'),
@@ -4029,7 +3683,7 @@ urlpatterns = [
 ================================================
 FILE: App_LiderTorre/views.py
 ================================================
-Error reading file with 'cp1252': 'charmap' codec can't decode byte 0x8d in position 4917: character maps to <undefined>
+Error reading file with 'cp1252': 'charmap' codec can't decode byte 0x8d in position 5371: character maps to <undefined>
 
 
 ================================================
@@ -4259,6 +3913,10 @@ FILE: App_LiderTorre/templates/lider_torre/censo_list_torre.html
         
         <a href="{% url 'lider_torre:censo_crear' %}" class="btn btn-success">
             <i class="fas fa-user-plus"></i> Registrar Vecino
+        </a>
+
+        <a href="{% url 'lider_torre:censo_pdf_torre' %}" class="btn btn-danger">
+            <i class="fas fa-file-pdf"></i> Descargar Censo de Mi Torre PDF
         </a>
     </div>
     <hr>

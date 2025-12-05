@@ -6,23 +6,33 @@ from django.urls import reverse_lazy
 from django.views import View
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db import IntegrityError
-from django.shortcuts import redirect, get_object_or_404
+from django.shortcuts import redirect, get_object_or_404, render
 from django.contrib import messages
 from django.http import HttpResponse
+from django.utils import timezone
+from django.template.loader import get_template
+from django.conf import settings
 from App_Home.models import (CustomUser, MovimientoFinanciero, Tower, CensoMiembro,
-                            CicloBeneficio, EntregaBeneficio, SolicitudDocumento)
+                            CicloBeneficio, EntregaBeneficio, SolicitudDocumento,
+                            InventarioBasura)
 from App_Home.forms import CensoMiembroForm
 from App_LiderTorre.views import BaseMovimientoCreateView 
 from .forms import ( FormularioAdminUsuario, IngresoCondominioGeneralForm, EgresoCondominioGeneralForm, 
-                    IngresoBasuraGeneralForm, EgresoBasuraGeneralForm, ProcesarCartaConductaForm)
+                    IngresoBasuraGeneralForm, EgresoBasuraGeneralForm, ProcesarCartaConductaForm,
+                    ProcesarCartaMudanzaForm, ProcesarConstanciaSimpleForm, ProcesarConstanciaMigratoriaForm,
+                    InventarioBasuraForm)
 from datetime import date
-from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image , Table as PDFTable
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import letter, A4
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image , Table as PDFTable, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY, TA_RIGHT
 from reportlab.lib.utils import ImageReader
 from reportlab.lib.colors import black # Para el color del subrayado
+from reportlab.lib.units import inch
+from reportlab.lib import colors
 import os
+from io import BytesIO
 
 
 # --- MIXINS DE PERMISOS (Definirlos al principio) ---
@@ -350,39 +360,89 @@ class ListaSolicitudesView(LoginRequiredMixin, LiderGeneralRequiredMixin, ListVi
         # Filtramos solo las pendientes, ordenadas por fecha (más viejas primero)
         return SolicitudDocumento.objects.filter(estado='PENDIENTE').order_by('fecha_solicitud')
 
-class ProcesarSolicitudView(LoginRequiredMixin, LiderGeneralRequiredMixin, UpdateView):
-    """
-    Vista doble: 
-    1. Muestra el formulario para ingresar 'años de residencia'.
-    2. Al guardar, genera y descarga el PDF automáticamente.
-    """
-    model = SolicitudDocumento
-    form_class = ProcesarCartaConductaForm
-    template_name = 'lider_general/solicitudes_procesar.html'
-    context_object_name = 'solicitud'
+class ProcesarSolicitudView(LoginRequiredMixin, UserPassesTestMixin, View):
+    
+    def test_func(self):
+        # Solo Lideres Generales (LDG) pueden procesar documentos
+        return self.request.user.rol == 'LDG'
 
-    def form_valid(self, form):
-        # 1. Guardar datos del formulario (años de residencia)
-        solicitud = form.save(commit=False)
-        solicitud.estado = 'PROCESADO'
-        solicitud.procesado_por = self.request.user
-        solicitud.fecha_proceso = date.today() # Usamos la fecha actual
-        solicitud.save()
+    def get(self, request, pk):
+        solicitud = get_object_or_404(SolicitudDocumento, pk=pk)
+        
+        if solicitud.tipo == 'CARTA_MUDANZA':
+            form = ProcesarCartaMudanzaForm(instance=solicitud)
 
-        # 2. Generar el PDF
-        return self.generar_pdf_carta_conducta(solicitud)
+        elif solicitud.tipo == 'CONSTANCIA_RESIDENCIA':
+            form = ProcesarConstanciaSimpleForm(instance=solicitud)
 
-    def generar_pdf_carta_conducta(self, solicitud):
+        elif solicitud.tipo == 'CONSTANCIA_MIGRATORIA':
+            form = ProcesarConstanciaMigratoriaForm(instance=solicitud)
+
+        else:
+            # Por defecto, o para CARTA_CONDUCTA
+            form = ProcesarCartaConductaForm(instance=solicitud)
+            
+        return render(request, 'lider_general/solicitudes_procesar.html', {
+            'form': form, 
+            'solicitud': solicitud
+        })
+
+    def post(self, request, pk):
+        solicitud = get_object_or_404(SolicitudDocumento, pk=pk)
+        
+        if solicitud.tipo == 'CARTA_MUDANZA':
+            form = ProcesarCartaMudanzaForm(request.POST, instance=solicitud)
+        elif solicitud.tipo == 'CONSTANCIA_RESIDENCIA':
+            form = ProcesarConstanciaSimpleForm(request.POST, instance=solicitud)
+        elif solicitud.tipo == 'CONSTANCIA_MIGRATORIA':
+            form = ProcesarConstanciaMigratoriaForm(request.POST, instance=solicitud)
+        else:
+            form = ProcesarCartaConductaForm(request.POST, instance=solicitud)
+
+        if form.is_valid():
+            solicitud_procesada = form.save(commit=False)
+            solicitud_procesada.estado = 'PROCESADO'
+            solicitud_procesada.procesado_por = request.user
+            solicitud_procesada.fecha_proceso = timezone.now()
+            solicitud_procesada.save()
+            
+            # --- LÓGICA DE GENERACIÓN DE PDF ---
+            if solicitud.tipo == 'CARTA_MUDANZA':
+                messages.success(request, f"Se ha procesado y generado el PDF de Carta de Mudanza para {solicitud.beneficiario.nombres}.")
+                return self.generar_pdf_mudanza(solicitud_procesada)
+            
+            elif solicitud.tipo == 'CARTA_CONDUCTA':
+                # ¡Esta es la línea que fallaba y ahora es posible!
+                messages.success(request, f"Se ha procesado y generado el PDF de Carta de Conducta para {solicitud.beneficiario.nombres}.")
+                return self.generar_pdf_conducta(solicitud_procesada)
+            
+            elif solicitud.tipo == 'CONSTANCIA_RESIDENCIA': 
+                messages.success(request, f"Se ha procesado y generado el PDF de Constancia de Residencia para {solicitud.beneficiario.nombres}.")
+                return self.generar_pdf_residencia(solicitud_procesada)
+            
+            elif solicitud.tipo == 'CONSTANCIA_MIGRATORIA': 
+                messages.success(request, f"Se ha procesado y generado el PDF de Constancia Migratoria para {solicitud.beneficiario.nombres}.")
+                return self.generar_pdf_migratoria(solicitud_procesada)
+            
+            else:
+                messages.warning(request, "Documento procesado pero no se pudo generar el PDF (Tipo no implementado).")
+                return redirect('lider_general:lista_solicitudes') 
+        
+        messages.error(request, "Error en los datos ingresados.")
+        return render(request, 'lider_general/solicitudes_procesar.html', {'form': form, 'solicitud': solicitud})
+
+    # --- GENERADOR 1: CARTA DE BUENA CONDUCTA (RESTAURADO) ---
+    def generar_pdf_conducta(self, solicitud):
         response = HttpResponse(content_type='application/pdf')
         filename = f"Carta_Conducta_{solicitud.beneficiario.cedula}.pdf"
         response['Content-Disposition'] = f'attachment; filename="{filename}"'
 
-        doc = SimpleDocTemplate(response, pagesize=letter, 
-                                rightMargin=72, leftMargin=72, 
+        doc = SimpleDocTemplate(response, pagesize=letter,
+                                rightMargin=72, leftMargin=72,
                                 topMargin=72, bottomMargin=18)
         Story = []
         styles = getSampleStyleSheet()
-        
+
         # Estilos Personalizados
         estilo_titulo = ParagraphStyle(
             'Titulo', parent=styles['Normal'], fontSize=12, leading=18, 
@@ -415,33 +475,21 @@ class ProcesarSolicitudView(LoginRequiredMixin, LiderGeneralRequiredMixin, Updat
         # --- FIN MODIFICACIÓN 3 ---
 
         # --- MODIFICACIÓN 1: Insertar la imagen del CLAP ---
-        # Ruta de la imagen: Asegúrate de que esta ruta sea correcta para tu proyecto.
-        # Asumo que la imagen está en tu carpeta static de App_Home o en la general del proyecto.
-        # Por ejemplo: 'static/img/clap_logo.png'
-        # Tendrás que crear esta carpeta y colocar la imagen allí.
-        try:
-            # Reemplaza con la ruta real de tu imagen.
-            # Puedes usar staticfiles_storage.path('img/clap_logo.png') si configuras STATIC_ROOT y collectstatic.
-            # O simplemente una ruta relativa desde BASE_DIR
-            
-            # Opción más robusta si la imagen está en App_Home/static/img/clap_logo.png
-            from django.conf import settings
-            image_path = os.path.join(settings.BASE_DIR, 'App_Home', 'static', 'img', 'clap_logo.png')
-            
-            # Otra opción si está en un STATICFILES_DIRS configurado globalmente:
-            # image_path = os.path.join(settings.BASE_DIR, 'static', 'img', 'clap_logo.png')
-            
-            img = Image(image_path, width=200, height=50) # Ajusta width/height según necesites
-            Story.append(img)
-            Story.append(Spacer(1, 12))
-        except FileNotFoundError:
-            # Si la imagen no se encuentra, vuelve a poner el texto.
-            Story.append(Paragraph("<b>CLAP</b>", estilo_titulo))
-            messages.error(self.request, "La imagen del logo CLAP no fue encontrada. Se usó texto en su lugar.")
+        if solicitud.logo_clap == True:
+            try:
+                # Opción más robusta si la imagen está en App_Home/static/img/clap_logo.png
+                from django.conf import settings
+                image_path = os.path.join(settings.BASE_DIR, 'App_Home', 'static', 'img', 'clap_logo.png')
 
+                img = Image(image_path, width=350, height=75) # Ajusta width/height según necesites
+                Story.append(img)
+                Story.append(Spacer(1, 12))
+            except FileNotFoundError:
+                # Si la imagen no se encuentra, vuelve a poner el texto.
+                Story.append(Paragraph("<b>CLAP</b>", estilo_titulo))
+                messages.error(self.request, "La imagen del logo CLAP no fue encontrada. Se usó texto en su lugar.")
 
         header_text = """
-        Comité Local de Abastecimiento y Producción<br/>
         República Bolivariana de Venezuela<br/>
         Ministerio del Poder Popular para las Comunas y Protección Social<br/>
         Comité Local de abastecimiento y Producción "BALCONES DE PARAGUANÁ I"<br/>
@@ -522,7 +570,472 @@ class ProcesarSolicitudView(LoginRequiredMixin, LiderGeneralRequiredMixin, Updat
             [Paragraph("Jefe de Comunidad", estilo_firmas), Paragraph("Líder de Calle", estilo_firmas)]
         ], colWidths=[250, 250]))
 
-        # --- FIN MODIFICACIÓN 3 ---
+        doc.build(Story)
+        return response
+    
+    # NUEVO: Generador de PDF para Carta de Mudanza
+    def generar_pdf_mudanza(self, solicitud):
+        """Genera el PDF basado en el formato 'Carta de Mudanza.pdf'"""
+        response = HttpResponse(content_type='application/pdf')
+        filename = f"Carta_Mudanza_{solicitud.beneficiario.cedula}.pdf"
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+
+        doc = SimpleDocTemplate(response, pagesize=letter, 
+                                topMargin=72, bottomMargin=18, 
+                                leftMargin=72, rightMargin=72)
+        Story = []
+        styles = getSampleStyleSheet()
+
+        # Estilos Personalizados
+        estilo_titulo = ParagraphStyle('Titulo', parent=styles['Normal'], alignment=TA_CENTER, fontSize=12, leading=18, spaceAfter=20)
+        estilo_titulo_documento = ParagraphStyle('TituloDocumento', parent=styles['Normal'], alignment=TA_CENTER, fontSize=12,
+                                                leading=18, spaceAfter=20, fontName='Helvetica-Bold', underline=True, 
+                                                underlineColor=black, underlineOffset=-2)
+        
+        estilo_cuerpo = ParagraphStyle('Cuerpo', parent=styles['Normal'], alignment=TA_JUSTIFY, fontSize=12, leading=18, spaceAfter=12)
+        estilo_firma = ParagraphStyle('Firma', parent=styles['Normal'], alignment=TA_CENTER, fontSize=12, leading=14)
+
+        if solicitud.logo_clap == True:
+            try:
+                # Opción más robusta si la imagen está en App_Home/static/img/clap_logo.png
+                from django.conf import settings
+                image_path = os.path.join(settings.BASE_DIR, 'App_Home', 'static', 'img', 'clap_logo.png')
+
+                img = Image(image_path, width=350, height=75) # Ajusta width/height según necesites
+                Story.append(img)
+                Story.append(Spacer(1, 12))
+            except FileNotFoundError:
+                # Si la imagen no se encuentra, vuelve a poner el texto.
+                Story.append(Paragraph("<b>CLAP</b>", estilo_titulo))
+                messages.error(self.request, "La imagen del logo CLAP no fue encontrada. Se usó texto en su lugar.")
+
+        # ENCABEZADO (Tomando texto de los PDFs)
+        header_text = """
+        República Bolivariana de Venezuela<br/>
+        Ministerio del Poder Popular para las Comunas y Protección Social<br/>
+        Comité Local de abastecimiento y Producción "BALCONES DE PARAGUANÁ I"<br/>
+        Municipio Carirubana - Parroquia Punta Cardón.<br/>
+        Sector Zarabón - Estado Falcón.<br/>
+        """
+        Story.append(Paragraph(header_text, estilo_titulo))
+        Story.append(Spacer(1, 12))
+
+        # TÍTULO DEL DOCUMENTO
+        Story.append(Paragraph("<u>CARTA DE MUDANZA</u>", estilo_titulo_documento))
+        Story.append(Spacer(1, 12))
+
+        # CUERPO DEL DOCUMENTO
+        nombre = f"{solicitud.beneficiario.nombres} {solicitud.beneficiario.apellidos}"
+        cedula = solicitud.beneficiario.cedula
+        torre = solicitud.beneficiario.tower.nombre
+        piso = solicitud.beneficiario.get_piso_display()
+        apto = solicitud.beneficiario.apartamento_letra
+        # Usamos los campos nuevos
+        anio_inicio = solicitud.mudanza_anio_inicio
+        fecha_fin = solicitud.mudanza_fecha_fin 
+        
+        torre_modificada = torre[1:] if torre.startswith('T') else torre
+
+        texto_principal = f"""
+        Por medio de la presente nosotros integrantes del El Comité de Abastecimiento y
+        Producción Balcones de Paraguaná I, hace constar que el ciudadano(a), {nombre}
+        Titular de la cédula de identidad N°V.<u>{cedula}</u> residía desde el año {anio_inicio} hasta
+        {fecha_fin} en el Conjunto Residencial Balcones de Paraguaná I, Torre {torre_modificada}, {piso},
+        Apartamento {apto}.
+        """
+        Story.append(Paragraph(texto_principal, estilo_cuerpo))
+
+        # FECHA Y CIERRE
+        fecha_hoy = timezone.now()
+        meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
+        fecha_texto = f"Constancia que se expide a petición de la parte interesada, en Zarabón a los {fecha_hoy.day} días del mes de {meses[fecha_hoy.month-1]} del año {fecha_hoy.year}."
+        Story.append(Spacer(1, 0.2*inch))
+        Story.append(Paragraph(fecha_texto, estilo_cuerpo))
+
+        # FIRMA
+        Story.append(Spacer(1, 0.5*inch))
+        Story.append(Paragraph("Atentamente", estilo_firma))
+        Story.append(Spacer(1, 0.5*inch))
+
+        jefe_nombre = f"{self.request.user.first_name} {self.request.user.last_name}"
+        jefe_cedula = self.request.user.cedula if self.request.user.cedula else "V-XX.XXX.XXX"
+        
+        Story.append(Paragraph("________________________", estilo_firma))
+        Story.append(Spacer(1, 5))
+        Story.append(Paragraph(f"{jefe_nombre}", estilo_firma))
+        Story.append(Paragraph(f"V- {jefe_cedula}", estilo_firma))
+        Story.append(Paragraph("Jefe de Comunidad", estilo_firma))
+        
 
         doc.build(Story)
         return response
+    
+    def generar_pdf_residencia(self, solicitud):
+        """Genera el PDF basado en el formato 'CONSTANCIA DE RESIDENCIA.pdf'"""
+        response = HttpResponse(content_type='application/pdf')
+        filename = f"Constancia_Residencia_{solicitud.beneficiario.cedula}.pdf"
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+
+        doc = SimpleDocTemplate(response, pagesize=letter, 
+                                topMargin=72, bottomMargin=18, 
+                                leftMargin=72, rightMargin=72)
+        Story = []
+        styles = getSampleStyleSheet()
+
+        # Estilos Personalizados
+        estilo_titulo = ParagraphStyle('Titulo', parent=styles['Normal'], alignment=TA_CENTER, fontSize=12, leading=18, spaceAfter=20)
+        estilo_titulo_documento = ParagraphStyle('TituloDocumento', parent=styles['Normal'], alignment=TA_CENTER, fontSize=12,
+                                                leading=18, spaceAfter=20, fontName='Helvetica-Bold', underline=True, 
+                                                underlineColor=black, underlineOffset=-2)
+        
+        estilo_cuerpo = ParagraphStyle('Cuerpo', parent=styles['Normal'], alignment=TA_JUSTIFY, fontSize=12, leading=18, spaceAfter=12)
+        estilo_firmas = ParagraphStyle('Firmas', parent=styles['Normal'], alignment=TA_CENTER, fontSize=12, leading=14)
+        estilo_linea_firma = ParagraphStyle(name='LineaFirma', parent=styles['Normal'], alignment=TA_CENTER, fontSize=12, leading=1, spaceAfter=0)
+
+        if solicitud.logo_clap == True:
+            try:
+                # Opción más robusta si la imagen está en App_Home/static/img/clap_logo.png
+                from django.conf import settings
+                image_path = os.path.join(settings.BASE_DIR, 'App_Home', 'static', 'img', 'clap_logo.png')
+
+                img = Image(image_path, width=350, height=75) # Ajusta width/height según necesites
+                Story.append(img)
+                Story.append(Spacer(1, 12))
+            except FileNotFoundError:
+                # Si la imagen no se encuentra, vuelve a poner el texto.
+                Story.append(Paragraph("<b>CLAP</b>", estilo_titulo))
+                messages.error(self.request, "La imagen del logo CLAP no fue encontrada. Se usó texto en su lugar.")
+
+        # ENCABEZADO
+        header_text = """
+        República Bolivariana de Venezuela<br/>
+        Ministerio del Poder Popular para las Comunas y Protección Social<br/>
+        Comité Local de abastecimiento y Producción "BALCONES DE PARAGUANÁ I"<br/>
+        Municipio Carirubana - Parroquia Punta Cardón.<br/>
+        Sector Zarabón - Estado Falcón.<br/>
+        """
+        Story.append(Paragraph(header_text, estilo_titulo))
+        Story.append(Spacer(1, 12))
+
+        # TÍTULO DEL DOCUMENTO
+        Story.append(Paragraph("<u>CONSTANCIA DE RESIDENCIA</u>", estilo_titulo_documento))
+        Story.append(Spacer(1, 12))
+
+        # CUERPO DEL DOCUMENTO
+        nombre = f"{solicitud.beneficiario.nombres} {solicitud.beneficiario.apellidos}"
+        cedula = solicitud.beneficiario.cedula
+        torre = solicitud.beneficiario.tower.nombre
+        piso = solicitud.beneficiario.get_piso_display()
+        apto = solicitud.beneficiario.apartamento_letra
+        
+        torre_modificada = torre[1:] if torre.startswith('T') else torre
+
+        texto_principal = f"""
+        El Comité de Abastecimiento y Producción Balcones de Paraguaná I, hace constar que el
+        ciudadano(a), {nombre} Titular de la cédula de identidad N°V.<u>{cedula}</u> reside en el
+        Sector Zarabón, Calle Prolongación Avenida Bolívar, Edificio Conjunto Residencial
+        Balcones de Paraguaná I, Torre {torre_modificada}, {piso}, Apartamento {apto}, Parroquia Punta Cardón,
+        Municipio Carirubana, Punto Fijo, Estado Falcón.
+        """
+        Story.append(Paragraph(texto_principal, estilo_cuerpo))
+
+        # FECHA Y CIERRE
+        fecha_hoy = timezone.now()
+        meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
+        fecha_texto = f"Constancia que se expide a petición de la parte interesada, en Zarabón a los {fecha_hoy.day} días del mes de {meses[fecha_hoy.month-1]} del año {fecha_hoy.year}."
+        Story.append(Paragraph(fecha_texto, estilo_cuerpo))
+        Story.append(Spacer(1, 40))
+
+        # --- SECCIÓN DE FIRMAS ---
+        # Busca el Líder de Torre de la torre del vecino como Líder de Calle
+        lider_calle_qs = CustomUser.objects.filter(
+            rol='LDT', 
+            tower=solicitud.beneficiario.tower, 
+            is_active=True
+        )
+        lider_calle = lider_calle_qs.first()
+
+        lc_nombre = f"{lider_calle.first_name} {lider_calle.last_name}" if lider_calle else "____________________"
+        lc_cedula = lider_calle.cedula if lider_calle and lider_calle.cedula else "V-XX.XXX.XXX"
+
+        # Datos del Jefe de Comunidad (HARDCODEADO según tu plantilla)
+        jefe_nombre = f"{self.request.user.first_name} {self.request.user.last_name}"
+        jefe_cedula = self.request.user.cedula if self.request.user.cedula else "V-XX.XXX.XXX"
+        
+        Story.append(Paragraph("Atentamente", estilo_firmas))
+        Story.append(Spacer(1, 30))
+
+        # Líneas de firma (Tabla para alineación)
+        Story.append(PDFTable([
+            [Paragraph("____________________", estilo_linea_firma), Paragraph("____________________", estilo_linea_firma)]
+        ], colWidths=[250, 250]))
+
+        Story.append(Spacer(1, 5)) 
+
+        # Nombres, Cédulas y Roles
+        Story.append(PDFTable([
+            [Paragraph(jefe_nombre, estilo_firmas), Paragraph(lc_nombre, estilo_firmas)],
+            [Paragraph(f"V- {jefe_cedula}", estilo_firmas), Paragraph(f"V- {lc_cedula}", estilo_firmas)],
+            [Paragraph("Jefe de Comunidad", estilo_firmas), Paragraph("Líder de Calle", estilo_firmas)],
+        ], colWidths=[250, 250]))
+
+        doc.build(Story)
+        return response
+    
+    def generar_pdf_migratoria(self, solicitud):
+        """Genera el PDF basado en el formato 'CONSTANCIA MIGRATORIA.pdf'"""
+        response = HttpResponse(content_type='application/pdf')
+        filename = f"Constancia_Migratoria_{solicitud.beneficiario.cedula}.pdf"
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+
+        # Document Setup
+        doc = SimpleDocTemplate(response, pagesize=letter, 
+                                topMargin=72, bottomMargin=18, 
+                                leftMargin=72, rightMargin=72)
+        Story = []
+        styles = getSampleStyleSheet()
+
+        # Estilos (Usando los mismos que en los otros generadores)
+        estilo_titulo = ParagraphStyle('Titulo', parent=styles['Normal'], alignment=TA_CENTER, fontSize=12, leading=18, spaceAfter=20)
+        estilo_titulo_documento = ParagraphStyle(name='TituloDocumento', parent=styles['Normal'], alignment=TA_CENTER, fontSize=12,
+                                                spaceAfter=20, leading=18, fontName='Helvetica-Bold', underline=True, 
+                                                underlineColor=black, underlineOffset=-2)
+        estilo_cuerpo = ParagraphStyle(name='Cuerpo', parent=styles['Normal'], alignment=TA_JUSTIFY, fontSize=12, leading=18, spaceAfter=12)
+        estilo_firmas = ParagraphStyle(name='Firmas', parent=styles['Normal'], alignment=TA_CENTER, fontSize=12, leading=14)
+        
+
+        # Obtención de Datos
+        vecino = solicitud.beneficiario
+        nombre_completo = f"{vecino.nombres} {vecino.apellidos}"
+        cedula = vecino.cedula
+        torre = vecino.tower.nombre if vecino.tower else "N/A"
+        piso = vecino.get_piso_display()
+        anio_inicio = solicitud.migratoria_anio_inicio
+        anio_fin = solicitud.migratoria_anio_fin
+        
+        torre_modificada = torre[1:] if torre.startswith('T') else torre
+        
+        if solicitud.logo_clap == True:
+            try:
+                # Opción más robusta si la imagen está en App_Home/static/img/clap_logo.png
+                from django.conf import settings
+                image_path = os.path.join(settings.BASE_DIR, 'App_Home', 'static', 'img', 'clap_logo.png')
+                
+                img = Image(image_path, width=350, height=75) # Ajusta width/height según necesites
+                Story.append(img)
+                Story.append(Spacer(1, 12))
+            except FileNotFoundError:
+                # Si la imagen no se encuentra, vuelve a poner el texto.
+                Story.append(Paragraph("<b>CLAP</b>", estilo_titulo))
+                messages.error(self.request, "La imagen del logo CLAP no fue encontrada. Se usó texto en su lugar.")
+        
+        # ENCABEZADO (Adaptado de la plantilla)
+        header_text = """
+        República Bolivariana de Venezuela<br/>
+        Ministerio del Poder Popular para las Comunas y Protección Social<br/>
+        Comité Local de abastecimiento y Producción "BALCONES DE PARAGUANÁ I"<br/>
+        Municipio Carirubana - Parroquia Punta Cardón.<br/>
+        Sector Zarabón - Estado Falcón.<br/>
+        """
+        Story.append(Paragraph(header_text, estilo_titulo))
+        Story.append(Spacer(1, 12))
+
+        # TÍTULO DEL DOCUMENTO
+        Story.append(Paragraph("<u>CONSTANCIA MIGRATORIA</u>", estilo_titulo_documento))
+        Story.append(Spacer(1, 12))
+
+        # CUERPO DEL DOCUMENTO
+        # La Constancia Migratoria del ejemplo (CONSTANCIA MIGRATORIA.pdf) no incluye Piso/Apartamento, solo la Torre.
+        
+        texto = f"""
+        Por medio de la presente nosotros integrantes del El Comité de Abastecimiento y
+        Producción Balcones de Paraguaná I, hace constar que el ciudadano(a), {nombre_completo}
+        Titular de la cédula de identidad N°V.<u>{cedula}</u> tenía su residencia desde el
+        año {anio_inicio} hasta el año {anio_fin} en el Conjunto Residencial Balcones de Paraguaná I, Torre
+        {torre_modificada}. A partir de esta fecha deja de estar incluido(a) en nuestros censos, para todos los fines
+        consiguientes.
+
+        """
+        Story.append(Paragraph(texto, estilo_cuerpo))
+
+        # FECHA Y CIERRE
+        fecha_hoy = timezone.now()
+        meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
+        # Formato de la migratoria: 'Punto Fijo Municipio Carirubana al 1 día del mes de Diciembre del año 2025.'
+        fecha_texto = f"Constancia que se expide por solicitud de parte interesada, Punto Fijo Municipio Carirubana al {fecha_hoy.day} día del mes de {meses[fecha_hoy.month-1]} del año {fecha_hoy.year}."
+        
+        Story.append(Spacer(1, 0.2*inch))
+        Story.append(Paragraph(fecha_texto, estilo_cuerpo))
+
+        # --- SECCIÓN DE FIRMAS ---
+        
+        # Datos del Jefe de Comunidad (HARDCODEADO según tu plantilla)
+        jefe_nombre = f"{self.request.user.first_name} {self.request.user.last_name}"
+        jefe_cedula = self.request.user.cedula if self.request.user.cedula else "V-XX.XXX.XXX"
+        
+        Story.append(Spacer(1, 0.5*inch))
+        Story.append(Paragraph("Atentamente", estilo_firmas))
+        Story.append(Paragraph("Por el CLAP", estilo_firmas))
+        Story.append(Spacer(1, 0.5*inch))
+        
+        # Línea de firma
+        Story.append(Paragraph("____________________", estilo_firmas))
+        Story.append(Spacer(1, 5)) 
+
+        # Nombre, Cédula y Rol
+        Story.append(Paragraph(jefe_nombre, estilo_firmas))
+        Story.append(Paragraph(f"V- {jefe_cedula}", estilo_firmas))
+        Story.append(Paragraph("Jefe de Comunidad", estilo_firmas))
+
+
+        doc.build(Story)
+        return response
+    
+class LiderGeneralRequiredMixin(UserPassesTestMixin):
+    def test_func(self):
+        return self.request.user.is_authenticated and self.request.user.rol == 'LDG'
+
+class CensoPDFGeneralView(LoginRequiredMixin, LiderGeneralRequiredMixin, View):
+    """Genera un PDF con el listado completo del Censo Comunitario (Mejorado)."""
+    
+    def get(self, request, *args, **kwargs):
+        # 1. Obtener los datos
+        miembros = CensoMiembro.objects.select_related('tower').all().order_by('tower__nombre', 'piso', 'apartamento_letra')
+
+        # 2. Configuración del PDF
+        buffer = BytesIO()
+        # Ajustamos los márgenes (topMargin) para aprovechar mejor la hoja
+        doc = SimpleDocTemplate(buffer, pagesize=A4, title="Censo Comunitario General",
+                                topMargin=30, bottomMargin=30, leftMargin=30, rightMargin=30)
+        
+        Story = []
+        styles = getSampleStyleSheet()
+        
+        # Estilos personalizados
+        estilo_titulo = ParagraphStyle('TituloPDF', parent=styles['Normal'], alignment=TA_CENTER, fontSize=18, fontName='Helvetica-Bold', spaceAfter=5)
+        estilo_subtitulo = ParagraphStyle('SubtituloPDF', parent=styles['Normal'], alignment=TA_CENTER, fontSize=12, textColor=colors.grey, spaceAfter=15)
+        estilo_fecha = ParagraphStyle('FechaPDF', parent=styles['Normal'], alignment=TA_RIGHT, fontSize=9, spaceAfter=20)
+
+        # Encabezado
+        Story.append(Paragraph("Censo Comunitario General", estilo_titulo))
+        Story.append(Paragraph("Balcones de Paraguaná I", estilo_subtitulo))
+        Story.append(Paragraph(f"Generado el: {timezone.now().strftime('%d/%m/%Y %I:%M %p')}", estilo_fecha))
+        
+        # Eliminamos los Spacers gigantes que bajaban la tabla
+        Story.append(Spacer(1, 10)) 
+
+        # 3. Datos de la tabla
+        data = []
+        # Encabezados
+        headers = ['Torre', 'Ubicación', 'Cédula', 'Nombre Completo', 'Jefe Fam.', 'Teléfono']
+        data.append(headers)
+
+        for m in miembros:
+            piso_apto = f"{m.apartamento_completo}" # Usa la propiedad del modelo
+            nombre_completo = f"{m.nombres} {m.apellidos}"
+            
+            # Cortar nombres muy largos si es necesario para que no rompa la tabla
+            if len(nombre_completo) > 25:
+                nombre_completo = nombre_completo[:22] + "..."
+
+            data.append([
+                m.tower.nombre,
+                piso_apto,
+                m.cedula,
+                nombre_completo,
+                'SÍ' if m.es_jefe_familia else 'NO',
+                m.telefono if m.telefono else '-'
+            ])
+        
+        # 4. Configuración de la Tabla
+        # Ancho disponible en A4 (aprox 535 puntos con márgenes de 30)
+        # Ajustamos columnas: Torre(40), Ubic(50), Ced(70), Nombre(200), Jefe(50), Tel(80) = ~490
+        col_widths = [40, 60, 75, 210, 50, 90]
+        
+        table = PDFTable(data, colWidths=col_widths)
+        
+        # Estilo visual profesional
+        table.setStyle(TableStyle([
+            # Encabezado
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#003049')), # Azul oscuro
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('VALIGN', (0, 0), (-1, 0), 'MIDDLE'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 10),
+            
+            # Cuerpo
+            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 1), (-1, -1), 9),
+            ('VALIGN', (0, 1), (-1, -1), 'MIDDLE'),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey), # Cuadrícula fina
+            
+            # Filas alternas (Efecto Pijama) para facilitar lectura
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.whitesmoke, colors.white]),
+        ]))
+        
+        Story.append(table)
+        Story.append(Spacer(1, 20))
+        Story.append(Paragraph(f"Total de Registros: {len(miembros)}", estilo_fecha))
+
+        # 5. Generar
+        doc.build(Story)
+        response = HttpResponse(content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="Censo_General_{timezone.now().strftime("%Y%m%d")}.pdf"'
+        response.write(buffer.getvalue())
+        buffer.close()
+        return response
+    
+# --- GESTIÓN DE INVENTARIO CUARTO DE BASURA ---
+
+class InventarioBasuraListView(ListView):
+    """
+    Vista pública para la comunidad: Muestra la lista de instrumentos.
+    Automáticamente verifica en el template si el usuario tiene permisos para mostrar los botones de edición.
+    """
+    model = InventarioBasura
+    template_name = 'lider_general/inventario_lista.html'
+    context_object_name = 'inventario'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        
+        # 1. Definimos si el usuario actual es administrador (solo si está autenticado)
+        user = self.request.user
+        
+        # Usamos user.is_authenticated para evitar errores si el usuario no está logueado (AnonymousUser)
+        if user.is_authenticated:
+            context['es_admin_basura'] = user.rol == 'LDG' or user.es_admin_basura
+        else:
+            context['es_admin_basura'] = False # Si no está logueado, nunca puede ser administrador.
+            
+        return context
+
+class InventarioBasuraCreateView(LoginRequiredMixin, LiderGeneralOrAdminBasuraRequiredMixin, CreateView):
+    model = InventarioBasura
+    form_class = InventarioBasuraForm
+    template_name = 'lider_general/inventario_form.html'
+    success_url = reverse_lazy('lider_general:inventario_lista')
+
+    def form_valid(self, form):
+        messages.success(self.request, "Ítem agregado al inventario correctamente.")
+        return super().form_valid(form)
+
+class InventarioBasuraUpdateView(LoginRequiredMixin, LiderGeneralOrAdminBasuraRequiredMixin, UpdateView):
+    model = InventarioBasura
+    form_class = InventarioBasuraForm
+    template_name = 'lider_general/inventario_form.html'
+    success_url = reverse_lazy('lider_general:inventario_lista')
+
+    def form_valid(self, form):
+        messages.success(self.request, "Inventario actualizado correctamente.")
+        return super().form_valid(form)
+
+class InventarioBasuraDeleteView(LoginRequiredMixin, LiderGeneralOrAdminBasuraRequiredMixin, DeleteView):
+    model = InventarioBasura
+    template_name = 'lider_general/inventario_confirm_delete.html'
+    success_url = reverse_lazy('lider_general:inventario_lista')
+
+    def form_valid(self, form):
+        messages.success(self.request, "Ítem eliminado del inventario.")
+        return super().form_valid(form)

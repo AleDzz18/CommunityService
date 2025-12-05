@@ -131,7 +131,15 @@
                         @vue:mounted="if (dchecked != 'False'){ $el.checked = true}" />
                 </div>
                 <button type="submit" class="flex mt-8 text-sm/6 font-semibold btn btn-neutral ">Guardar y
-                    Acceder</button>
+                    Acceder</button>}
+                
+                <!-- TODO: acomodar -->
+                <a href="{% url 'url_cancelar_registro' user_id=usuario.id %}" 
+                class="btn btn-danger-outline"
+                style="flex: 1; text-align: center; text-decoration: none; background-color: transparent; border: 2px solid var(--md-sys-color-error); color: var(--md-sys-color-error);"
+                onclick="return confirm('¿Estás seguro de cancelar el registro? Tu cuenta creada será eliminada permanentemente.');">
+                Cancelar
+            </a>
             </form>
         </div>
     </div>

@@ -28,11 +28,19 @@ urlpatterns = [
     path('basura/egresar/', views.RegistrarEgresoBasuraGeneralView.as_view(), name='egresar_basura_general'),
     path('basura/estado-solvencia/', views.EstadoSolvenciaBasuraView.as_view(), name='estado_solvencia_basura'),
 
+    # GESTIÓN DE INVENTARIO (BASURA)
+    path('basura/inventario/', views.InventarioBasuraListView.as_view(), name='inventario_lista'),
+    path('basura/inventario/nuevo/', views.InventarioBasuraCreateView.as_view(), name='inventario_crear'),
+    path('basura/inventario/editar/<int:pk>/', views.InventarioBasuraUpdateView.as_view(), name='inventario_editar'),
+    path('basura/inventario/eliminar/<int:pk>/', views.InventarioBasuraDeleteView.as_view(), name='inventario_eliminar'),
+
     # Censo de Miembros
     path('censo/', views.CensoGeneralListView.as_view(), name='censo_lista'),
     path('censo/nuevo/', views.CensoGeneralCreateView.as_view(), name='censo_crear'),
     path('censo/editar/<int:pk>/', views.CensoGeneralUpdateView.as_view(), name='censo_editar'),
     path('censo/eliminar/<int:pk>/', views.CensoGeneralDeleteView.as_view(), name='censo_eliminar'),
+    # NUEVA RUTA Censo PDF General
+    path('censo/descargar/pdf/', views.CensoPDFGeneralView.as_view(), name='censo_pdf_general'),
 
     # Gestión de Ciclos y Beneficios
     path('ciclos/crear/', views.CrearCicloView.as_view(), name='crear_ciclo'),

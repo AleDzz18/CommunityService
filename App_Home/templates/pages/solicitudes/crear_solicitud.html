@@ -9,18 +9,6 @@
                     <h4 class="mb-0">Solicitar Documento Comunitario</h4>
                 </div>
                 <div class="card-body">
-                    {# Mensajes de Django (success, warning, error) #}
-                    {% if messages %}
-                        <div class="message-container">
-                            {% for message in messages %}
-                                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-                                    {{ message }}
-                                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                                </div>
-                            {% endfor %}
-                        </div>
-                    {% endif %}
-                    
                     <p class="text-muted text-center">
                         Ingresa tu **Cédula de Identidad** y selecciona el tipo de documento. Tu solicitud será enviada al Líder General para su procesamiento.
                     </p>

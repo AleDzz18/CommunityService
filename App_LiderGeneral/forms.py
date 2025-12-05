@@ -3,7 +3,8 @@
 from django import forms
 from django.core.exceptions import ValidationError
 from django.db.models import Count
-from App_Home.models import CustomUser, Tower, SolicitudDocumento 
+from django.utils import timezone
+from App_Home.models import CustomUser, Tower, SolicitudDocumento, InventarioBasura
 from App_LiderTorre.forms import MovimientoFormBase
 
 
@@ -13,6 +14,12 @@ class FormularioAdminUsuario(forms.ModelForm):
     por el Líder General. Incluye campos de edición de perfil, roles 
     y permisos avanzados.
     """
+
+    password = forms.CharField(
+        widget=forms.PasswordInput(attrs={'class': 'form-control'}),
+        label="Contraseña (Dejar vacío para no cambiar)",
+        required=False
+    )
     
     # CAMPOS BASE AÑADIDOS (Permiten al administrador editar datos básicos)
     username = forms.CharField(max_length=150, required=True, label='Nombre de Usuario')
@@ -29,7 +36,7 @@ class FormularioAdminUsuario(forms.ModelForm):
         # Incluimos TODOS los campos que un administrador puede editar
         fields = [
             'username', 'email', 'cedula', 
-            'first_name', 'last_name', 'apartamento', 'tower', 'rol',
+            'first_name', 'last_name', 'tower', 'rol',
             'is_active', 'is_staff', 'is_superuser', # Permisos avanzados de Django
             'es_admin_basura', 'es_admin_clap', 'es_admin_bombonas'
         ]
@@ -58,6 +65,7 @@ class FormularioAdminUsuario(forms.ModelForm):
     def save(self, commit=True):
         """Asegura el guardado correcto de permisos y roles secundarios."""
         user = super().save(commit=False)
+        password = self.cleaned_data.get("password")
         
         # 1. Guardar los datos de los Checkboxes de Roles Secundarios
         user.es_admin_basura = self.cleaned_data.get('es_admin_basura', user.es_admin_basura)
@@ -66,6 +74,10 @@ class FormularioAdminUsuario(forms.ModelForm):
         
         # 2. Asignar is_staff automáticamente al ser Líder General
         user.is_staff = (user.rol == user.ROL_LIDER_GENERAL)
+
+        # 3. Actualizar la contraseña solo si se proporcionó una nueva
+        if password:
+            user.set_password(password)
 
         if commit:
             user.save()
@@ -162,7 +174,90 @@ class ProcesarCartaConductaForm(forms.ModelForm):
         help_text='Ejemplo: "10 años" o "5 años y 2 meses"',
         widget=forms.TextInput(attrs={'class': 'form-control', 'required': 'required'})
     )
+    logo_clap = forms.BooleanField(
+        required=False,
+        label='Incluir Logo CLAP en la Carta',
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
+    )
 
     class Meta:
         model = SolicitudDocumento
-        fields = ['anios_residencia']
+        fields = ['anios_residencia', 'logo_clap']
+
+# --- NUEVO: Formulario para Carta de Mudanza ---
+class ProcesarCartaMudanzaForm(forms.ModelForm):
+    class Meta:
+        model = SolicitudDocumento
+        fields = ['mudanza_anio_inicio', 'mudanza_fecha_fin', 'logo_clap']
+        labels = {
+            'mudanza_anio_inicio': 'Año de Inicio de Residencia',
+            'mudanza_fecha_fin': 'Fecha de Finalización (Mes y Año)',
+            'logo_clap': 'Incluir Logo CLAP en la Carta'
+        }
+        widgets = {
+            'mudanza_anio_inicio': forms.TextInput(attrs={
+                'class': 'form-control', 
+                'placeholder': 'Ej: 2023',
+                'type': 'number'
+            }),
+            'mudanza_fecha_fin': forms.TextInput(attrs={
+                'class': 'form-control', 
+                'placeholder': 'Ej: Octubre del 2025'
+            }),
+            'logo_clap': forms.CheckboxInput(attrs={'class': 'form-check-input'})
+        }
+
+class ProcesarConstanciaSimpleForm(forms.ModelForm):
+    # Heredamos de SolicitudDocumento pero no incluimos ningún campo en 'fields'
+    # Esto le permite a la vista 'validar' y 'guardar' el modelo sin pedir input al usuario.
+    class Meta:
+        model = SolicitudDocumento
+        fields = ['logo_clap']
+        labels = {
+            'logo_clap': 'Incluir Logo CLAP en la Constancia'
+        }
+        widgets = {
+            'logo_clap': forms.CheckboxInput(attrs={'class': 'form-check-input'})
+        }
+
+
+# --- NUEVO: Formulario para Constancia Migratoria ---
+class ProcesarConstanciaMigratoriaForm(forms.ModelForm):
+    class Meta:
+        model = SolicitudDocumento
+        fields = ['migratoria_anio_inicio', 'migratoria_anio_fin', 'logo_clap']
+        labels = {
+            'migratoria_anio_inicio': 'Año en que comenzó a residir',
+            'migratoria_anio_fin': 'Año en que cesó la residencia',
+            'logo_clap': 'Incluir Logo CLAP en la Constancia'
+        }
+        widgets = {
+            'migratoria_anio_inicio': forms.TextInput(attrs={
+                'class': 'form-control', 
+                'placeholder': 'Ej: 2013',
+                'type': 'number',
+                'min': '1900',
+                'max': str(timezone.now().year) # Asegura importar timezone
+            }),
+            'migratoria_anio_fin': forms.TextInput(attrs={
+                'class': 'form-control', 
+                'placeholder': 'Ej: 2025',
+                'type': 'number',
+                'min': '1900',
+                'max': str(timezone.now().year + 1)
+            }),
+            'logo_clap': forms.CheckboxInput(attrs={'class': 'form-check-input'})
+        }
+
+class InventarioBasuraForm(forms.ModelForm):
+    class Meta:
+        model = InventarioBasura
+        fields = ['descripcion', 'cantidad']
+        widgets = {
+            'descripcion': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: Bolsas de Basura Negras'}),
+            'cantidad': forms.NumberInput(attrs={'class': 'form-control', 'min': '0'}),
+        }
+        labels = {
+            'descripcion': 'Nombre del Instrumento / Ítem',
+            'cantidad': 'Cantidad en Existencia',
+        }

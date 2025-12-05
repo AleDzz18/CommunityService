@@ -1,0 +1,41 @@
+{% extends 'layouts/base.html' %}
+{% load static %}
+
+{% block title %}Verificar Código{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="login-box">
+        <h2>Verificar Código de Restablecimiento</h2>
+        <div class="form-container">
+            <p class="message-text">Introduce tu correo electrónico y el código de verificación que te enviamos.</p>
+            
+            <form method="POST">
+                {% csrf_token %} 
+                
+                {% if messages %}
+                    {% for message in messages %}
+                        <p class="{% if message.tags %}alert alert-{{ message.tags }}{% endif %}">{{ message }}</p> 
+                    {% endfor %}
+                {% endif %}
+
+                <div class="input-box">
+                    {{ form.email.errors }}
+                    {{ form.email }}
+                    <label for="{{ form.email.id_for_label }}">Correo Electrónico</label> 
+                </div>
+                <div class="input-box">
+                    {{ form.code.errors }}
+                    {{ form.code }}
+                    <label for="{{ form.code.id_for_label }}">Código de Verificación</label> 
+                </div>
+                
+                <button type="submit" class="btn">Verificar Código</button>
+                <div class="signup-link">
+                    <a href="{% url 'request_reset_code' %}">Solicitar nuevo código</a> 
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock content %}

@@ -58,6 +58,10 @@
                 <a href="{% url 'descargar_pdf' categoria_slug=categoria_slug %}?{{ request.GET.urlencode }}" class="btn btn-danger float-end">
                     <i class="fas fa-file-pdf"></i> Descargar PDF
                 </a>
+
+                <a href="{% url 'lider_general:inventario_lista' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-boxes"></i> Ver Inventario de Basura
+                </a>
             </div>
         </form>
 
@@ -79,7 +83,7 @@
                         {% for mov in movimientos %}
                             <tr>
                                 <td>{{ mov.fecha|date:"Y-m-d" }}</td>
-                                <td>{{ mov.tasa_bcv|floatformat:4 }}</td>
+                                <td>{{ mov.tasa_bcv|floatformat:2 }}</td>
                                 <td>{{ mov.descripcion }}</td>
                                 <td class="text-success">{{ mov.ingreso|default_if_none:"" }}</td>
                                 <td class="text-danger">{{ mov.egreso|default_if_none:"" }}</td>
