@@ -1,25 +1,25 @@
 {% extends 'layouts/base.html' %}
 {% block main %}
-<!-- wrapper -->
-<div class="flex">
-    {% include 'components/sidebar.html' %}
-
-    <!-- content -->
-    <div class="relative flex flex-col flex-1">
-        <!-- dark overlay para el sidebar en dispositivos pequeños -->
-        {% include 'components/dark_color_overlay.html' %}
-
-        {% include 'components/navbar.html' %}
-
-        <main class="flex flex-col self-center max-w-[1536px] w-full">
-            {% block content %}
-            <div class="min-h-screen">
-
+    <!-- wrapper -->
+    <div class="flex">
+        {% include 'components/sidebar.html' %}
+        <!-- content -->
+        <div class="relative flex flex-col flex-1">
+            <!-- dark overlay para el sidebar en dispositivos pequeños -->
+            {% include 'components/dark_color_overlay.html' %}
+            <div class="sticky top-0">
+                {% include 'components/navbar.html' %}
+                <navbar v-scope class="navbar glass z-500 shadow-sm min-h-fit px-4" v-if="navbar.toolbarShow">
+                {% block toolbaritems %}
+                {% endblock toolbaritems %}
+                </navbar>
             </div>
-            {% endblock content %}
-
-            {% include 'components/footer.html' %}
-        </main>
+            <main class="flex flex-col self-center max-w-screen lg:max-w-[1536px] w-full">
+                {% block content %}
+                    <div class="min-h-screen"></div>
+                {% endblock content %}
+                {% include 'components/footer.html' %}
+            </main>
+        </div>
     </div>
-</div>
 {% endblock main %}

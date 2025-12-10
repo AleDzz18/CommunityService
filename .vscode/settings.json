@@ -1,0 +1,16 @@
+{
+    "files.associations": {
+        "**/templates/**/*.html": "django-html",
+        "**/*.html": "html",
+    },
+    "[django-html]": {
+        "editor.defaultFormatter": "monosans.djlint",
+        "editor.formatOnSave": true,
+        "editor.tabSize": 2
+    },
+    "[html]": {
+        "editor.defaultFormatter": "monosans.djlint",
+        "editor.formatOnSave": true,
+        "editor.tabSize": 2
+    },
+}

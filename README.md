@@ -99,3 +99,10 @@ python manage.py tailwind download_cli
 y para correr el servidor con tailwind
 
 python manage.py tailwind runserver
+
+build:
+
+python manage.py tailwind build
+python manage.py collectstatic
+python manage.py makemigrations
+python manage.py migrate

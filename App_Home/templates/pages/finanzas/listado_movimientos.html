@@ -1,189 +1,214 @@
 {% extends "layouts/complete.html" %}
-{% block content %}
-    <div class="dashboard-container">
-        <h2 class="mb-4">{{ titulo }}</h2>
-
-        <form method="GET" class="row g-3 mb-4" action="{% url 'ver_finanzas' categoria_slug=categoria_slug %}">
-            <div class="col-md-4">
-                <label for="tipo_filtro" class="form-label">Filtrar por Tipo</label>
-                <select id="tipo_filtro" name="tipo" class="form-select">
-                    <option value="AMBOS" {% if tipo_seleccionado == 'AMBOS' %}selected{% endif %}>Ingresos y Egresos</option>
-                    <option value="INGRESOS" {% if tipo_seleccionado == 'INGRESOS' %}selected{% endif %}>Solo Ingresos</option>
-                    <option value="EGRESOS" {% if tipo_seleccionado == 'EGRESOS' %}selected{% endif %}>Solo Egresos</option>
-                </select>
-            </div>
-
-            <div class="col-md-4">
-                <label for="torre_filtro" class="form-label">Filtrar por Torre</label>
-                <select id="torre_filtro" name="torre" class="form-select">
-                    <option value="">Todas las Torres</option>
-                    {% for torre in torres %}
-                        <option value="{{ torre.id }}" {% if torre.id|stringformat:"s" == torre_seleccionada_id %}selected{% endif %}>Torre {{ torre.nombre }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-
-            {# FILTRO 3: FECHA DE INICIO (NUEVO) #}
-            <div class="col-md-4">
-                {# Usamos label_tag para el label, ya que estamos iterando un forms.Form #}
-                {{ filtro_form.fecha_inicio.label_tag }}
-                {{ filtro_form.fecha_inicio }}
-                {% for error in filtro_form.fecha_inicio.errors %}
-                    <div class="text-danger small">{{ error }}</div>
-                {% endfor %}
-            </div>
-
-            {# FILTRO 4: FECHA DE FIN (NUEVO) #}
-            {# Este campo podría pasar a una nueva línea si el diseño actual usa los 12 espacios (col-12) en la cuadrícula de Bootstrap #}
-            <div class="col-md-4">
-                {{ filtro_form.fecha_fin.label_tag }}
-                {{ filtro_form.fecha_fin }}
-                {% for error in filtro_form.fecha_fin.errors %}
-                    <div class="text-danger small">{{ error }}</div>
-                {% endfor %}
-            </div>
-            {# ------------------------------------------------------------------------------------------------ #}
-
-            {# BOTONES DE ACCIÓN #}
-            <div class="col-12 mt-3">
-                <button type="submit" class="btn btn-secondary me-2">
-                    <i class="fas fa-filter"></i> Aplicar Filtros
-                </button>
-                {# Opcional: Botón para Limpiar Filtros #}
-                <a href="{% url 'ver_finanzas' categoria_slug=categoria_slug %}" class="btn btn-outline-secondary">
-                    <i class="fas fa-undo"></i> Limpiar Filtros
-                </a>
-
-                {# ENLACE DE DESCARGA DE PDF - CRÍTICO: PASAR TODOS LOS FILTROS DE LA URL ACTUAL #}
-                <a href="{% url 'descargar_pdf' categoria_slug=categoria_slug %}?{{ request.GET.urlencode }}" class="btn btn-danger float-end">
-                    <i class="fas fa-file-pdf"></i> Descargar PDF
-                </a>
-
-                <a href="{% url 'lider_general:inventario_lista' %}" class="btn btn-outline-secondary">
-                    <i class="fas fa-boxes"></i> Ver Inventario de Basura
-                </a>
-            </div>
-        </form>
-
-        {% if movimientos %}
-            <div class="table-responsive">
-                <table class="table table-striped table-hover">
-                    <thead class="table-dark">
-                        <tr>
-                            <th>Fecha</th>
-                            <th>Tasa BCV</th>
-                            <th>Descripción</th>
-                            <th>Ingresos (Bs)</th>
-                            <th>Egresos (Bs)</th>
-                            <th>Torre</th>
-                            <th>Saldo Acumulado (Bs)</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for mov in movimientos %}
-                            <tr>
-                                <td>{{ mov.fecha|date:"Y-m-d" }}</td>
-                                <td>{{ mov.tasa_bcv|floatformat:2 }}</td>
-                                <td>{{ mov.descripcion }}</td>
-                                <td class="text-success">{{ mov.ingreso|default_if_none:"" }}</td>
-                                <td class="text-danger">{{ mov.egreso|default_if_none:"" }}</td>
-                                <td>
-                                    {% if mov.tipo == 'EGR' and mov.categoria == 'BAS' %}
-                                        <span class="badge bg-secondary">General</span>
-                                    {% else %}
-                                        {{ mov.torre }}
-                                    {% endif %}
-                                </td>
-                                <td>{{ mov.saldo }}</td>
-                            </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        {% else %}
-            <div class="alert alert-info" role="alert">
-                No se encontraron movimientos financieros con los filtros aplicados.
-            </div>
-        {% endif %}
-        {# --- BLOQUE DE BOTONES DE ACCIÓN (SOLO LDT/LDG) --- #}
-        {% if request.user.is_authenticated and request.user.rol == 'LDT' or request.user.is_authenticated and request.user.rol == 'LDG' %}
-            
-            <div class="action-buttons-container">
-                <h3 class="action-buttons-title">
-                    <i class="fas fa-screwdriver-wrench"></i> 
-                    Acciones de Administración ({{ request.user.tower.nombre|default:'Sin Torre' }})
-                </h3>
-                
-                <div class="action-buttons-grid">
-                    
-                    {% comment %} Lógica para Condominio (categoria_slug='condominio') {% endcomment %}
-                    {% if categoria_slug == 'condominio' %}
-                        {% if request.user.rol == 'LDT' %}
-                            <a href="{% url 'lider_torre:ingresar_condominio' %}" class="action-button btn-ingreso">
-                                <i class="fas fa-plus-circle"></i>
-                                Registrar Ingreso Condominio
-                            </a>
-                            <a href="{% url 'lider_torre:egresar_condominio' %}" class="action-button btn-egreso">
-                                <i class="fas fa-minus-circle"></i>
-                                Registrar Egreso Condominio
-                            </a>
-                        {% elif request.user.rol == 'LDG' %}
-                            {# Líder General usa las URLs General que le permiten seleccionar Torre #}
-                            <a href="{% url 'lider_general:ingresar_condominio_general' %}" class="action-button btn-ingreso">
-                                <i class="fas fa-plus-circle"></i>
-                                Registrar Ingreso Condominio
-                            </a>
-                            <a href="{% url 'lider_general:egresar_condominio_general' %}" class="action-button btn-egreso">
-                                <i class="fas fa-minus-circle"></i>
-                                Registrar Egreso Condominio
-                            </a>
-                        {% endif %}
-                        
-                    {% comment %} Lógica para Cuarto de Basura (categoria_slug='basura') {% endcomment %}
-                    {% elif categoria_slug == 'basura' %}
-                        {% if request.user.rol == 'LDT' %}
-                            <a href="{% url 'lider_torre:ingresar_basura' %}" class="action-button btn-ingreso">
-                                <i class="fas fa-plus-circle"></i>
-                                Registrar Ingreso Cuarto de Basura
-                            </a>
-
-                        {% elif request.user.rol == 'LDG' %}
-                            {# LDG usa el formulario General para Ingreso Basura y selecciona la Torre #}
-                            <a href="{% url 'lider_general:ingresar_basura_general' %}" class="action-button btn-ingreso">
-                                <i class="fas fa-plus-circle"></i>
-                                Registrar Ingreso Cuarto de Basura
-                            </a>
-
-                        {% endif %}
-
-                        {# EGRESO DE BASURA: solo si es LDG o tiene rol secundario de Admin Basura #}
-                        {% if request.user.rol == 'LDG' or request.user.es_admin_basura %}
-                            {# Admin Basura usa el formulario General para egresar de cualquier torre #}
-                            <a href="{% url 'lider_general:egresar_basura_general' %}" class="action-button btn-egreso">
-                                <i class="fas fa-minus-circle"></i>
-                                Registrar Egreso Cuarto de Basura
-                            </a>
-
-                            <a href="{% url 'lider_general:estado_solvencia_basura' %}" class="action-button btn-ingreso">
-                                <i class="fas fa-clipboard-list"></i> 
-                                Ver Tablero de Solvencia
-                            </a>
-                        {% else %}
-                            {# Deshabilitado para LDT sin rol de Admin Basura #}
-                            <a href="#" class="action-button btn-egreso btn-disabled" title="Esta acción requiere permiso de Líder General o Administrador de Cuarto de Basura.">
-                                <i class="fas fa-minus-circle"></i>
-                                Registrar Egreso Cuarto de Basura
-                            </a>
-                        {% endif %}
-                        
-                    {% else %}
-                        <p class="text-warning small">Selecciona una categoría para ver las acciones disponibles.</p>
-                    {% endif %}
-
+{% block toolbaritems %}
+    <script type="module" src="https://unpkg.com/cally"></script>
+    <div v-scope="{ tower: '{{ torre_seleccionada_id|default:'' }}', startDate: '{{ filtro_form.fecha_inicio.value|default:'' }}', endDate: '{{ filtro_form.fecha_fin.value|default:'' }}', get() { const data = { 'torre': this.tower, 'fecha_inicio': '', 'fecha_fin': '' }; const query = new URLSearchParams(data).toString(); window.location.href = '{% url 'ver_finanzas' categoria_slug=categoria_slug %}' + '?' + query;} }">
+        <select v-model="tower"
+                class="select select-ghost h-fit w-fit"
+                @change="get()">
+            <option value="" selected>Todas las Torres</option>
+            {% for torre in torres %}<option value="{{ torre.id }}">Torre {{ torre.nombre }}</option>{% endfor %}
+        </select>
+    </div>
+    <div class="dropdown">
+        <div tabindex="0" role="button" class="btn btn-ghost m-1 h-fit w-fit">
+            <span class="inline-block">fecha</span>
+            <svg xmlns="http://www.w3.org/2000/svg"
+                 class="size-2.5 inline-block"
+                 viewBox="0 0 256 256">
+                <!-- Icon from Phosphor by Phosphor Icons - https://github.com/phosphor-icons/core/blob/main/LICENSE -->
+                <path fill="currentColor" d="m213.66 101.66l-80 80a8 8 0 0 1-11.32 0l-80-80A8 8 0 0 1 48 88h160a8 8 0 0 1 5.66 13.66" />
+            </svg>
+        </div>
+        <div tabindex="0"
+             class="dropdown-content card bg-base-100 z-1 w-fit shadow-md">
+            <div class="card-body">
+                <div>
+                    <div class="join">
+                        <!-- <input type="checkbox" name="{{ formulario.es_admin_basura.name }}" aria-label="{{ formulario.es_admin_basura.label }}" id="{{ formulario.es_admin_basura.id_for_label }}" class="join-item btn btn-dash btn-primary " v-scope="{dchecked: '{{ formulario.es_admin_basura.value }}'}" @vue:mounted="if (dchecked != 'False'){ $el.checked = true}" />
+        <input type="checkbox" name="{{ formulario.es_admin_clap.name }}" aria-label="{{ formulario.es_admin_clap.label }}" id="{{ formulario.es_admin_clap.id_for_label }}" class="join-item btn btn-dash btn-primary" v-scope="{dchecked: '{{ formulario.es_admin_clap.value }}'}" @vue:mounted="if (dchecked != 'False'){ $el.checked = true}" /></div> -->
+                        <calendar-range class="cally bg-base-100 border border-base-300 shadow-lg rounded-box" months="2">
+                        <svg aria-label="Previous"
+                             class="fill-current size-4"
+                             slot="previous"
+                             xmlns="http://www.w3.org/2000/svg"
+                             viewBox="0 0 24 24">
+                            <path fill="currentColor" d="M15.75 19.5 8.25 12l7.5-7.5"></path>
+                        </svg>
+                        <svg aria-label="Next"
+                             class="fill-current size-4"
+                             slot="next"
+                             xmlns="http://www.w3.org/2000/svg"
+                             viewBox="0 0 24 24">
+                            <path fill="currentColor" d="m8.25 4.5 7.5 7.5-7.5 7.5"></path>
+                        </svg>
+                        <div class=" flex gap-4 justify-center flex-col md:flex-row">
+                            <calendar-month></calendar-month>
+                            <calendar-month offset="1"></calendar-month>
+                        </div>
+                        </calendar-range>
+                    </div>
                 </div>
             </div>
-            
-        {% endif %}
-        {# --- FIN BLOQUE DE BOTONES DE ACCIÓN --- #}
-    </div>
-{% endblock content %}
+        {% endblock toolbaritems %}
+        {% block content %}
+            <div v-scope
+                 @vue:mounted="navbar.change('{{ titulo }}'); navbar.toolbarOpen()"
+                 class="min-h-svh max-w-screen overflow-hidden p-8 pb-16 flex flex-col justify-stretch items-start ">
+                <form method="get"
+                      class="row g-3 mb-4"
+                      action="{% url 'ver_finanzas' categoria_slug=categoria_slug %}">
+                    {# FILTRO 3: FECHA DE INICIO (NUEVO) #}
+                    <div class="col-md-4">
+                        {# Usamos label_tag para el label, ya que estamos iterando un forms.Form #}
+                        {{ filtro_form.fecha_inicio.label_tag }}
+                        {{ filtro_form.fecha_inicio }}
+                        {% for error in filtro_form.fecha_inicio.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+                    </div>
+                    {# FILTRO 4: FECHA DE FIN (NUEVO) #}
+                    {# Este campo podría pasar a una nueva línea si el diseño actual usa los 12 espacios (col-12) en la cuadrícula de Bootstrap #}
+                    <div class="col-md-4">
+                        {{ filtro_form.fecha_fin.label_tag }}
+                        {{ filtro_form.fecha_fin }}
+                        {% for error in filtro_form.fecha_fin.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+                    </div>
+                    {# ------------------------------------------------------------------------------------------------ #}
+                    {# BOTONES DE ACCIÓN #}
+                    <div class="col-12 mt-3">
+                        <button type="submit" class="btn btn-secondary me-2">
+                            <i class="fas fa-filter"></i> Aplicar Filtros
+                        </button>
+                        {# Opcional: Botón para Limpiar Filtros #}
+                        <a href="{% url 'ver_finanzas' categoria_slug=categoria_slug %}"
+                           class="btn btn-outline-secondary">
+                            <i class="fas fa-undo"></i> Limpiar Filtros
+                        </a>
+                        {# ENLACE DE DESCARGA DE PDF - CRÍTICO: PASAR TODOS LOS FILTROS DE LA URL ACTUAL #}
+                        <a href="{% url 'descargar_pdf' categoria_slug=categoria_slug %}?{{ request.GET.urlencode }}"
+                           class="btn btn-danger float-end">
+                            <i class="fas fa-file-pdf"></i> Descargar PDF
+                        </a>
+                        <a href="{% url 'lider_general:inventario_lista' %}"
+                           class="btn btn-outline-secondary">
+                            <i class="fas fa-boxes"></i> Ver Inventario de Basura
+                        </a>
+                    </div>
+                </form>
+                {% if movimientos %}
+                    <div class="w-20">
+                        <table class="table table-striped table-hover">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Tasa BCV</th>
+                                    <th>Descripción</th>
+                                    <th>Ingresos (Bs)</th>
+                                    <th>Egresos (Bs)</th>
+                                    <th>Torre</th>
+                                    <th>Saldo Acumulado (Bs)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for mov in movimientos %}
+                                    <tr>
+                                        <td>{{ mov.fecha|date:"Y-m-d" }}</td>
+                                        <td>{{ mov.tasa_bcv|floatformat:2 }}</td>
+                                        <td>{{ mov.descripcion }}</td>
+                                        <td class="text-success">{{ mov.ingreso|default_if_none:"" }}</td>
+                                        <td class="text-danger">{{ mov.egreso|default_if_none:"" }}</td>
+                                        <td>
+                                            {% if mov.tipo == 'EGR' and mov.categoria == 'BAS' %}
+                                                <span class="badge bg-secondary">General</span>
+                                            {% else %}
+                                                {{ mov.torre }}
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ mov.saldo }}</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="alert alert-info" role="alert">No se encontraron movimientos financieros con los filtros aplicados.</div>
+                {% endif %}
+                {# --- BLOQUE DE BOTONES DE ACCIÓN (SOLO LDT/LDG) --- #}
+                {% if request.user.is_authenticated and request.user.rol == 'LDT' or request.user.is_authenticated and request.user.rol == 'LDG' %}
+                    <div class="action-buttons-container">
+                        <h3 class="action-buttons-title">
+                            <i class="fas fa-screwdriver-wrench"></i>
+                            Acciones de Administración ({{ request.user.tower.nombre|default:'Sin Torre' }})
+                        </h3>
+                        <div class="action-buttons-grid">
+                            {% comment %} Lógica para Condominio (categoria_slug='condominio') {% endcomment %}
+                            {% if categoria_slug == 'condominio' %}
+                                {% if request.user.rol == 'LDT' %}
+                                    <a href="{% url 'lider_torre:ingresar_condominio' %}"
+                                       class="action-button btn-ingreso">
+                                        <i class="fas fa-plus-circle"></i>
+                                        Registrar Ingreso Condominio
+                                    </a>
+                                    <a href="{% url 'lider_torre:egresar_condominio' %}"
+                                       class="action-button btn-egreso">
+                                        <i class="fas fa-minus-circle"></i>
+                                        Registrar Egreso Condominio
+                                    </a>
+                                {% elif request.user.rol == 'LDG' %}
+                                    {# Líder General usa las URLs General que le permiten seleccionar Torre #}
+                                    <a href="{% url 'lider_general:ingresar_condominio_general' %}"
+                                       class="action-button btn-ingreso">
+                                        <i class="fas fa-plus-circle"></i>
+                                        Registrar Ingreso Condominio
+                                    </a>
+                                    <a href="{% url 'lider_general:egresar_condominio_general' %}"
+                                       class="action-button btn-egreso">
+                                        <i class="fas fa-minus-circle"></i>
+                                        Registrar Egreso Condominio
+                                    </a>
+                                {% endif %}
+                                {% comment %} Lógica para Cuarto de Basura (categoria_slug='basura') {% endcomment %}
+                            {% elif categoria_slug == 'basura' %}
+                                {% if request.user.rol == 'LDT' %}
+                                    <a href="{% url 'lider_torre:ingresar_basura' %}"
+                                       class="action-button btn-ingreso">
+                                        <i class="fas fa-plus-circle"></i>
+                                        Registrar Ingreso Cuarto de Basura
+                                    </a>
+                                {% elif request.user.rol == 'LDG' %}
+                                    {# LDG usa el formulario General para Ingreso Basura y selecciona la Torre #}
+                                    <a href="{% url 'lider_general:ingresar_basura_general' %}"
+                                       class="action-button btn-ingreso">
+                                        <i class="fas fa-plus-circle"></i>
+                                        Registrar Ingreso Cuarto de Basura
+                                    </a>
+                                {% endif %}
+                                {# EGRESO DE BASURA: solo si es LDG o tiene rol secundario de Admin Basura #}
+                                {% if request.user.rol == 'LDG' or request.user.es_admin_basura %}
+                                    {# Admin Basura usa el formulario General para egresar de cualquier torre #}
+                                    <a href="{% url 'lider_general:egresar_basura_general' %}"
+                                       class="action-button btn-egreso">
+                                        <i class="fas fa-minus-circle"></i>
+                                        Registrar Egreso Cuarto de Basura
+                                    </a>
+                                    <a href="{% url 'lider_general:estado_solvencia_basura' %}"
+                                       class="action-button btn-ingreso">
+                                        <i class="fas fa-clipboard-list"></i>
+                                        Ver Tablero de Solvencia
+                                    </a>
+                                {% else %}
+                                    {# Deshabilitado para LDT sin rol de Admin Basura #}
+                                    <a href="#"
+                                       class="action-button btn-egreso btn-disabled"
+                                       title="Esta acción requiere permiso de Líder General o Administrador de Cuarto de Basura.">
+                                        <i class="fas fa-minus-circle"></i>
+                                        Registrar Egreso Cuarto de Basura
+                                    </a>
+                                {% endif %}
+                            {% else %}
+                                <p class="text-warning small">Selecciona una categoría para ver las acciones disponibles.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% endif %}
+                {# --- FIN BLOQUE DE BOTONES DE ACCIÓN --- #}
+            </div>
+        {% endblock content %}

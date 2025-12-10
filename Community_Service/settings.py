@@ -13,6 +13,11 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -21,13 +26,15 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-ign2m==4igmt%9@n_#a@1^8$p7n&9lv+g-vwkm(-*2oh39ne-!"
+SECRET_KEY = os.environ.get("SECRET_KEY", "django-insecure-dev-key-local")
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get("DEBUG", "False").lower() == "true"
 
-ALLOWED_HOSTS = ["*"]
+ALLOWED_HOSTS = [
+    "localhost",
+    "127.0.0.1",
+    ".vercel.app",
+]
 
 
 # Application definition
@@ -43,10 +50,12 @@ INSTALLED_APPS = [
     "App_LiderTorre",
     "App_LiderGeneral",
     "django_tailwind_cli",
+    "whitenoise.runserver_nostatic",
 ]
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -81,13 +90,29 @@ WSGI_APPLICATION = "Community_Service.wsgi.application"
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+if os.environ.get("DB_LOCAL", "false").lower() == "false":
+    # Producción en Vercel con Supabase
+    print("using supabase")
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": os.environ.get("DB_NAME"),
+            "USER": os.environ.get("DB_USER"),
+            "PASSWORD": os.environ.get("DB_PASSWORD"),
+            "HOST": os.environ.get("DB_HOST"),
+            "PORT": os.environ.get("DB_PORT"),
+            "CERT": "prod-ca-2021.crt",
+        }
     }
-}
-
+else:
+    # SQLite local por defecto
+    print("using sqlite")
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
+        }
+    }
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
@@ -126,9 +151,13 @@ STATIC_URL = "static/"
 
 STATICFILES_DIRS = [BASE_DIR / "static"]
 
+STATIC_ROOT = BASE_DIR / "staticfiles"
+
 TAILWIND_CLI_SRC_CSS = "static/css/app.css"
 
 TAILWIND_CLI_USE_DAISY_UI = True
+
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
@@ -156,8 +185,16 @@ EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = "smtp.gmail.com"
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True  # Es el método de encriptación estándar para el puerto 587
-EMAIL_HOST_USER = (
-    "balconesdeparaguana1.cs@gmail.com@gmail.com"  # <-- ¡Verifica tu correo de envío!
+EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER", "balconesdeparaguana1.cs@gmail.com")
+EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", "")
+DEFAULT_FROM_EMAIL = os.environ.get(
+    "DEFAULT_FROM_EMAIL", "Balcones de Paraguana I <balconesdeparaguana1.cs@gmail.com>"
 )
-EMAIL_HOST_PASSWORD = ""  # <-- ¡ESTO DEBE SER LA CONTRASEÑA DE APLICACIÓN DE GMAIL! (ej: 'abcd efgh ijkl mnop')
-DEFAULT_FROM_EMAIL = "Balcones de Paraguana I <balconesdeparaguana1.cs@gmail.com>"  # <-- Opcional: El correo que aparecerá como remitente.
+if not DEBUG:
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    CSRF_TRUSTED_ORIGINS = [
+        "https://*.vercel.app",
+        "https://*.now.sh",
+    ]

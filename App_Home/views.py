@@ -230,6 +230,7 @@ def vista_completar_perfil(request, user_id):
     )
 
 
+# TODO: check this func
 def cancelar_registro(request, user_id):
     """
     Elimina el usuario creado parcialmente si decide cancelar
@@ -259,6 +260,7 @@ def cancelar_registro(request, user_id):
 # ------------------------------------------------------------------
 
 
+@complete_profile
 def ver_ingresos_egresos(request, categoria_slug):
     """
     Muestra la lista de movimientos financieros para Condominio o Cuarto de Basura.

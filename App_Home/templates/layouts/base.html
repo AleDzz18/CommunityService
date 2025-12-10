@@ -2,22 +2,24 @@
 {% load static tailwind_cli %}
 <!DOCTYPE html>
 <html lang="es" data-theme="autumn">
-
-<head>
-    <!-- Configuracion basica del documento HTML -->
-    <meta charset="UTF-8" />
-    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><!-- Titulo General de la Pagina -->
-    <title>{% block metaTitle %}Balcones de Paraguana I{% endblock metaTitle%}</title>
-
-    <!-- Estilos  -->
-    {% tailwind_css %}
-
-    <!-- scipts -->
-    <script src="{% static 'js/scripts-login.js' %}" defer></script>
-    <script src="{% static 'js/scripts-HD.js' %}" defer></script>
-    <script src="{% static 'js/autoReload.js' %}" defer></script>
-    <script type="module">
+    <head>
+        <!-- Configuracion basica del documento HTML -->
+        <meta charset="UTF-8" />
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <!-- Titulo General de la Pagina -->
+        <title>
+            {% block metaTitle %}
+                Balcones de Paraguana I
+            {% endblock metaTitle %}
+        </title>
+        <!-- Estilos  -->
+        {% tailwind_css %}
+        <!-- scipts -->
+        <script src="{% static 'js/scripts-login.js' %}" defer></script>
+        <script src="{% static 'js/scripts-HD.js' %}" defer></script>
+        <script src="{% static 'js/autoReload.js' %}" defer></script>
+        <script type="module">
         import { createApp, reactive } from 'https://unpkg.com/petite-vue?module'
 
         const globals = reactive({
@@ -40,6 +42,10 @@
 
         const navbar = reactive({
             title: 'Administración',
+            toolbarShow: false,
+            toolbarOpen(){
+                this.toolbarShow = true
+            },
             change(value) {
                 this.title = value
             }
@@ -137,53 +143,39 @@
             sidebar,
             navbar,
             AlertComponent,
-            alertsManager
+            alertsManager,
         }).mount()
-    </script>
-
-
-    <template id="alert-template">
-        <div @vue:mounted="init" :key="id" role="alert" :class="{ 
-                        'opacity-100 translate-y-0': isVisible, 
-                        'opacity-0 translate-y-4': !isVisible,
-                        [modeClass]: true
-                    }" class="
-                        alert alert-soft shadow-lg 
-                        transition-all duration-500 ease-out 
-                        flex flex-col gap-2 p-3 w-full max-w-md
-                    ">
-            <div class="flex justify-between items-start">
-                <span>${message}</span>
-                <button @click="closeManually" class="btn btn-xs btn-circle btn-ghost">
-                    ✕
-                </button>
+        </script>
+        <template id="alert-template">
+            <div @vue:mounted="init"
+                 :key="id"
+                 role="alert"
+                 :class="{ 'opacity-100 translate-y-0': isVisible, 'opacity-0 translate-y-4': !isVisible, [modeClass]: true }"
+                 class=" alert alert-soft shadow-lg transition-all duration-500 ease-out flex flex-col gap-2 p-3 w-full max-w-md ">
+                <div class="flex justify-between items-start">
+                    <span>${message}</span>
+                    <button @click="closeManually" class="btn btn-xs btn-circle btn-ghost">✕</button>
+                </div>
+                <progress class="progress progress-accent w-full"
+                          :class="[`progress-${mode}`]"
+                          :value="progress"
+                          max="100"></progress>
             </div>
-
-            <progress class="progress progress-accent w-full" :class="[`progress-${mode}`]" :value="progress"
-                max="100"></progress>
+        </template>
+    </head>
+    <body class="font-outfit max-w-screen"
+          {% block body_attributes %}
+          {% endblock body_attributes %}>
+        {% block main %}
+        {% endblock main %}
+        <div class="fixed flex flex-col gap-2 bottom-5 right-5 z-50 items-end"
+             v-scope
+             @vue:mounted=" {% if messages %} {% for message in messages %} alertsManager.createAlert('{{ message.message|escapejs }}', 6000, '{{ message.tags|default:'info' }}' ); {% endfor %} {% endif %} ">
+            <div v-for="alert in alertsManager.alerts" :key="alert.id" v-scope="alert"></div>
+            <div class="hidden">
+                <span class="alert-info alert-success alert-warning alert-error alert-soft"></span>
+                <span class="progress-info progress-success progress-warning progress-error progress-soft"></span>
+            </div>
         </div>
-    </template>
-</head>
-
-<body class="font-outfit" {% block body_attributes %}{% endblock %}>
-    {% block main %}
-    {% endblock main %}
-
-    <div class="fixed flex flex-col gap-2 bottom-5 right-5 z-50 items-end" v-scope @vue:mounted="
-    {% if messages %}
-    {% for message in messages %}
-    alertsManager.createAlert('{{message.message|escapejs }}', 6000, '{{ message.tags|default:'info' }}' );
-    {% endfor %}
-    {% endif %}
-    ">
-        <div v-for="alert in alertsManager.alerts" :key="alert.id" v-scope="alert"></div>
-        <div class="hidden">
-
-            <span class="alert-info alert-success alert-warning alert-error alert-soft"></span>
-            <span class="progress-info progress-success progress-warning progress-error progress-soft"></span>
-        </div>
-    </div>
-</body>
-
-
+    </body>
 </html>
