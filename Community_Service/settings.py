@@ -84,7 +84,7 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = "Community_Service.wsgi.application"
+WSGI_APPLICATION = "Community_Service.wsgi.app"
 
 
 # Database
@@ -190,6 +190,7 @@ EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", "")
 DEFAULT_FROM_EMAIL = os.environ.get(
     "DEFAULT_FROM_EMAIL", "Balcones de Paraguana I <balconesdeparaguana1.cs@gmail.com>"
 )
+
 if not DEBUG:
     SECURE_SSL_REDIRECT = True
     SESSION_COOKIE_SECURE = True
