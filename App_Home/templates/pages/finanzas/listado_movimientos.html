@@ -1,214 +1,249 @@
 {% extends "layouts/complete.html" %}
 {% block toolbaritems %}
     <script type="module" src="https://unpkg.com/cally"></script>
-    <div v-scope="{ tower: '{{ torre_seleccionada_id|default:'' }}', startDate: '{{ filtro_form.fecha_inicio.value|default:'' }}', endDate: '{{ filtro_form.fecha_fin.value|default:'' }}', get() { const data = { 'torre': this.tower, 'fecha_inicio': '', 'fecha_fin': '' }; const query = new URLSearchParams(data).toString(); window.location.href = '{% url 'ver_finanzas' categoria_slug=categoria_slug %}' + '?' + query;} }">
-        <select v-model="tower"
-                class="select select-ghost h-fit w-fit"
-                @change="get()">
-            <option value="" selected>Todas las Torres</option>
-            {% for torre in torres %}<option value="{{ torre.id }}">Torre {{ torre.nombre }}</option>{% endfor %}
-        </select>
-    </div>
-    <div class="dropdown">
-        <div tabindex="0" role="button" class="btn btn-ghost m-1 h-fit w-fit">
-            <span class="inline-block">fecha</span>
-            <svg xmlns="http://www.w3.org/2000/svg"
-                 class="size-2.5 inline-block"
-                 viewBox="0 0 256 256">
-                <!-- Icon from Phosphor by Phosphor Icons - https://github.com/phosphor-icons/core/blob/main/LICENSE -->
-                <path fill="currentColor" d="m213.66 101.66l-80 80a8 8 0 0 1-11.32 0l-80-80A8 8 0 0 1 48 88h160a8 8 0 0 1 5.66 13.66" />
-            </svg>
-        </div>
-        <div tabindex="0"
-             class="dropdown-content card bg-base-100 z-1 w-fit shadow-md">
-            <div class="card-body">
-                <div>
-                    <div class="join">
-                        <!-- <input type="checkbox" name="{{ formulario.es_admin_basura.name }}" aria-label="{{ formulario.es_admin_basura.label }}" id="{{ formulario.es_admin_basura.id_for_label }}" class="join-item btn btn-dash btn-primary " v-scope="{dchecked: '{{ formulario.es_admin_basura.value }}'}" @vue:mounted="if (dchecked != 'False'){ $el.checked = true}" />
-        <input type="checkbox" name="{{ formulario.es_admin_clap.name }}" aria-label="{{ formulario.es_admin_clap.label }}" id="{{ formulario.es_admin_clap.id_for_label }}" class="join-item btn btn-dash btn-primary" v-scope="{dchecked: '{{ formulario.es_admin_clap.value }}'}" @vue:mounted="if (dchecked != 'False'){ $el.checked = true}" /></div> -->
-                        <calendar-range class="cally bg-base-100 border border-base-300 shadow-lg rounded-box" months="2">
-                        <svg aria-label="Previous"
-                             class="fill-current size-4"
-                             slot="previous"
-                             xmlns="http://www.w3.org/2000/svg"
-                             viewBox="0 0 24 24">
-                            <path fill="currentColor" d="M15.75 19.5 8.25 12l7.5-7.5"></path>
-                        </svg>
-                        <svg aria-label="Next"
-                             class="fill-current size-4"
-                             slot="next"
-                             xmlns="http://www.w3.org/2000/svg"
-                             viewBox="0 0 24 24">
-                            <path fill="currentColor" d="m8.25 4.5 7.5 7.5-7.5 7.5"></path>
-                        </svg>
-                        <div class=" flex gap-4 justify-center flex-col md:flex-row">
-                            <calendar-month></calendar-month>
-                            <calendar-month offset="1"></calendar-month>
+    <div v-scope="{ tower: '{{ torre_seleccionada_id|default:'' }}', date: '', startDate: '{{ filtro_form.fecha_inicio.value|default:'' }}', endDate: '{{ filtro_form.fecha_fin.value|default:'' }}', justStart: false, justEnd: false, ranges : [ { label: 'Ultimos 7 dias', days: 7 }, { label: 'Ultimos 14 dias', days: 14 }, { label: 'Ultimos 30 dias', days: 30 }, { label: 'Ultimos 3 meses', months: 3 }, { label: 'Ultimos 6 meses', months: 6 }, { label: 'Ultimo año', years: 1 } ], setDate(range){ if (range) { const endDate = new Date(); const startDate = new Date(endDate); if (range.days) { startDate.setDate(startDate.getDate() - range.days) } else if (range.months) { startDate.setMonth(startDate.getMonth() - range.months) } else if (range.years) {startDate.setFullYear(startDate.getFullYear() - range.years)} this.startDate = startDate.toISOString().slice(0, 10); this.endDate = endDate.toISOString().slice(0, 10); } else if (this.justEnd){ this.startDate = ''; this.endDate = this.date.split('/')[1]; } else if (this.justStart){ this.startDate = this.date.split('/')[0]; this.endDate = ''; } else { this.startDate = this.date.split('/')[0]; this.endDate = this.date.split('/')[1]; } this.get(); }, formatDate(){ if (!this.startDate && !this.endDate) return 'Fecha'; return `${this.startDate || 'X'} hasta ${this.endDate || 'X'}`; },setSelection(choice) { this.justStart = choice == 'start'; this.justEnd = choice == 'end'; }, get() { const data = { 'torre': this.tower, 'fecha_inicio': this.startDate, 'fecha_fin': this.endDate }; const query = new URLSearchParams(data).toString(); window.location.href = '{% url 'ver_finanzas' categoria_slug=categoria_slug %}' + '?' + query;} }"
+         class="flex items-center justify-between w-full">
+        <div>
+            <select v-model="tower"
+                    class="select select-ghost h-fit w-fit"
+                    @change="get()">
+                <option value="" selected>Todas las Torres</option>
+                {% for torre in torres %}<option value="{{ torre.id }}">Torre {{ torre.nombre }}</option>{% endfor %}
+            </select>
+            <div class="dropdown">
+                <div tabindex="0" role="button" class="btn btn-ghost m-1 h-fit w-fit">
+                    <span class="inline-block">${formatDate()}</span>
+                    <svg xmlns="http://www.w3.org/2000/svg"
+                         class="size-2.5 inline-block"
+                         viewBox="0 0 256 256">
+                        <!-- Icon from Phosphor by Phosphor Icons - https://github.com/phosphor-icons/core/blob/main/LICENSE -->
+                        <path fill="currentColor" d="m213.66 101.66l-80 80a8 8 0 0 1-11.32 0l-80-80A8 8 0 0 1 48 88h160a8 8 0 0 1 5.66 13.66" />
+                    </svg>
+                </div>
+                <div tabindex="0"
+                     class="dropdown-content card bg-base-100 z-1 w-fit shadow-md">
+                    <div class="card-body flex flex-row justify-center items-center">
+                        <div class="min-w-32 flex flex-col justify-stretch">
+                            <button v-for="(range, index) in ranges"
+                                    :key="index"
+                                    class="btn btn-ghost rounded-none px-4"
+                                    @click="setDate(range)">${range.label}</button>
                         </div>
-                        </calendar-range>
+                        <div class="divider divider-horizontal"></div>
+                        <div class="flex flex-col justify-stretch">
+                            <div class="filter mb-2 self-center">
+                                <input class="btn filter-reset btn-dash btn-primary "
+                                       type="radio"
+                                       name="datemode"
+                                       aria-label="X"
+                                       @click="setSelection('')" />
+                                <input type="radio"
+                                       name="datemode"
+                                       aria-label="Solo inicio"
+                                       class="btn btn-dash btn-primary "
+                                       v-model="justStart"
+                                       @click="setSelection('start')" />
+                                <input type="radio"
+                                       name="datemode"
+                                       aria-label="Solo final"
+                                       class="btn btn-dash btn-primary "
+                                       v-model="justEnd"
+                                       @click="setSelection('end')" />
+                            </div>
+                            <calendar-range :value="(startDate && endDate) ? startDate + '/' + endDate : ''" @change.native="date = $el.value; setDate()" class="cally bg-base-100 border border-base-300 shadow-lg rounded-box" months="2">
+                            <svg aria-label="Previous"
+                                 class="fill-current size-4"
+                                 slot="previous"
+                                 xmlns="http://www.w3.org/2000/svg"
+                                 viewBox="0 0 24 24">
+                                <path fill="currentColor" d="M15.75 19.5 8.25 12l7.5-7.5"></path>
+                            </svg>
+                            <svg aria-label="Next"
+                                 class="fill-current size-4"
+                                 slot="next"
+                                 xmlns="http://www.w3.org/2000/svg"
+                                 viewBox="0 0 24 24">
+                                <path fill="currentColor" d="m8.25 4.5 7.5 7.5-7.5 7.5"></path>
+                            </svg>
+                            <div class=" flex gap-4 justify-center flex-col md:flex-row">
+                                <calendar-month></calendar-month>
+                                <calendar-month offset="1"></calendar-month>
+                            </div>
+                            </calendar-range>
+                        </div>
                     </div>
                 </div>
             </div>
-        {% endblock toolbaritems %}
-        {% block content %}
-            <div v-scope
-                 @vue:mounted="navbar.change('{{ titulo }}'); navbar.toolbarOpen()"
-                 class="min-h-svh max-w-screen overflow-hidden p-8 pb-16 flex flex-col justify-stretch items-start ">
-                <form method="get"
-                      class="row g-3 mb-4"
-                      action="{% url 'ver_finanzas' categoria_slug=categoria_slug %}">
-                    {# FILTRO 3: FECHA DE INICIO (NUEVO) #}
-                    <div class="col-md-4">
-                        {# Usamos label_tag para el label, ya que estamos iterando un forms.Form #}
-                        {{ filtro_form.fecha_inicio.label_tag }}
-                        {{ filtro_form.fecha_inicio }}
-                        {% for error in filtro_form.fecha_inicio.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
-                    </div>
-                    {# FILTRO 4: FECHA DE FIN (NUEVO) #}
-                    {# Este campo podría pasar a una nueva línea si el diseño actual usa los 12 espacios (col-12) en la cuadrícula de Bootstrap #}
-                    <div class="col-md-4">
-                        {{ filtro_form.fecha_fin.label_tag }}
-                        {{ filtro_form.fecha_fin }}
-                        {% for error in filtro_form.fecha_fin.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
-                    </div>
-                    {# ------------------------------------------------------------------------------------------------ #}
-                    {# BOTONES DE ACCIÓN #}
-                    <div class="col-12 mt-3">
-                        <button type="submit" class="btn btn-secondary me-2">
-                            <i class="fas fa-filter"></i> Aplicar Filtros
-                        </button>
-                        {# Opcional: Botón para Limpiar Filtros #}
-                        <a href="{% url 'ver_finanzas' categoria_slug=categoria_slug %}"
-                           class="btn btn-outline-secondary">
-                            <i class="fas fa-undo"></i> Limpiar Filtros
-                        </a>
-                        {# ENLACE DE DESCARGA DE PDF - CRÍTICO: PASAR TODOS LOS FILTROS DE LA URL ACTUAL #}
-                        <a href="{% url 'descargar_pdf' categoria_slug=categoria_slug %}?{{ request.GET.urlencode }}"
-                           class="btn btn-danger float-end">
-                            <i class="fas fa-file-pdf"></i> Descargar PDF
-                        </a>
-                        <a href="{% url 'lider_general:inventario_lista' %}"
-                           class="btn btn-outline-secondary">
-                            <i class="fas fa-boxes"></i> Ver Inventario de Basura
-                        </a>
-                    </div>
-                </form>
-                {% if movimientos %}
-                    <div class="w-20">
-                        <table class="table table-striped table-hover">
-                            <thead class="table-dark">
-                                <tr>
-                                    <th>Fecha</th>
-                                    <th>Tasa BCV</th>
-                                    <th>Descripción</th>
-                                    <th>Ingresos (Bs)</th>
-                                    <th>Egresos (Bs)</th>
-                                    <th>Torre</th>
-                                    <th>Saldo Acumulado (Bs)</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for mov in movimientos %}
-                                    <tr>
-                                        <td>{{ mov.fecha|date:"Y-m-d" }}</td>
-                                        <td>{{ mov.tasa_bcv|floatformat:2 }}</td>
-                                        <td>{{ mov.descripcion }}</td>
-                                        <td class="text-success">{{ mov.ingreso|default_if_none:"" }}</td>
-                                        <td class="text-danger">{{ mov.egreso|default_if_none:"" }}</td>
-                                        <td>
-                                            {% if mov.tipo == 'EGR' and mov.categoria == 'BAS' %}
-                                                <span class="badge bg-secondary">General</span>
-                                            {% else %}
-                                                {{ mov.torre }}
-                                            {% endif %}
-                                        </td>
-                                        <td>{{ mov.saldo }}</td>
-                                    </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                {% else %}
-                    <div class="alert alert-info" role="alert">No se encontraron movimientos financieros con los filtros aplicados.</div>
-                {% endif %}
-                {# --- BLOQUE DE BOTONES DE ACCIÓN (SOLO LDT/LDG) --- #}
-                {% if request.user.is_authenticated and request.user.rol == 'LDT' or request.user.is_authenticated and request.user.rol == 'LDG' %}
-                    <div class="action-buttons-container">
-                        <h3 class="action-buttons-title">
-                            <i class="fas fa-screwdriver-wrench"></i>
-                            Acciones de Administración ({{ request.user.tower.nombre|default:'Sin Torre' }})
-                        </h3>
-                        <div class="action-buttons-grid">
-                            {% comment %} Lógica para Condominio (categoria_slug='condominio') {% endcomment %}
-                            {% if categoria_slug == 'condominio' %}
-                                {% if request.user.rol == 'LDT' %}
-                                    <a href="{% url 'lider_torre:ingresar_condominio' %}"
-                                       class="action-button btn-ingreso">
-                                        <i class="fas fa-plus-circle"></i>
-                                        Registrar Ingreso Condominio
-                                    </a>
-                                    <a href="{% url 'lider_torre:egresar_condominio' %}"
-                                       class="action-button btn-egreso">
-                                        <i class="fas fa-minus-circle"></i>
-                                        Registrar Egreso Condominio
-                                    </a>
-                                {% elif request.user.rol == 'LDG' %}
-                                    {# Líder General usa las URLs General que le permiten seleccionar Torre #}
-                                    <a href="{% url 'lider_general:ingresar_condominio_general' %}"
-                                       class="action-button btn-ingreso">
-                                        <i class="fas fa-plus-circle"></i>
-                                        Registrar Ingreso Condominio
-                                    </a>
-                                    <a href="{% url 'lider_general:egresar_condominio_general' %}"
-                                       class="action-button btn-egreso">
-                                        <i class="fas fa-minus-circle"></i>
-                                        Registrar Egreso Condominio
-                                    </a>
-                                {% endif %}
-                                {% comment %} Lógica para Cuarto de Basura (categoria_slug='basura') {% endcomment %}
-                            {% elif categoria_slug == 'basura' %}
-                                {% if request.user.rol == 'LDT' %}
-                                    <a href="{% url 'lider_torre:ingresar_basura' %}"
-                                       class="action-button btn-ingreso">
-                                        <i class="fas fa-plus-circle"></i>
-                                        Registrar Ingreso Cuarto de Basura
-                                    </a>
-                                {% elif request.user.rol == 'LDG' %}
-                                    {# LDG usa el formulario General para Ingreso Basura y selecciona la Torre #}
-                                    <a href="{% url 'lider_general:ingresar_basura_general' %}"
-                                       class="action-button btn-ingreso">
-                                        <i class="fas fa-plus-circle"></i>
-                                        Registrar Ingreso Cuarto de Basura
-                                    </a>
-                                {% endif %}
-                                {# EGRESO DE BASURA: solo si es LDG o tiene rol secundario de Admin Basura #}
-                                {% if request.user.rol == 'LDG' or request.user.es_admin_basura %}
-                                    {# Admin Basura usa el formulario General para egresar de cualquier torre #}
-                                    <a href="{% url 'lider_general:egresar_basura_general' %}"
-                                       class="action-button btn-egreso">
-                                        <i class="fas fa-minus-circle"></i>
-                                        Registrar Egreso Cuarto de Basura
-                                    </a>
-                                    <a href="{% url 'lider_general:estado_solvencia_basura' %}"
-                                       class="action-button btn-ingreso">
-                                        <i class="fas fa-clipboard-list"></i>
-                                        Ver Tablero de Solvencia
-                                    </a>
-                                {% else %}
-                                    {# Deshabilitado para LDT sin rol de Admin Basura #}
-                                    <a href="#"
-                                       class="action-button btn-egreso btn-disabled"
-                                       title="Esta acción requiere permiso de Líder General o Administrador de Cuarto de Basura.">
-                                        <i class="fas fa-minus-circle"></i>
-                                        Registrar Egreso Cuarto de Basura
-                                    </a>
-                                {% endif %}
-                            {% else %}
-                                <p class="text-warning small">Selecciona una categoría para ver las acciones disponibles.</p>
-                            {% endif %}
-                        </div>
-                    </div>
-                {% endif %}
-                {# --- FIN BLOQUE DE BOTONES DE ACCIÓN --- #}
+        </div>
+        <a v-if="sidebar.path == '/finanzas/basura/'"
+           href="{% url 'lider_general:inventario_lista' %}"
+           class="btn btn-ghost h-fit w-fit">
+            <svg xmlns="http://www.w3.org/2000/svg"
+                 class="size-4"
+                 viewBox="0 0 256 256">
+                <!-- Icon from Phosphor by Phosphor Icons - https://github.com/phosphor-icons/core/blob/main/LICENSE -->
+                <path fill="currentColor" d="M128 24c-53.83 0-96 24.6-96 56v96c0 31.4 42.17 56 96 56s96-24.6 96-56V80c0-31.4-42.17-56-96-56m80 104c0 9.62-7.88 19.43-21.61 26.92C170.93 163.35 150.19 168 128 168s-42.93-4.65-58.39-13.08C55.88 147.43 48 137.62 48 128v-16.64c17.06 15 46.23 24.64 80 24.64s62.94-9.68 80-24.64ZM69.61 53.08C85.07 44.65 105.81 40 128 40s42.93 4.65 58.39 13.08C200.12 60.57 208 70.38 208 80s-7.88 19.43-21.61 26.92C170.93 115.35 150.19 120 128 120s-42.93-4.65-58.39-13.08C55.88 99.43 48 89.62 48 80s7.88-19.43 21.61-26.92m116.78 149.84C170.93 211.35 150.19 216 128 216s-42.93-4.65-58.39-13.08C55.88 195.43 48 185.62 48 176v-16.64c17.06 15 46.23 24.64 80 24.64s62.94-9.68 80-24.64V176c0 9.62-7.88 19.43-21.61 26.92" />
+            </svg>
+            Ver Inventario de Basura
+        </a>
+        <div class="flex flex-wrap items-center gap-1">
+            <a href="{% url 'ver_finanzas' categoria_slug=categoria_slug %}"
+               class="btn btn-ghost h-fit w-fit">
+                <svg xmlns="http://www.w3.org/2000/svg"
+                     class="size-4"
+                     viewBox="0 0 256 256">
+                    <!-- Icon from Phosphor by Phosphor Icons - https://github.com/phosphor-icons/core/blob/main/LICENSE -->
+                    <path fill="currentColor" d="M224 128a96 96 0 0 1-94.71 96H128a95.38 95.38 0 0 1-65.9-26.2a8 8 0 0 1 11-11.63a80 80 0 1 0-1.67-114.78a3 3 0 0 1-.26.25l-10.54 9.65l17 17A8 8 0 0 1 72 112H24a8 8 0 0 1-8-8V56a8 8 0 0 1 13.66-5.7L49.31 70l10.94-10A96 96 0 0 1 224 128" />
+                </svg>
+                Limpiar Filtros
+            </a>
+            <a href="{% url 'descargar_pdf' categoria_slug=categoria_slug %}?{{ request.GET.urlencode }}"
+               class="btn btn-dash btn-secondary h-fit w-fit">
+                <svg xmlns="http://www.w3.org/2000/svg"
+                     class="size-4"
+                     viewBox="0 0 256 256">
+                    <!-- Icon from Phosphor by Phosphor Icons - https://github.com/phosphor-icons/core/blob/main/LICENSE -->
+                    <path fill="currentColor" d="M224 144v64a8 8 0 0 1-8 8H40a8 8 0 0 1-8-8v-64a8 8 0 0 1 16 0v56h160v-56a8 8 0 0 1 16 0m-101.66 5.66a8 8 0 0 0 11.32 0l40-40a8 8 0 0 0-11.32-11.32L136 124.69V32a8 8 0 0 0-16 0v92.69L93.66 98.34a8 8 0 0 0-11.32 11.32Z" />
+                </svg>
+                Descargar PDF
+            </a>
+        </div>
+    </div>
+{% endblock toolbaritems %}
+{% block content %}
+    <div v-scope
+         @vue:mounted="navbar.change('{{ titulo }}'); navbar.toolbarOpen()"
+         class="min-h-svh max-w-screen overflow-hidden p-8 pb-16 flex flex-col justify-stretch items-start ">
+        {% if movimientos %}
+            <div class="w-20 static">
+                <table class=" static table">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Tasa BCV</th>
+                            <th>Descripción</th>
+                            <th>Ingresos (Bs)</th>
+                            <th>Egresos (Bs)</th>
+                            <th>Torre</th>
+                            <th>Saldo Acumulado (Bs)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for mov in movimientos %}
+                            <tr>
+                                <td>{{ mov.fecha|date:"Y-m-d" }}</td>
+                                <td>{{ mov.tasa_bcv|floatformat:2 }}</td>
+                                <td>{{ mov.descripcion }}</td>
+                                <td class="text-success">{{ mov.ingreso|default_if_none:"" }}</td>
+                                <td class="text-danger">{{ mov.egreso|default_if_none:"" }}</td>
+                                <td>
+                                    {% if mov.tipo == 'EGR' and mov.categoria == 'BAS' %}
+                                        <span class="badge bg-secondary">General</span>
+                                    {% else %}
+                                        {{ mov.torre }}
+                                    {% endif %}
+                                </td>
+                                <td>{{ mov.saldo }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
-        {% endblock content %}
+        {% else %}
+            <div class="flex justify-center items-center w-full ">
+                <div role="alert" class="alert alert-warning alert-outline ">
+                    <span class="text-lg">No se encontraron movimientos financieros
+                        <svg xmlns="http://www.w3.org/2000/svg"
+                             class="size-6 inline-block"
+                             viewBox="0 0 16 16">
+                            <!-- Icon from Rivet Icons by Indiana University - https://github.com/indiana-university/rivet-icons/blob/develop/LICENSE -->
+                            <g fill="currentColor">
+                            <path d="M8 2a6 6 0 1 0 0 12A6 6 0 0 0 8 2M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8" />
+                            <path d="M11 6a1 1 0 1 1-2 0a1 1 0 0 1 2 0M7 6a1 1 0 1 1-2 0a1 1 0 0 1 2 0m2.742 5.152a1 1 0 0 0 1.526-1.292l-.001-.002l-.001-.001l-.003-.004l-.007-.008l-.018-.02a3 3 0 0 0-.225-.224a4 4 0 0 0-.623-.458A4.6 4.6 0 0 0 8 8.5a4.6 4.6 0 0 0-2.39.643a4 4 0 0 0-.795.624l-.053.057l-.018.021l-.007.008l-.003.004v.001l-.002.001a1 1 0 0 0 1.526 1.293l.005-.005q.014-.016.062-.06a2 2 0 0 1 .314-.23A2.6 2.6 0 0 1 8 10.5c.624 0 1.073.185 1.36.357a2 2 0 0 1 .382.295" />
+                            </g>
+                        </svg>
+                    </span>
+                </div>
+            </div>
+        {% endif %}
+        {# --- BLOQUE DE BOTONES DE ACCIÓN (SOLO LDT/LDG) --- #}
+        {% if request.user.is_authenticated and request.user.rol == 'LDT' or request.user.is_authenticated and request.user.rol == 'LDG' %}
+            <div class="action-buttons-container">
+                <h3 class="action-buttons-title">
+                    <i class="fas fa-screwdriver-wrench"></i>
+                    Acciones de Administración ({{ request.user.tower.nombre|default:'Sin Torre' }})
+                </h3>
+                <div class="action-buttons-grid">
+                    {% comment %} Lógica para Condominio (categoria_slug='condominio') {% endcomment %}
+                    {% if categoria_slug == 'condominio' %}
+                        {% if request.user.rol == 'LDT' %}
+                            <a href="{% url 'lider_torre:ingresar_condominio' %}"
+                               class="action-button btn-ingreso">
+                                <i class="fas fa-plus-circle"></i>
+                                Registrar Ingreso Condominio
+                            </a>
+                            <a href="{% url 'lider_torre:egresar_condominio' %}"
+                               class="action-button btn-egreso">
+                                <i class="fas fa-minus-circle"></i>
+                                Registrar Egreso Condominio
+                            </a>
+                        {% elif request.user.rol == 'LDG' %}
+                            {# Líder General usa las URLs General que le permiten seleccionar Torre #}
+                            <a href="{% url 'lider_general:ingresar_condominio_general' %}"
+                               class="action-button btn-ingreso">
+                                <i class="fas fa-plus-circle"></i>
+                                Registrar Ingreso Condominio
+                            </a>
+                            <a href="{% url 'lider_general:egresar_condominio_general' %}"
+                               class="action-button btn-egreso">
+                                <i class="fas fa-minus-circle"></i>
+                                Registrar Egreso Condominio
+                            </a>
+                        {% endif %}
+                        {% comment %} Lógica para Cuarto de Basura (categoria_slug='basura') {% endcomment %}
+                    {% elif categoria_slug == 'basura' %}
+                        {% if request.user.rol == 'LDT' %}
+                            <a href="{% url 'lider_torre:ingresar_basura' %}"
+                               class="action-button btn-ingreso">
+                                <i class="fas fa-plus-circle"></i>
+                                Registrar Ingreso Cuarto de Basura
+                            </a>
+                        {% elif request.user.rol == 'LDG' %}
+                            {# LDG usa el formulario General para Ingreso Basura y selecciona la Torre #}
+                            <a href="{% url 'lider_general:ingresar_basura_general' %}"
+                               class="action-button btn-ingreso">
+                                <i class="fas fa-plus-circle"></i>
+                                Registrar Ingreso Cuarto de Basura
+                            </a>
+                        {% endif %}
+                        {# EGRESO DE BASURA: solo si es LDG o tiene rol secundario de Admin Basura #}
+                        {% if request.user.rol == 'LDG' or request.user.es_admin_basura %}
+                            {# Admin Basura usa el formulario General para egresar de cualquier torre #}
+                            <a href="{% url 'lider_general:egresar_basura_general' %}"
+                               class="action-button btn-egreso">
+                                <i class="fas fa-minus-circle"></i>
+                                Registrar Egreso Cuarto de Basura
+                            </a>
+                            <a href="{% url 'lider_general:estado_solvencia_basura' %}"
+                               class="action-button btn-ingreso">
+                                <i class="fas fa-clipboard-list"></i>
+                                Ver Tablero de Solvencia
+                            </a>
+                        {% else %}
+                            {# Deshabilitado para LDT sin rol de Admin Basura #}
+                            <a href="#"
+                               class="action-button btn-egreso btn-disabled"
+                               title="Esta acción requiere permiso de Líder General o Administrador de Cuarto de Basura.">
+                                <i class="fas fa-minus-circle"></i>
+                                Registrar Egreso Cuarto de Basura
+                            </a>
+                        {% endif %}
+                    {% else %}
+                        <p class="text-warning small">Selecciona una categoría para ver las acciones disponibles.</p>
+                    {% endif %}
+                </div>
+            </div>
+        {% endif %}
+        {# --- FIN BLOQUE DE BOTONES DE ACCIÓN --- #}
+    </div>
+{% endblock content %}
