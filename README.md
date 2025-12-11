@@ -100,6 +100,7 @@ y para correr el servidor con tailwind
 
 python manage.py tailwind runserver
 
+manage.py check --deploy
 build:
 
 python manage.py tailwind build
