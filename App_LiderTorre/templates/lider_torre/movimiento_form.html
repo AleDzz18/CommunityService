@@ -1,95 +1,122 @@
-{% extends 'layouts/complete.html' %}
-{% load static %}
-
-{% block title %}{{ titulo }}{% endblock %}
-
+{% extends "layouts/complete.html" %}
 {% block content %}
-<div class="dashboard-container">
-    <h2>{{ titulo }}</h2>
-    <hr>
-    
-    {% if messages %}
-        <div class="mensajes-django-container">
-            {% for message in messages %}
-                <div class="alert alert-{{ message.tags }}">{{ message }}</div>
-            {% endfor %}
-        </div>
-    {% endif %}
-
-    <form method="post">
-        {% csrf_token %}
-
-        {% if form.non_field_errors %}
-            <div class="alert alert-danger">
-                {% for error in form.non_field_errors %}
-                    <p>{{ error }}</p>
-                {% endfor %}
-            </div>
-        {% endif %}
-        
-        {# Utilizamos la cuadrícula responsive row g-3 y col-md-6/12 #}
-        <div class="row g-3">
-
-            {% if form.tower %}
-                <div class="col-md-12">
-                    <div class="form-group">
-                        {% if form.tower.field.required %}
-                            <label for="{{ form.tower.id_for_label }}" class="form-label">{{ form.tower.label }}</label>
-                            {{ form.tower }}
-                            {% for error in form.tower.errors %}
-                                <div class="text-danger small">{{ error }}</div>
-                            {% endfor %}
-                            {% if form.tower.help_text %}
-                                <small class="form-text text-muted">{{ form.tower.help_text }}</small>
-                            {% endif %}
+    <script type="module" src="https://unpkg.com/cally"></script>
+    <div v-scope="{datepicker: false, date: '', desc:''}"
+         @vue:mounted="navbar.change('Transacción')"
+         class="min-h-[calc(100svh-4rem)] max-w-screen p-8 flex flex-col justify-center items-center ">
+        <div class="card card-border bg-base-100 ">
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="flex flex-col justify-center items-center [&_input,select,textarea,button.input]:w-64">
+                        {% if form.tower %}
+                            <div>
+                                <label for="{{ form.tower.id_for_label }}"
+                                       class="block text-sm/6 font-medium text-primary">{{ form.tower.label }}</label>
+                                <div class="mt-2">
+                                    <select name="{{ form.tower.html_name }}" id="{{ form.tower.id_for_label }}" value="{{ form.tower.value|default:'' }}" required class="select block rounded-md w-48 bg-white px-3 py-1.5 text-base text-primary outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-accent sm:text-sm/6 {% if form.tower.errors %}input-error{% endif %}"">
+                                        {% for value, label in form.tower.field.choices %}<option value='{{ value }}'>{{ label }}</option>{% endfor %}
+                                    </select>
+                                </div>
+                                {% if form.tower.errors %}<div class=" label text-error text-sm">{{ form.tower.errors }}</div>{% endif %}
+                            </div>
                         {% endif %}
-                    </div>
-                </div>
-            {% endif %}
-            
-            {# Fecha y Descripción (Ancho completo en todas las pantallas) #}
-            {% for field in form %}
-                {% if field.name == 'fecha' or field.name == 'descripcion' %}
-                    <div class="col-md-12">
-                        <div class="form-group">
-                            <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
-                            {{ field }}
-                            {% for error in field.errors %}
-                                <div class="text-danger small">{{ error }}</div>
-                            {% endfor %}
+                        <div class="flex flex-col">
+                            <label for="{{ form.fecha.id_for_label }}"
+                                   class="block text-sm/6 font-medium text-primary">{{ form.fecha.label }}</label>
+                            <input type="date"
+                                   name="{{ form.fecha.name }}"
+                                   id="{{ formulario.fecha.id_for_label }}"
+                                   :value="date"
+                                   class="hidden">
+                            <div id="{{ form.fecha.id_for_label }}"
+                                 class="dropdown"
+                                 :class="{'dropdown-open': datepicker}">
+                                <button tabindex="0"
+                                        class="input text-start block rounded-md w-48 bg-white px-3 py-1.5 text-base text-primary outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-accent sm:text-sm/6 {% if form.fecha.errors %}input-error{% endif %} "
+                                        @click="datepicker = !datepicker">${date || 'Selecciona fecha'}</button>
+                                <div tabindex="-1"
+                                     class="dropdown-content menu bg-base-100 rounded-box z-1 p-2 shadow-sm">
+                                    <calendar-date class="cally" @change.native="date = $el.value">
+                                    <svg aria-label="Previous"
+                                         class="fill-current size-4"
+                                         slot="previous"
+                                         xmlns="http://www.w3.org/2000/svg"
+                                         viewBox="0 0 24 24">
+                                        <path d="M15.75 19.5 8.25 12l7.5-7.5"></path>
+                                    </svg>
+                                    <svg aria-label="Next"
+                                         class="fill-current size-4"
+                                         slot="next"
+                                         xmlns="http://www.w3.org/2000/svg"
+                                         viewBox="0 0 24 24">
+                                        <path d="m8.25 4.5 7.5 7.5-7.5 7.5"></path>
+                                    </svg>
+                                    <calendar-month></calendar-month>
+                                    </calendar-date>
+                                </div>
+                            </div>
+                            {% if form.fecha.errors %}<div class="label text-error text-sm">{{ form.fecha.errors }}</div>{% endif %}
                         </div>
-                    </div>
-                {% endif %}
-            {% endfor %}
-
-            {# Campo de Tasa BCV y Montos (Mitad de ancho en desktop) #}
-            {% for field in form %}
-                {% if field.name == 'tasa_bcv' or field.name == 'monto_condominio' or field.name == 'monto_basura' %}
-                    <div class="col-md-6">
-                        <div class="form-group">
-                            <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
-                            {{ field }}
-                            {% for error in field.errors %}
-                                <div class="text-danger small">{{ error }}</div>
-                            {% endfor %}
-                            {% if field.help_text %}
-                                <small class="form-text text-muted">{{ field.help_text }}</small>
+                        <div>
+                            <label for="{{ form.descripcion.id_for_label }}"
+                                   class="block text-sm/6 font-medium text-primary">
+                                {{ form.descripcion.label }}
+                            </label>
+                            <div class="mt-2">
+                                <textarea name="{{ form.descripcion.html_name }}"
+                                          id="{{ form.descripcion.id_for_label }}"
+                                          value="{{ form.descripcion.value|default:'' }}"
+                                          required
+                                          placeholder="Se relizo..."
+                                          class="block rounded-md w-48 bg-white px-3 py-1.5 text-base text-primary outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-accent sm:text-sm/6 {% if form.descripcion.errors %}input-error{% endif %}"></textarea>
+                            </div>
+                            {% if form.descripcion.errors %}
+                                <div class="label text-error text-sm">{{ form.descripcion.errors }}</div>
                             {% endif %}
                         </div>
+                        <div>
+                            <label for="{{ form.tasa_bcv.id_for_label }}"
+                                   class="block text-sm/6 font-medium text-primary">{{ form.tasa_bcv.label }}</label>
+                            <div class="mt-2">
+                                <input type="number"
+                                       step="0.01"
+                                       name="{{ form.tasa_bcv.html_name }}"
+                                       id="{{ form.tasa_bcv.id_for_label }}"
+                                       value="{{ form.tasa_bcv.value|default:'' }}"
+                                       required
+                                       placeholder="1234"
+                                       class="block rounded-md w-48 bg-white px-3 py-1.5 text-base text-primary outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-accent sm:text-sm/6 {% if form.tasa_bcv.errors %}input-error{% endif %}" />
+                            </div>
+                            {% if form.tasa_bcv.errors %}<div class="label text-error text-sm">{{ form.tasa_bcv.errors }}</div>{% endif %}
+                        </div>
+                        {% for field in form %}
+                            {% if field.name == 'monto_condominio' or field.name == 'monto_basura' %}
+                                <div>
+                                    <label for="{{ field.id_for_label }}"
+                                           class="block text-sm/6 font-medium text-primary">{{ field.label }}</label>
+                                    <div class="mt-2">
+                                        <input type="number"
+                                               step="0.01"
+                                               name="{{ field.html_name }}"
+                                               id="{{ field.id_for_label }}"
+                                               value="{{ field.value|default:'' }}"
+                                               required
+                                               placeholder="1234"
+                                               class="block rounded-md w-48 bg-white px-3 py-1.5 text-base text-primary outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-accent sm:text-sm/6 {% if field.errors %}input-error{% endif %}" />
+                                    </div>
+                                    {% if field.errors %}<div class="label text-error text-sm">{{ field.errors }}</div>{% endif %}
+                                </div>
+                            {% endif %}
+                        {% endfor %}
+                        <div class="mt-4 flex gap-2 flex-col w-full">
+                            <button type="submit" class="btn btn-accent w-full">Registrar Movimiento</button>
+                            <a href="{{ request.META.HTTP_REFERER }}"
+                               class="btn btn-dash btn-secondary me-2 w-full">Cancelar</a>
+                        </div>
                     </div>
-                {% endif %}
-            {% endfor %}
-
+                </form>
+            </div>
         </div>
-
-        <div class="mt-4">
-            <button type="submit" class="btn btn-primary me-2">
-                <i class="fas fa-save"></i> Registrar Movimiento
-            </button>
-            <a href="{{request.META.HTTP_REFERER}}" class="btn btn-secondary">
-                <i class="fas fa-times"></i> Cancelar
-            </a>
-        </div>
-    </form>
-</div>
+    </div>
 {% endblock %}

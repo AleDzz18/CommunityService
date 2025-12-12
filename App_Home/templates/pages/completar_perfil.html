@@ -128,17 +128,18 @@
                                v-scope="{dchecked: '{{ formulario.es_admin_bombonas.value }}'}"
                                @vue:mounted="if (dchecked != 'False'){ $el.checked = true}" />
                     </div>
-                    <button type="submit"
-                            class="flex mt-8 text-sm/6 font-semibold btn btn-neutral ">
-                        Guardar y
-                        Acceder
-                    </button>
-                    <!-- TODO: acomodar -->
-                    <a href="{% url 'url_cancelar_registro' user_id=usuario.id %}"
-                       class="flex mt-8 text-sm/6 font-semibold btn btn-error"
-                       onclick="return confirm('¿Estás seguro de cancelar el registro? Tu cuenta creada será eliminada permanentemente.');">
-                        Cancelar
-                    </a>
+                    <div class="flex gap-4">
+                        <button type="submit"
+                                class="flex mt-8 text-sm/6 font-semibold btn btn-neutral ">
+                            Guardar y
+                            Acceder
+                        </button>
+                        <a href="{% url 'url_cancelar_registro' user_id=usuario.id %}"
+                           class="flex mt-8 text-sm/6 font-semibold btn btn-error"
+                           @click="confirm('¿Estás seguro de cancelar el registro? Tu cuenta creada será eliminada permanentemente.');">
+                            Cancelar
+                        </a>
+                    </div>
                 </form>
             </div>
         </div>

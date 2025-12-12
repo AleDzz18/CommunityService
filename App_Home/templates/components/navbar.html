@@ -1,4 +1,4 @@
-<navbar v-scope class="navbar glass z-1000 shadow-sm">
+<navbar v-scope class="navbar glass z-1000 shadow-sm max-w-screen">
 <div class="navbar-start">
     <button class="btn btn-ghost btn-circle"
             @click="sidebar.toggle"
@@ -20,11 +20,9 @@
         </label>
     </button>
 </div>
-<div class="navbar-center">
-    <p class="text-xl text-ellipsis">${ navbar.title }</p>
-</div>
-<div class="navbar-end ">
-    <div class="dropdown dropdown-end">
+<p class="navbar-center md:text-xl line-clamp-1 max-w-[50vw]">${ navbar.title }</p>
+<div class="navbar-end">
+    <div class="dropdown dropdown-end ">
         <div tabindex="0" role="button" class="btn btn-ghost flex m-1">
             <svg class="size-7"
                  xmlns="http://www.w3.org/2000/svg"
