@@ -1,17 +1,25 @@
 {
     "builds": [
         {
+            "src": "build_files.sh",
+            "use": "@vercel/static-build",
+            "config": {
+                "distDir": "staticfiles"
+            }
+        },
+        {
             "src": "Community_Service/wsgi.py",
             "use": "@vercel/python"
         }
     ],
     "routes": [
         {
+            "src": "/static/(.*)",
+            "dest": "/$1"
+        },
+        {
             "src": "/(.*)",
             "dest": "Community_Service/wsgi.py"
         }
-    ],
-    "buildCommand": "python manage.py tailwind build && python manage.py collectstatic --noinput",
-    "installCommand": "pip install -r requirements.txt",
-    "outputDirectory": "staticfiles"
+    ]
 }
