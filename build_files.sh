@@ -1,16 +1,22 @@
 # build_files.sh
 echo "Iniciando Build..."
 
-# 1. Instalar dependencias
-python3.9 -m pip install -r requirements.txt
+# 1. Crear y activar entorno virtual (Esto soluciona el error de pip/django)
+python3 -m venv venv
+source venv/bin/activate
 
-# 2. Construir Tailwind (Descarga el binario y compila)
+# 2. Instalar dependencias dentro del entorno virtual
+echo "Instalando dependencias..."
+pip install -r requirements.txt
+
+# 3. Construir Tailwind
+# Nota: django-tailwind buscará npm, que ya está en Vercel
 echo "Construyendo Tailwind..."
-python3.9 manage.py tailwind install --no-input
-python3.9 manage.py tailwind build --no-input
+python manage.py tailwind install --no-input
+python manage.py tailwind build --no-input
 
-# 3. Recolectar estáticos
+# 4. Recolectar estáticos
 echo "Recolectando estáticos..."
-python3.9 manage.py collectstatic --noinput --clear
+python manage.py collectstatic --noinput --clear
 
 echo "Build Finalizado."
