@@ -6,7 +6,7 @@
          class="min-h-[calc(100svh-4rem)] max-w-screen p-8 flex flex-col justify-center items-center ">
         <div class="card card-border bg-base-100 ">
             <div class="card-body">
-                <form method="post">
+                <form method="post" @submit.prevent="formHandler.handleSubmit($el)">
                     {% csrf_token %}
                     <div class="flex flex-col justify-center items-center [&_input,select,textarea,button.input]:w-64">
                         {% if form.tower %}
@@ -110,8 +110,13 @@
                             {% endif %}
                         {% endfor %}
                         <div class="mt-4 flex gap-2 flex-col w-full">
-                            <button type="submit" class="btn btn-accent w-full">Registrar Movimiento</button>
-                            <a href="{{ request.META.HTTP_REFERER }}"
+                            <button type="submit"
+                                    :disabled="formHandler.loading"
+                                    class="btn btn-accent w-full">
+                                <span v-if="formHandler.loading" class="loading loading-spinner"></span> Registrar Movimiento
+                            </button>
+                            <a href="{% if 'condominio' in request.path %} {% url 'ver_finanzas' categoria_slug='condominio' %} {% elif 'basura' in request.path %} {% url 'ver_finanzas' categoria_slug='basura' %} {% else %} {% url 'url_index' %} {% endif %}"
+                               :class="{'pointer-events-none btn-disabled cursor-not-allowed': formHandler.loading}"
                                class="btn btn-dash btn-secondary me-2 w-full">Cancelar</a>
                         </div>
                     </div>

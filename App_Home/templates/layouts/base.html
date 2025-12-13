@@ -16,9 +16,8 @@
         <!-- Estilos  -->
         {% tailwind_css %}
         <!-- scipts -->
-        <script src="{% static 'js/scripts-login.js' %}" defer></script>
-        <script src="{% static 'js/scripts-HD.js' %}" defer></script>
         <script src="{% static 'js/autoReload.js' %}" defer></script>
+        <!-- tristemente no puedo mover esto a un modulo js pq hago uso de algunas funciones de django -->
         <script type="module">
         import { createApp, reactive } from 'https://unpkg.com/petite-vue?module'
 
@@ -43,11 +42,28 @@
         const navbar = reactive({
             title: 'Administración',
             toolbarShow: false,
-            toolbarOpen(){
+            toolbarOpen() {
                 this.toolbarShow = true
             },
             change(value) {
                 this.title = value
+            }
+        })
+
+        const formHandler = reactive({
+            loading: false,
+            handleSubmit(formElement){
+                if (this.loading) {
+                    return;
+                }
+                
+                console.log('get')
+                this.loading = true;
+
+                setTimeout(() => { 
+                    formElement.submit(); 
+                    console.log('post')
+                }, 10);
             }
         })
 
@@ -144,6 +160,7 @@
             navbar,
             AlertComponent,
             alertsManager,
+            formHandler
         }).mount()
         </script>
         <template id="alert-template">
@@ -151,7 +168,7 @@
                  :key="id"
                  role="alert"
                  :class="{ 'opacity-100 translate-y-0': isVisible, 'opacity-0 translate-y-4': !isVisible, [modeClass]: true }"
-                 class=" alert alert-soft shadow-lg transition-all duration-500 ease-out flex flex-col gap-2 p-3 w-full max-w-md ">
+                 class=" alert alert-soft shadow-lg transition-all duration-500 ease-out flex flex-col gap-2 p-3 w-fit max-w-md ">
                 <div class="flex justify-between items-start">
                     <span>${message}</span>
                     <button @click="closeManually" class="btn btn-xs btn-circle btn-ghost">✕</button>
@@ -163,18 +180,21 @@
             </div>
         </template>
     </head>
+    {% block modal %}
+    {% endblock modal %}
     <body class="font-outfit max-w-screen"
           {% block body_attributes %}
           {% endblock body_attributes %}>
         {% block main %}
         {% endblock main %}
-        <div class="fixed flex flex-col gap-2 bottom-5 right-5 z-50 items-end"
+        <div class="fixed flex flex-col gap-2 bottom-5 right-5 z-50 pl-5 items-end"
              v-scope
              @vue:mounted=" {% if messages %} {% for message in messages %} alertsManager.createAlert('{{ message.message|escapejs }}', 6000, '{{ message.tags|default:'info' }}' ); {% endfor %} {% endif %} ">
             <div v-for="alert in alertsManager.alerts" :key="alert.id" v-scope="alert"></div>
             <div class="hidden">
                 <span class="alert-info alert-success alert-warning alert-error alert-soft"></span>
                 <span class="progress-info progress-success progress-warning progress-error progress-soft"></span>
+                <span class="cursor-not-allowed btn-disabled loading loading-spinner"></span>
             </div>
         </div>
     </body>

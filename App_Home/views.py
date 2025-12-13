@@ -402,7 +402,14 @@ def ver_ingresos_egresos(request, categoria_slug):
 
     # Filtro por torre
     torre_id = request.GET.get("torre")
-    if torre_id and torre_id.isdigit():
+    if torre_id is None:
+        user_tower_id = getattr(request.user, "tower_id", None)
+        if user_tower_id:
+            movimientos_query = movimientos_query.filter(tower__id=int(user_tower_id))
+            torre_id = str(user_tower_id)
+        else:
+            torre_id = "0"
+    elif torre_id is not None and torre_id.isdigit() and torre_id != "0":
         movimientos_query = movimientos_query.filter(tower__id=int(torre_id))
 
     # -----------------------------------------------------------

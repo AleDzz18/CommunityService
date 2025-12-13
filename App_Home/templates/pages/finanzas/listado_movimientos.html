@@ -1,18 +1,21 @@
 {% extends "layouts/complete.html" %}
 {% block toolbaritems %}
     <script type="module" src="https://unpkg.com/cally"></script>
-    <div v-scope="{ tower: '{{ torre_seleccionada_id|default:'' }}', date: '', startDate: '{{ filtro_form.fecha_inicio.value|default:'' }}', endDate: '{{ filtro_form.fecha_fin.value|default:'' }}', justStart: false, justEnd: false, ranges : [ { label: 'Ultimos 7 dias', days: 7 }, { label: 'Ultimos 14 dias', days: 14 }, { label: 'Ultimos 30 dias', days: 30 }, { label: 'Ultimos 3 meses', months: 3 }, { label: 'Ultimos 6 meses', months: 6 }, { label: 'Ultimo año', years: 1 } ], setDate(range){ if (range) { const endDate = new Date(); const startDate = new Date(endDate); if (range.days) { startDate.setDate(startDate.getDate() - range.days) } else if (range.months) { startDate.setMonth(startDate.getMonth() - range.months) } else if (range.years) {startDate.setFullYear(startDate.getFullYear() - range.years)} this.startDate = startDate.toISOString().slice(0, 10); this.endDate = endDate.toISOString().slice(0, 10); } else if (this.justEnd){ this.startDate = ''; this.endDate = this.date.split('/')[1]; } else if (this.justStart){ this.startDate = this.date.split('/')[0]; this.endDate = ''; } else { this.startDate = this.date.split('/')[0]; this.endDate = this.date.split('/')[1]; } this.get(); }, formatDate(){ if (!this.startDate && !this.endDate) return 'Fecha'; return `${this.startDate || 'X'} hasta ${this.endDate || 'X'}`; },setSelection(choice) { this.justStart = choice == 'start'; this.justEnd = choice == 'end'; }, get() { const data = { 'torre': this.tower, 'fecha_inicio': this.startDate, 'fecha_fin': this.endDate }; const query = new URLSearchParams(data).toString(); window.location.href = '{% url 'ver_finanzas' categoria_slug=categoria_slug %}' + '?' + query;} }"
-         class="flex items-center justify-between w-full flex-wrap">
+    <div v-scope="{ tower: '{{ torre_seleccionada_id|default:'0' }}', date: '', startDate: '{{ filtro_form.fecha_inicio.value|default:'' }}', endDate: '{{ filtro_form.fecha_fin.value|default:'' }}', justStart: false, justEnd: false, ranges : [ { label: 'Ultimos 7 dias', days: 7 }, { label: 'Ultimos 14 dias', days: 14 }, { label: 'Ultimos 30 dias', days: 30 }, { label: 'Ultimos 3 meses', months: 3 }, { label: 'Ultimos 6 meses', months: 6 }, { label: 'Ultimo año', years: 1 } ], setDate(range){ if (range) { const endDate = new Date(); const startDate = new Date(endDate); if (range.days) { startDate.setDate(startDate.getDate() - range.days) } else if (range.months) { startDate.setMonth(startDate.getMonth() - range.months) } else if (range.years) {startDate.setFullYear(startDate.getFullYear() - range.years)} this.startDate = startDate.toISOString().slice(0, 10); this.endDate = endDate.toISOString().slice(0, 10); } else if (this.justEnd){ this.startDate = ''; this.endDate = this.date.split('/')[1]; } else if (this.justStart){ this.startDate = this.date.split('/')[0]; this.endDate = ''; } else { this.startDate = this.date.split('/')[0]; this.endDate = this.date.split('/')[1]; } this.get(); }, formatDate(){ if (!this.startDate && !this.endDate) return 'Fecha'; return `${this.startDate || 'X'} hasta ${this.endDate || 'X'}`; },setSelection(choice) { this.justStart = choice == 'start'; this.justEnd = choice == 'end'; }, get() { const data = { 'torre': this.tower, 'fecha_inicio': this.startDate, 'fecha_fin': this.endDate }; const query = new URLSearchParams(data).toString(); window.location.href = '{% url 'ver_finanzas' categoria_slug=categoria_slug %}' + '?' + query;} }"
+         class="flex items-center justify-between w-full flex-wrap gap-1">
         <div>
             <select v-model="tower"
                     class="select select-ghost h-fit w-fit"
                     @change="get()">
-                <option value="" selected>Todas las Torres</option>
+                <option value="0">Todas las Torres</option>
                 {% for torre in torres %}<option value="{{ torre.id }}">Torre {{ torre.nombre }}</option>{% endfor %}
             </select>
-            <div class="dropdown">
-                <div tabindex="0" role="button" class="btn btn-ghost m-1 h-fit w-fit">
-                    <span class="inline-block">${formatDate()}</span>
+            <div class="dropdown w-full lg:w-fit lg:dropdown-start"
+                 :class="{'dropdown-start': !date, 'dropdown-center': date}">
+                <div tabindex="0"
+                     role="button"
+                     class="btn btn-ghost mx-1 h-fit w-full lg:w-fit flex justify-start ">
+                    <span class="inline-block ">${formatDate()}</span>
                     <svg xmlns="http://www.w3.org/2000/svg"
                          class="size-2.5 inline-block"
                          viewBox="0 0 256 256">
@@ -20,13 +23,13 @@
                         <path fill="currentColor" d="m213.66 101.66l-80 80a8 8 0 0 1-11.32 0l-80-80A8 8 0 0 1 48 88h160a8 8 0 0 1 5.66 13.66" />
                     </svg>
                 </div>
-                <div tabindex="0"
-                     class="dropdown-content card bg-base-100 z-1 w-fit shadow-md">
-                    <div class="card-body flex flex-row justify-center items-center">
-                        <div class="min-w-32 flex flex-col justify-stretch">
+                <div tabindex="-1"
+                     class="dropdown-content card bg-base-100 z-1 w-fit shadow-md ">
+                    <div class="card-body flex flex-col lg:flex-row justify-center items-center">
+                        <div class="min-w-32 flex flex-row flex-wrap lg:flex-col justify-stretch w-full">
                             <button v-for="(range, index) in ranges"
                                     :key="index"
-                                    class="btn btn-ghost rounded-none px-4"
+                                    class="btn btn-ghost rounded-none px-4 w-fit lg:w-full"
                                     @click="setDate(range)">${range.label}</button>
                         </div>
                         <div class="divider divider-horizontal"></div>
@@ -65,9 +68,9 @@
                                  viewBox="0 0 24 24">
                                 <path fill="currentColor" d="m8.25 4.5 7.5 7.5-7.5 7.5"></path>
                             </svg>
-                            <div class=" flex gap-4 justify-center flex-col md:flex-row">
+                            <div class=" flex gap-4 justify-center flex-col lg:flex-row">
                                 <calendar-month></calendar-month>
-                                <calendar-month offset="1"></calendar-month>
+                                <calendar-month class="hidden lg:block" offset="1"></calendar-month>
                             </div>
                             </calendar-range>
                         </div>
@@ -113,10 +116,10 @@
 {% block content %}
     <div v-scope
          @vue:mounted="navbar.change('{{ titulo }}'); navbar.toolbarOpen()"
-         class="min-h-[calc(100svh-12rem)] max-w-screen overflow-hidden p-8 pb-16 flex flex-col justify-stretch items-start ">
+         class="min-h-[calc(100svh-8rem)] max-w-screen overflow-hidden p-8 flex flex-col justify-stretch items-start ">
         {% if movimientos %}
             <div class="overflow-x-auto w-full max-h-[calc(100svh-12rem)] rounded-box border border-base-content/5 bg-base-100">
-                <table class="table table-sm md:table-md table-pin-rows table-zebra">
+                <table class="table table-sm lg:table-md table-pin-rows table-zebra">
                     <thead>
                         <tr>
                             <th>Fecha</th>

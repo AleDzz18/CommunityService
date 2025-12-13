@@ -33,6 +33,8 @@ DEBUG = os.environ.get("DEBUG", "False").lower() == "true"
 ALLOWED_HOSTS = [
     "localhost",
     "127.0.0.1",
+    # Agrega tu IP local
+    "192.168.0.102",
     ".vercel.app",
 ]
 
