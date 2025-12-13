@@ -867,7 +867,7 @@ def handler500(request):
 
 
 class RequestResetCodeView(FormView):
-    template_name = "registration/request_reset_code_form.html"
+    template_name = "pages/registration/request_reset_code_form.html"
     form_class = CustomPasswordResetForm  # Usa CustomPasswordResetForm aquí
     success_url = reverse_lazy("reset_code_sent")
 
@@ -896,10 +896,10 @@ class RequestResetCodeView(FormView):
             }
             subject = "Tu código de restablecimiento de contraseña"
             email_html_message = render_to_string(
-                "registration/reset_code_email.html", context
+                "pages/registration/reset_code_email.html", context
             )
             email_plain_message = render_to_string(
-                "registration/reset_code_email.txt", context
+                "pages/registration/reset_code_email.txt", context
             )
 
             msg = EmailMultiAlternatives(
@@ -920,11 +920,11 @@ class RequestResetCodeView(FormView):
 
 
 def reset_code_sent(request):
-    return render(request, "registration/reset_code_sent.html")
+    return render(request, "pages/registration/reset_code_sent.html")
 
 
 class VerifyResetCodeView(FormView):
-    template_name = "registration/verify_reset_code_form.html"
+    template_name = "pages/registration/verify_reset_code_form.html"
     form_class = VerifyResetCodeForm
     success_url = reverse_lazy("set_new_password")
 
@@ -957,7 +957,7 @@ class VerifyResetCodeView(FormView):
 
 
 class SetNewPasswordView(FormView):
-    template_name = "registration/set_new_password_form.html"
+    template_name = "pages/registration/set_new_password_form.html"
     form_class = SetPasswordForm
     success_url = reverse_lazy("password_reset_complete_custom")
 
@@ -1030,4 +1030,4 @@ class SetNewPasswordView(FormView):
 class PasswordResetCompleteCustomView(TemplateView):
     """Muestra un mensaje de éxito después de que la contraseña ha sido cambiada."""
 
-    template_name = "registration/password_reset_complete_custom.html"  # Nombre de tu nueva plantilla
+    template_name = "pages/registration/password_reset_complete_custom.html"  # Nombre de tu nueva plantilla

@@ -1,38 +1,42 @@
 {% extends 'layouts/base.html' %}
-{% load static %}
-
-{% block title %}Solicitar Código{% endblock %}
-
-{% block content %}
-<div class="container">
-    <div class="login-box">
-        <h2>Restablecer Contraseña</h2>
-        <div class="form-container">
-            <p class="message-text">Introduce tu dirección de correo electrónico para recibir un código de verificación.</p> 
-            
-            <form method="POST">
-                {% csrf_token %} 
-                
-                {% if messages %}
-                    {% for message in messages %}
-                        <p class="{% if message.tags %}alert alert-{{ message.tags }}{% endif %}">{{ message }}</p> 
-                    {% endfor %}
-                {% endif %}
-
-                <div class="input-box">
-                    {{ form.email.errors }}
-                    <input type="email" name="email" id="id_email" required 
-                           placeholder=" " 
-                           value="{% if form.email.value %}{{ form.email.value }}{% endif %}">
-                    <label for="id_email">Correo Electrónico</label> 
-                </div>
-                
-                <button type="submit" class="btn">Solicitar Código</button>
-                <div class="signup-link">
-                    <a href="{% url 'url_login' %}">Volver al Login</a> 
-                </div>
-            </form>
+{% block main %}
+    <div v-scope
+         class="flex min-h-full flex-col justify-center px-6 py-12 lg:px-8">
+        <div class="flex min-h-full flex-col items-center justify-center px-6 lg:px-8 lg:min-w-2xl">
+            <div class="sm:mx-auto sm:w-full sm:max-w-sm">
+                <h2 class="text-center text-2xl/9 font-bold tracking-tight text-primary">Restablecer contraseña</h2>
+                <h3 class="text-center text-2xl/9 tracking-tight text-primary">Solicitar Código</h3>
+            </div>
+            <div class="mt-10 sm:mx-auto sm:w-full sm:max-w-sm flex flex-col justify-start items-center">
+                <p class="text-center">Introduce tu dirección de correo electrónico para recibir un código de verificación.</p>
+                <form method="post"
+                      @submit.prevent="formHandler.handleSubmit($el)"
+                      class="w-full space-y-6">
+                    {% csrf_token %}
+                    <div class="mt-4">
+                        <input type="email"
+                               name="email"
+                               id="id_email"
+                               value="{{ formulario.email.value|default:'' }}"
+                               required
+                               autocomplete="email"
+                               placeholder="John.Doe@example.com"
+                               class="block rounded-md w-full bg-white px-3 py-1.5 text-base text-primary outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-accent sm:text-sm/6 {% if formulario.email.errors %}input-error{% endif %}" />
+                        {% if formulario.email.errors %}<div class="label text-error text-sm">{{ formulario.email.errors }}</div>{% endif %}
+                    </div>
+                    <div>
+                        <button type="submit"
+                                :disabled="formHandler.loading"
+                                class="flex btn btn-neutral text-sm/6 font-semibold w-full">
+                            <span v-if="formHandler.loading" class="loading loading-spinner"></span>
+                            Solicitar Código
+                        </button>
+                    </div>
+                </form>
+                <div class="divider  w-full"></div>
+                <a class="btn btn-neutral btn-outline w-full"
+                   href="{% url 'url_login' %}">Volver al Login</a>
+            </div>
         </div>
     </div>
-</div>
-{% endblock content %}
+{% endblock main %}
