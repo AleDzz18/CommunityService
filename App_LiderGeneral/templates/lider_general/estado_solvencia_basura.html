@@ -1,92 +1,86 @@
-{% extends 'layouts/complete.html' %}
-{% block title %}Control de Solvencia - Basura{% endblock %}
-
+{% extends "layouts/complete.html" %}
+{% block toolbaritems %}
+    <script type="module" src="https://unpkg.com/cally"></script>
+    <div v-scope="{month: '{{ mes_actual|default:'' }}', year: '{{ anio_actual|default:'' }}' , get() { const data = { 'mes': this.month, 'anio': this.year }; const query = new URLSearchParams(data).toString(); window.location.href = '{% url 'lider_general:estado_solvencia_basura' %}' + '?' + query;} }"
+         class="flex  w-full flex-wrap gap-1">
+        <div>
+            <select v-model="month"
+                    class="select select-ghost h-fit w-fit"
+                    @change="get()">
+                <option disabled>Mes</option>
+                <option value="1">Enero</option>
+                <option value="2">Febrero</option>
+                <option value="3">Marzo</option>
+                <option value="4">Abril</option>
+                <option value="5">Mayo</option>
+                <option value="6">Junio</option>
+                <option value="7">Julio</option>
+                <option value="8">Agosto</option>
+                <option value="9">Septiembre</option>
+                <option value="10">Octubre</option>
+                <option value="11">Noviembre</option>
+                <option value="12">Diciembre</option>
+            </select>
+            <select v-model="year"
+                    class="select select-ghost h-fit w-fit"
+                    @change="get()">
+                <option disabled>Año</option>
+                {% for year in anios_choices %}<option value="{{ year }}">{{ year }}</option>{% endfor %}
+            </select>
+        </div>
+    </div>
+{% endblock toolbaritems %}
 {% block content %}
-<div class="dashboard-container">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2>Control de Pagos Cuarto de Basura</h2>
-        <a href="{% url 'ver_finanzas' categoria_slug='basura' %}" class="btn btn-secondary">
-            <i class="fas fa-arrow-left"></i> Volver al Listado
-        </a>
-    </div>
-    <hr>
-
-    <form method="GET" class="row g-3 mb-4 align-items-end p-3 bg-light rounded border">
-        <div class="col-md-4">
-            <label for="mes" class="form-label fw-bold">Mes</label>
-            <select name="mes" id="mes" class="form-select">
-                <option value="1" {% if mes_actual == 1 %}selected{% endif %}>Enero</option>
-                <option value="2" {% if mes_actual == 2 %}selected{% endif %}>Febrero</option>
-                <option value="3" {% if mes_actual == 3 %}selected{% endif %}>Marzo</option>
-                <option value="4" {% if mes_actual == 4 %}selected{% endif %}>Abril</option>
-                <option value="5" {% if mes_actual == 5 %}selected{% endif %}>Mayo</option>
-                <option value="6" {% if mes_actual == 6 %}selected{% endif %}>Junio</option>
-                <option value="7" {% if mes_actual == 7 %}selected{% endif %}>Julio</option>
-                <option value="8" {% if mes_actual == 8 %}selected{% endif %}>Agosto</option>
-                <option value="9" {% if mes_actual == 9 %}selected{% endif %}>Septiembre</option>
-                <option value="10" {% if mes_actual == 10 %}selected{% endif %}>Octubre</option>
-                <option value="11" {% if mes_actual == 11 %}selected{% endif %}>Noviembre</option>
-                <option value="12" {% if mes_actual == 12 %}selected{% endif %}>Diciembre</option>
-            </select>
+    <div v-scope
+         @vue:mounted="navbar.change('Control de Solvencia - Basura'); navbar.toolbarOpen()"
+         class="min-h-[calc(100svh-4rem)] max-w-screen overflow-hidden p-8 flex flex-col justify-stretch items-start gap-6 ">
+        <div class="flex justify-stretch items-stretch w-full gap-2  flex-row">
+            <a href="{% url 'ver_finanzas' categoria_slug='basura' %}"
+               class="btn btn-neutral flex-1 ">Volver</a>
         </div>
-        <div class="col-md-4">
-            <label for="anio" class="form-label fw-bold">Año</label>
-            <select name="anio" id="anio" class="form-select">
-                {% for year in anios_choices %}
-                    <option value="{{ year }}" {% if anio_actual == year %}selected{% endif %}>{{ year }}</option>
-                {% endfor %}
-            </select>
+        <div role="alert" class="alert alert-info alert-outline ">
+            <span class="text-md ">
+                <svg xmlns="http://www.w3.org/2000/svg"
+                     class="size-5 inline-block"
+                     viewBox="0 0 24 24">
+                    <!-- Icon from Material Symbols by Google - https://github.com/google/material-design-icons/blob/master/LICENSE -->
+                    <path fill="currentColor" d="M11 17h2v-6h-2zm1-8q.425 0 .713-.288T13 8t-.288-.712T12 7t-.712.288T11 8t.288.713T12 9m0 13q-2.075 0-3.9-.788t-3.175-2.137T2.788 15.9T2 12t.788-3.9t2.137-3.175T8.1 2.788T12 2t3.9.788t3.175 2.137T21.213 8.1T22 12t-.788 3.9t-2.137 3.175t-3.175 2.138T12 22m0-2q3.35 0 5.675-2.325T20 12t-2.325-5.675T12 4T6.325 6.325T4 12t2.325 5.675T12 20m0-8" />
+                </svg>
+                <strong>Nota:</strong> El estatus "SOLVENTE" indica que existe al menos un movimiento de Ingreso registrado para la torre en el mes seleccionado bajo la categoría "Cuarto de Basura".
+            </span>
         </div>
-        <div class="col-md-4">
-            <button type="submit" class="btn btn-primary w-100">
-                <i class="fas fa-search"></i> Consultar Estatus
-            </button>
-        </div>
-    </form>
-
-    <div class="table-responsive">
-        <table class="table table-bordered text-center">
-            <thead class="table-dark">
-                <tr>
-                    <th>Torre</th>
-                    <th>Estatus</th>
-                    <th class="d-none d-md-table-cell border-start">Torre</th>
-                    <th class="d-none d-md-table-cell">Estatus</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for item in reporte %}
-                    {% if forloop.counter0|divisibleby:2 %}
-                    <tr>
-                    {% endif %}
-
-                        <td class="fw-bold align-middle">{{ item.torre.nombre }}</td>
-                        <td class="align-middle">
-                            <span class="badge {{ item.css_class }} p-2 w-100" style="font-size: 0.9em;">
-                                {{ item.status }}
-                            </span>
-                        </td>
-
-                    {% if not forloop.counter0|divisibleby:2 or forloop.last %}
+        <div class="overflow-x-auto w-full max-h-[calc(100svh-12rem)] rounded-box border border-base-content/5 bg-base-100">
+            <table class="table table-sm lg:table-md table-pin-rows table-zebra">
+                <thead>
+                    <tr class="text-wrap lg:text-nowrap ">
+                        <th class="text-center">Torre</th>
+                        <th class="text-center">Estatus</th>
+                        <th class="hidden lg:table-cell text-center">Torre</th>
+                        <th class="hidden lg:table-cell text-center">Estatus</th>
                     </tr>
-                    {% endif %}
-                {% endfor %}
-            </tbody>
-        </table>
+                </thead>
+                <tbody>
+                    <!-- lazy brian way hueheuheu -->
+                    {% for item in reporte %}
+                        {% if forloop.counter0|divisibleby:2 %}
+                            <tr class="table-row lg:hidden ">
+                                <td class="font-bold text-center ">{{ item.torre.nombre }}</td>
+                                <td class="text-center px-6 ">
+                                    <span class="badge badge-soft {{ item.css_class }} p-2 w-full">{{ item.status }}</span>
+                                </td>
+                            </tr>
+                        {% endif %}
+                        {% if forloop.counter0|divisibleby:2 %}<tr>{% endif %}
+                            <td class="font-bold text-center {% if forloop.counter0|divisibleby:2 %}hidden lg:table-cell{% endif %}">
+                                {{ item.torre.nombre }}
+                            </td>
+                            <td class="text-center px-6 {% if forloop.counter0|divisibleby:2 %}hidden lg:table-cell{% endif %}">
+                                <span class="badge badge-soft {{ item.css_class }} p-2 w-full">{{ item.status }}</span>
+                            </td>
+                            {% if not forloop.counter0|divisibleby:2 or forloop.last %}</tr>{% endif %}
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
     </div>
-    
-    <div class="alert alert-info mt-3">
-        <i class="fas fa-info-circle"></i> 
-        <strong>Nota:</strong> El estatus "SOLVENTE" indica que existe al menos un movimiento de Ingreso registrado para la torre en el mes seleccionado bajo la categoría "Cuarto de Basura".
-    </div>
-</div>
-
-<style>
-    @media (max-width: 767px) {
-        /* En móviles, forzamos que cada fila sea un bloque para que se vea una lista vertical simple */
-        .d-none.d-md-table-cell {
-            display: none !important; 
-        }
-    }
-</style>
-{% endblock %}
+{% endblock content %}
