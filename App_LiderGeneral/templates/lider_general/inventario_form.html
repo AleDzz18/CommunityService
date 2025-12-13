@@ -1,41 +1,58 @@
-{% extends 'layouts/base.html' %}
-{% block title %}{% if form.instance.pk %}Editar{% else %}Registrar{% endif %} Ítem{% endblock %}
-
+{% extends "layouts/complete.html" %}
 {% block content %}
-<div class="dashboard-container" style="max-width: 600px;">
-    <h2>
-        <i class="fas fa-box"></i> 
-        {% if form.instance.pk %}Editar Ítem{% else %}Registrar Nuevo Instrumento{% endif %}
-    </h2>
-    <hr>
-    
-    <form method="post">
-        {% csrf_token %}
-        
-        {% if form.non_field_errors %}
-            <div class="alert alert-danger">
-                {% for error in form.non_field_errors %}{{ error }}{% endfor %}
-            </div>
-        {% endif %}
-
-        <div class="mb-3">
-            <label class="form-label fw-bold">{{ form.descripcion.label }}</label>
-            {{ form.descripcion }}
-            {% if form.descripcion.errors %}<div class="text-danger small">{{ form.descripcion.errors.0 }}</div>{% endif %}
+    <div v-scope
+         @vue:mounted="navbar.change({% if form.instance.pk %} 'Editar' {% else %} 'Registrar' {% endif %} + ' ítem')"
+         class="min-h-[calc(100svh-4rem)] max-w-screen p-8 flex flex-col justify-center items-center ">
+        <div class="card card-border bg-base-100 ">
+            <div class="card-body [&>form_div.label]:text-wrap">
+                <form method="post"
+                      @submit.prevent="formHandler.handleSubmit($el)"
+                      class="">
+                    {% csrf_token %}
+                    <div class="flex flex-col justify-center items-center gap-3 [&_input,select,textarea,button.input]:w-64">
+                        <div>
+                            <label for="{{ form.descripcion.id_for_label }}"
+                                   class="block text-sm/6 font-medium text-primary">
+                                {{ form.descripcion.label }}
+                            </label>
+                            <div class="mt-2">
+                                <textarea name="{{ form.descripcion.html_name }}"
+                                          id="{{ form.descripcion.id_for_label }}"
+                                          required
+                                          rows="1"
+                                          placeholder="..."
+                                          class="min-h-10 h-1 block rounded-md w-48 bg-white px-3 py-1.5 text-base text-primary outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-accent sm:text-sm/6 {% if form.descripcion.errors %}input-error{% endif %}">{{ form.descripcion.value|default:'' }}</textarea>
+                            </div>
+                            {% if form.descripcion.errors %}<div class="label text-error text-sm">{{ form.descripcion.errors }}</div>{% endif %}
+                        </div>
+                        <div>
+                            <label for="{{ form.cantidad.id_for_label }}"
+                                   class="block text-sm/6 font-medium text-primary">{{ form.cantidad.label }}</label>
+                            <div class="mt-2">
+                                <input type="number"
+                                       step="1"
+                                       name="{{ form.cantidad.html_name }}"
+                                       id="{{ form.cantidad.id_for_label }}"
+                                       value="{{ form.cantidad.value|default:'' }}"
+                                       required
+                                       placeholder="0"
+                                       class="block rounded-md w-48 bg-white px-3 py-1.5 text-base text-primary outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-accent sm:text-sm/6 {% if form.cantidad.errors %}input-error{% endif %}" />
+                            </div>
+                            {% if form.cantidad.errors %}<div class="label text-error text-sm">{{ form.cantidad.errors }}</div>{% endif %}
+                        </div>
+                        <div class="mt-4 flex gap-2 flex-col w-full">
+                            <button type="submit"
+                                    :disabled="formHandler.loading"
+                                    class="btn btn-accent w-full">
+                                <span v-if="formHandler.loading" class="loading loading-spinner"></span> Guardar
+                            </button>
+                            <a href="{% url 'lider_general:inventario_lista' %}"
+                               :class="{'pointer-events-none btn-disabled cursor-not-allowed': formHandler.loading}"
+                               class="btn btn-dash btn-secondary me-2 w-full">Cancelar</a>
+                        </div>
+                    </div>
+                </div>
+            </form>
         </div>
-
-        <div class="mb-3">
-            <label class="form-label fw-bold">{{ form.cantidad.label }}</label>
-            {{ form.cantidad }}
-            {% if form.cantidad.errors %}<div class="text-danger small">{{ form.cantidad.errors.0 }}</div>{% endif %}
-        </div>
-
-        <div class="mt-4 d-flex justify-content-end gap-2">
-            <a href="{% url 'lider_general:inventario_lista' %}" class="btn btn-secondary">Cancelar</a>
-            <button type="submit" class="btn btn-success">
-                <i class="fas fa-save"></i> Guardar
-            </button>
-        </div>
-    </form>
-</div>
+    </div>
 {% endblock %}

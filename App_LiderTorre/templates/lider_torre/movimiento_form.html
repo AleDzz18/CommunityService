@@ -5,7 +5,7 @@
          @vue:mounted="navbar.change('Transacción')"
          class="min-h-[calc(100svh-4rem)] max-w-screen p-8 flex flex-col justify-center items-center ">
         <div class="card card-border bg-base-100 ">
-            <div class="card-body">
+            <div class="card-body [&>form_div.label]:text-wrap">
                 <form method="post" @submit.prevent="formHandler.handleSubmit($el)">
                     {% csrf_token %}
                     <div class="flex flex-col justify-center items-center [&_input,select,textarea,button.input]:w-64">
@@ -66,10 +66,10 @@
                             <div class="mt-2">
                                 <textarea name="{{ form.descripcion.html_name }}"
                                           id="{{ form.descripcion.id_for_label }}"
-                                          value="{{ form.descripcion.value|default:'' }}"
                                           required
+                                          rows="1"
                                           placeholder="Se relizo..."
-                                          class="block rounded-md w-48 bg-white px-3 py-1.5 text-base text-primary outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-accent sm:text-sm/6 {% if form.descripcion.errors %}input-error{% endif %}"></textarea>
+                                          class="min-h-10 block rounded-md w-48 bg-white px-3 py-1.5 text-base text-primary outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-accent sm:text-sm/6 {% if form.descripcion.errors %}input-error{% endif %}">{{ form.descripcion.value|default:'' }}</textarea>
                             </div>
                             {% if form.descripcion.errors %}
                                 <div class="label text-error text-sm">{{ form.descripcion.errors }}</div>
@@ -124,4 +124,4 @@
             </div>
         </div>
     </div>
-{% endblock %}
+{% endblock content %}

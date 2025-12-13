@@ -717,27 +717,23 @@ FILE: App_Home/static/js/autoReload.js
 ================================================
 FILE: App_Home/templates/c404.html
 ================================================
-{% extends 'layouts/base.html' %}
-
+{% extends "layouts/base.html" %}
 {% block main %}
+    <!-- TODO: implementar xd  -->
+    <div v-scope>woops, error 404</div>
+{% endblock main %}
 
-<div v-scope>
-    woops, error 404
-</div>
-{% endblock %}
 
 
 ================================================
 FILE: App_Home/templates/c500.html
 ================================================
-{% extends 'layouts/base.html' %}
-
+{% extends "layouts/base.html" %}
 {% block main %}
+    <!-- TODO: implementar xd  -->
+    <div v-scope>woops, error 500</div>
+{% endblock main %}
 
-<div v-scope>
-    woops, error 500
-</div>
-{% endblock %}
 
 
 ================================================
@@ -1106,12 +1102,12 @@ FILE: App_Home/templates/layouts/base.html
         const formHandler = reactive({
             loading: false,
             handleSubmit(formElement){
-                if (this.isLoading) {
+                if (this.loading) {
                     return;
                 }
                 
-                    console.log('get')
-                this.isLoading = true;
+                console.log('get')
+                this.loading = true;
 
                 setTimeout(() => { 
                     formElement.submit(); 
@@ -1303,10 +1299,10 @@ FILE: App_Home/templates/pages/completar_perfil.html
             completos</span>
         </div>
         <div class="card w-full card-border bg-base-100 card-md shadow-sm static">
-            <div class="card-body">
+            <div class="card-body [&>form_div.label]:text-wrap">
                 <h2 class="card-title">Datos de Perfil</h2>
                 <div class="divider divider-primary"></div>
-                <form method="post">
+                <form method="post" @submit.prevent="formHandler.handleSubmit($el)">
                     {% csrf_token %}
                     <h3 class="text-lg text-primary mb-2">InformaciÃ³n Personal</h3>
                     <div class="grid grid-cols-1 lg:grid-cols-3  gap-4 w-fit">
@@ -1381,7 +1377,6 @@ FILE: App_Home/templates/pages/completar_perfil.html
                             </div>
                             {% if formulario.rol.errors %}<div class=" label text-error text-sm">{{ formulario.rol.errors }}</div>{% endif %}
                         </div>
-                        <!-- TODO: fix tower cagada -->
                         <div>
                             <label for="{{ formulario.tower.id_for_label }}"
                                    class="block text-sm/6 font-medium text-primary">
@@ -1423,13 +1418,15 @@ FILE: App_Home/templates/pages/completar_perfil.html
                     </div>
                     <div class="flex gap-4">
                         <button type="submit"
+                                :disabled="formHandler.loading"
                                 class="flex mt-8 text-sm/6 font-semibold btn btn-neutral ">
                             Guardar y
                             Acceder
                         </button>
                         <a href="{% url 'url_cancelar_registro' user_id=usuario.id %}"
                            class="flex mt-8 text-sm/6 font-semibold btn btn-error"
-                           @click="confirm('Â¿EstÃ¡s seguro de cancelar el registro? Tu cuenta creada serÃ¡ eliminada permanentemente.');">
+                           :class="{'pointer-none btn-disabled' : formHandler.loading}"
+                           onclick="return confirm('Â¿EstÃ¡s seguro de cancelar el registro? Tu cuenta creada serÃ¡ eliminada permanentemente.');">
                             Cancelar
                         </a>
                     </div>
@@ -1479,6 +1476,7 @@ FILE: App_Home/templates/pages/login.html
                                 <label for="password" class="block text-sm/6 font-medium text-primary">ContraseÃ±a</label>
                                 <div class="text-sm">
                                     <a href="{% url 'request_reset_code' %}"
+                                       :class="{'pointer-events-none opacity-50 cursor-not-allowed': formHandler.loading}"
                                        class="font-semibold text-primary hover:text-accent">Â¿OlvidÃ³
                                     contraseÃ±a?</a>
                                 </div>
@@ -1505,6 +1503,7 @@ FILE: App_Home/templates/pages/login.html
                     <p class="mt-10 text-center text-sm/6 text-gray-500">
                         Â¿No tiene usuario?
                         <a @click="register = true"
+                           :class="{'pointer-events-none opacity-50 cursor-not-allowed': formHandler.loading}"
                            class="font-semibold text-primary hover:text-accent">Registrarse</a>
                     </p>
                     <div class="divider  w-full"></div>
@@ -1518,7 +1517,10 @@ FILE: App_Home/templates/pages/login.html
                     <h2 class=" text-center text-2xl/9 font-bold tracking-tight text-primary">Registrarse</h2>
                 </div>
                 <div class="mt-10 sm:mx-auto sm:w-full sm:max-w-sm">
-                    <form action="{% url 'url_registro' %}" method="POST" class="space-y-2">
+                    <form action="{% url 'url_registro' %}"
+                          method="post"
+                          class="space-y-2"
+                          @submit.prevent="formHandler.handleSubmit($el)">
                         {% csrf_token %}
                         <div>
                             <label for="username" class="block text-sm/6 font-medium text-primary">Usuario</label>
@@ -1572,12 +1574,16 @@ FILE: App_Home/templates/pages/login.html
                         </div>
                         <div>
                             <button type="submit"
-                                    class="flex w-full mt-4 text-sm/6 font-semibold btn btn-neutral">Registrar</button>
+                                    :disabled="formHandler.loading"
+                                    class="flex w-full mt-4 text-sm/6 font-semibold btn btn-neutral">
+                                <span v-if="formHandler.loading" class="loading loading-spinner"></span>Registrar
+                            </button>
                         </div>
                     </form>
                     <p class="mt-10 text-center text-sm/6 text-gray-500">
                         Â¿Ya tiene usuario?
                         <a @click="register = false"
+                           :class="{'pointer-events-none opacity-50 cursor-not-allowed': formHandler.loading}"
                            class="font-semibold text-primary hover:text-accent">Iniciar
                         sesiÃ³n</a>
                     </p>
@@ -1790,7 +1796,7 @@ FILE: App_Home/templates/pages/finanzas/listado_movimientos.html
 {% block toolbaritems %}
     <script type="module" src="https://unpkg.com/cally"></script>
     <div v-scope="{ tower: '{{ torre_seleccionada_id|default:'0' }}', date: '', startDate: '{{ filtro_form.fecha_inicio.value|default:'' }}', endDate: '{{ filtro_form.fecha_fin.value|default:'' }}', justStart: false, justEnd: false, ranges : [ { label: 'Ultimos 7 dias', days: 7 }, { label: 'Ultimos 14 dias', days: 14 }, { label: 'Ultimos 30 dias', days: 30 }, { label: 'Ultimos 3 meses', months: 3 }, { label: 'Ultimos 6 meses', months: 6 }, { label: 'Ultimo aÃ±o', years: 1 } ], setDate(range){ if (range) { const endDate = new Date(); const startDate = new Date(endDate); if (range.days) { startDate.setDate(startDate.getDate() - range.days) } else if (range.months) { startDate.setMonth(startDate.getMonth() - range.months) } else if (range.years) {startDate.setFullYear(startDate.getFullYear() - range.years)} this.startDate = startDate.toISOString().slice(0, 10); this.endDate = endDate.toISOString().slice(0, 10); } else if (this.justEnd){ this.startDate = ''; this.endDate = this.date.split('/')[1]; } else if (this.justStart){ this.startDate = this.date.split('/')[0]; this.endDate = ''; } else { this.startDate = this.date.split('/')[0]; this.endDate = this.date.split('/')[1]; } this.get(); }, formatDate(){ if (!this.startDate && !this.endDate) return 'Fecha'; return `${this.startDate || 'X'} hasta ${this.endDate || 'X'}`; },setSelection(choice) { this.justStart = choice == 'start'; this.justEnd = choice == 'end'; }, get() { const data = { 'torre': this.tower, 'fecha_inicio': this.startDate, 'fecha_fin': this.endDate }; const query = new URLSearchParams(data).toString(); window.location.href = '{% url 'ver_finanzas' categoria_slug=categoria_slug %}' + '?' + query;} }"
-         class="flex items-center justify-between w-full flex-wrap">
+         class="flex items-center justify-between w-full flex-wrap gap-1">
         <div>
             <select v-model="tower"
                     class="select select-ghost h-fit w-fit"
@@ -1802,7 +1808,7 @@ FILE: App_Home/templates/pages/finanzas/listado_movimientos.html
                  :class="{'dropdown-start': !date, 'dropdown-center': date}">
                 <div tabindex="0"
                      role="button"
-                     class="btn btn-ghost m-1 h-fit w-full lg:w-fit flex justify-start ">
+                     class="btn btn-ghost mx-1 h-fit w-full lg:w-fit flex justify-start ">
                     <span class="inline-block ">${formatDate()}</span>
                     <svg xmlns="http://www.w3.org/2000/svg"
                          class="size-2.5 inline-block"
@@ -1811,7 +1817,7 @@ FILE: App_Home/templates/pages/finanzas/listado_movimientos.html
                         <path fill="currentColor" d="m213.66 101.66l-80 80a8 8 0 0 1-11.32 0l-80-80A8 8 0 0 1 48 88h160a8 8 0 0 1 5.66 13.66" />
                     </svg>
                 </div>
-                <div tabindex="0"
+                <div tabindex="-1"
                      class="dropdown-content card bg-base-100 z-1 w-fit shadow-md ">
                     <div class="card-body flex flex-col lg:flex-row justify-center items-center">
                         <div class="min-w-32 flex flex-row flex-wrap lg:flex-col justify-stretch w-full">
@@ -2976,138 +2982,142 @@ FILE: App_LiderGeneral/templates/lider_general/inventario_confirm_delete.html
 ================================================
 FILE: App_LiderGeneral/templates/lider_general/inventario_form.html
 ================================================
-{% extends 'layouts/base.html' %}
-{% block title %}{% if form.instance.pk %}Editar{% else %}Registrar{% endif %} Ítem{% endblock %}
-
+{% extends "layouts/complete.html" %}
 {% block content %}
-<div class="dashboard-container" style="max-width: 600px;">
-    <h2>
-        <i class="fas fa-box"></i> 
-        {% if form.instance.pk %}Editar Ítem{% else %}Registrar Nuevo Instrumento{% endif %}
-    </h2>
-    <hr>
-    
-    <form method="post">
-        {% csrf_token %}
-        
-        {% if form.non_field_errors %}
-            <div class="alert alert-danger">
-                {% for error in form.non_field_errors %}{{ error }}{% endfor %}
-            </div>
-        {% endif %}
-
-        <div class="mb-3">
-            <label class="form-label fw-bold">{{ form.descripcion.label }}</label>
-            {{ form.descripcion }}
-            {% if form.descripcion.errors %}<div class="text-danger small">{{ form.descripcion.errors.0 }}</div>{% endif %}
+    <div v-scope
+         @vue:mounted="navbar.change({% if form.instance.pk %} 'Editar' {% else %} 'Registrar' {% endif %} + ' Ã­tem')"
+         class="min-h-[calc(100svh-4rem)] max-w-screen p-8 flex flex-col justify-center items-center ">
+        <div class="card card-border bg-base-100 ">
+            <div class="card-body [&>form_div.label]:text-wrap">
+                <form method="post"
+                      @submit.prevent="formHandler.handleSubmit($el)"
+                      class="">
+                    {% csrf_token %}
+                    <div class="flex flex-col justify-center items-center gap-3 [&_input,select,textarea,button.input]:w-64">
+                        <div>
+                            <label for="{{ form.descripcion.id_for_label }}"
+                                   class="block text-sm/6 font-medium text-primary">
+                                {{ form.descripcion.label }}
+                            </label>
+                            <div class="mt-2">
+                                <textarea name="{{ form.descripcion.html_name }}"
+                                          id="{{ form.descripcion.id_for_label }}"
+                                          value="{{ form.descripcion.value|default:'' }}"
+                                          required
+                                          rows="1"
+                                          placeholder="..."
+                                          class="min-h-10 h-1 block rounded-md w-48 bg-white px-3 py-1.5 text-base text-primary outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-accent sm:text-sm/6 {% if form.descripcion.errors %}input-error{% endif %}"></textarea>
+                            </div>
+                            {% if form.descripcion.errors %}<div class="label text-error text-sm">{{ form.descripcion.errors }}</div>{% endif %}
+                        </div>
+                        <div>
+                            <label for="{{ form.cantidad.id_for_label }}"
+                                   class="block text-sm/6 font-medium text-primary">{{ form.cantidad.label }}</label>
+                            <div class="mt-2">
+                                <input type="number"
+                                       step="1"
+                                       name="{{ form.cantidad.html_name }}"
+                                       id="{{ form.cantidad.id_for_label }}"
+                                       value="{{ form.cantidad.value|default:'' }}"
+                                       required
+                                       placeholder="1"
+                                       class="block rounded-md w-48 bg-white px-3 py-1.5 text-base text-primary outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-accent sm:text-sm/6 {% if form.cantidad.errors %}input-error{% endif %}" />
+                            </div>
+                            {% if form.cantidad.errors %}<div class="label text-error text-sm">{{ form.cantidad.errors }}</div>{% endif %}
+                        </div>
+                        <div class="mt-4 flex gap-2 flex-col w-full">
+                            <button type="submit"
+                                    :disabled="formHandler.loading"
+                                    class="btn btn-accent w-full">
+                                <span v-if="formHandler.loading" class="loading loading-spinner"></span> Guardar
+                            </button>
+                            <a href="{% url 'lider_general:inventario_lista' %}"
+                               :class="{'pointer-events-none btn-disabled cursor-not-allowed': formHandler.loading}"
+                               class="btn btn-dash btn-secondary me-2 w-full">Cancelar</a>
+                        </div>
+                    </div>
+                </div>
+            </form>
         </div>
-
-        <div class="mb-3">
-            <label class="form-label fw-bold">{{ form.cantidad.label }}</label>
-            {{ form.cantidad }}
-            {% if form.cantidad.errors %}<div class="text-danger small">{{ form.cantidad.errors.0 }}</div>{% endif %}
-        </div>
-
-        <div class="mt-4 d-flex justify-content-end gap-2">
-            <a href="{% url 'lider_general:inventario_lista' %}" class="btn btn-secondary">Cancelar</a>
-            <button type="submit" class="btn btn-success">
-                <i class="fas fa-save"></i> Guardar
-            </button>
-        </div>
-    </form>
-</div>
+    </div>
 {% endblock %}
+
 
 
 ================================================
 FILE: App_LiderGeneral/templates/lider_general/inventario_lista.html
 ================================================
-{% extends 'layouts/navbar.html' %}
-{% load static %}
-
-{% block title %}Inventario Cuarto de Basura{% endblock %}
-
+{% extends "layouts/complete.html" %}
 {% block content %}
-<div class="dashboard-container">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2>
-            <i class="fas fa-boxes text-warning"></i> 
-            Inventario: Cuarto de Basura
-        </h2>
-        
-        <div>
-            <a href="{% url 'url_dashboard' %}" class="btn btn-secondary me-2">
-                <i class="fas fa-arrow-left"></i> Volver
-            </a>
-            
+    <div v-scope
+         @vue:mounted="navbar.change('Inventario Cuarto de Basura')"
+         class="min-h-[calc(100svh-4rem)] max-w-screen overflow-hidden p-8 flex flex-col justify-stretch items-start ">
+        <div class="flex justify-stretch items-stretch w-full mb-4 gap-2  flex-row">
+            <a href="{% url 'ver_finanzas' categoria_slug='basura' %}"
+               class="btn btn-neutral flex-1 ">Volver</a>
             {% if es_admin_basura %}
-                <a href="{% url 'lider_general:inventario_crear' %}" class="btn btn-primary">
-                    <i class="fas fa-plus"></i> Nuevo Ítem
-                </a>
+                <a href="{% url 'lider_general:inventario_crear' %}"
+                   class="btn btn-primary flex-1">Nuevo Ítem</a>
             {% endif %}
         </div>
-    </div>
-    <hr>
-
-    {% if messages %}
-        <div class="mensajes-django-container mb-3">
-            {% for message in messages %}
-                <div class="alert alert-{{ message.tags }}">{{ message }}</div>
-            {% endfor %}
+        <div class="overflow-x-auto w-full max-h-[calc(100svh-12rem)] rounded-box border border-base-content/5 bg-base-100">
+            <table class="table table-striped table-hover align-middle">
+                <thead class="table table-sm lg:table-md table-pin-rows table-zebra">
+                    <tr>
+                        <th>Descripción del Instrumento</th>
+                        <th class="text-center">Cantidad Disponible</th>
+                        <th class="text-center">Última Actualización</th>
+                        {% if es_admin_basura %}<th class="text-end">Acciones</th>{% endif %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in inventario %}
+                        <tr>
+                            <td class="font-bold">{{ item.descripcion }}</td>
+                            <td>
+                                <span class="badge badge-outline  {% if item.cantidad > 0 %}badge-success{% else %}badge-warning{% endif %}">{{ item.cantidad }}</span>
+                            </td>
+                            <td class="text-center small opacity-70">{{ item.ultima_actualizacion|date:"d/m/Y H:i" }}</td>
+                            {% if es_admin_basura %}
+                                <td class="text-end">
+                                    <a href="{% url 'lider_general:inventario_editar' item.pk %}"
+                                       class="btn btn-sm btn-info text-white"
+                                       title="Editar">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <a href="{% url 'lider_general:inventario_eliminar' item.pk %}"
+                                       class="btn btn-sm btn-danger"
+                                       title="Eliminar">
+                                        <i class="fas fa-trash"></i>
+                                    </a>
+                                </td>
+                            {% endif %}
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="4" class="flex justify-center items-center w-full ">
+                                <div role="alert" class="alert alert-warning alert-outline ">
+                                    <span class="text-lg">No hay instrumentos registrados en el inventario actualmente.
+                                        <svg xmlns="http://www.w3.org/2000/svg"
+                                             class="size-6 inline-block"
+                                             viewBox="0 0 16 16">
+                                            <!-- Icon from Rivet Icons by Indiana University - https://github.com/indiana-university/rivet-icons/blob/develop/LICENSE -->
+                                            <g fill="currentColor">
+                                            <path d="M8 2a6 6 0 1 0 0 12A6 6 0 0 0 8 2M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8" />
+                                            <path d="M11 6a1 1 0 1 1-2 0a1 1 0 0 1 2 0M7 6a1 1 0 1 1-2 0a1 1 0 0 1 2 0m2.742 5.152a1 1 0 0 0 1.526-1.292l-.001-.002l-.001-.001l-.003-.004l-.007-.008l-.018-.02a3 3 0 0 0-.225-.224a4 4 0 0 0-.623-.458A4.6 4.6 0 0 0 8 8.5a4.6 4.6 0 0 0-2.39.643a4 4 0 0 0-.795.624l-.053.057l-.018.021l-.007.008l-.003.004v.001l-.002.001a1 1 0 0 0 1.526 1.293l.005-.005q.014-.016.062-.06a2 2 0 0 1 .314-.23A2.6 2.6 0 0 1 8 10.5c.624 0 1.073.185 1.36.357a2 2 0 0 1 .382.295" />
+                                            </g>
+                                        </svg>
+                                    </span>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
-    {% endif %}
-
-    <div class="table-responsive">
-        <table class="table table-striped table-hover align-middle">
-            <thead class="table-dark">
-                <tr>
-                    <th>Descripción del Instrumento</th>
-                    <th class="text-center">Cantidad Disponible</th>
-                    <th class="text-center">Última Actualización</th>
-                    {% if es_admin_basura %}
-                        <th class="text-end">Acciones</th>
-                    {% endif %}
-                </tr>
-            </thead>
-            <tbody>
-                {% for item in inventario %}
-                <tr>
-                    <td class="fw-bold">{{ item.descripcion }}</td>
-                    
-                    <td class="text-center">
-                        <span class="badge {% if item.cantidad > 0 %}bg-success{% else %}bg-danger{% endif %} fs-6">
-                            {{ item.cantidad }}
-                        </span>
-                    </td>
-                    
-                    <td class="text-center small text-muted">
-                        {{ item.ultima_actualizacion|date:"d/m/Y H:i" }}
-                    </td>
-
-                    {% if es_admin_basura %}
-                        <td class="text-end">
-                            <a href="{% url 'lider_general:inventario_editar' item.pk %}" class="btn btn-sm btn-info text-white" title="Editar">
-                                <i class="fas fa-edit"></i>
-                            </a>
-                            <a href="{% url 'lider_general:inventario_eliminar' item.pk %}" class="btn btn-sm btn-danger" title="Eliminar">
-                                <i class="fas fa-trash"></i>
-                            </a>
-                        </td>
-                    {% endif %}
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="4" class="text-center py-5 text-muted">
-                        <i class="fas fa-box-open fa-3x mb-3"></i><br>
-                        No hay instrumentos registrados en el inventario actualmente.
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
     </div>
-</div>
 {% endblock %}
+
 
 
 ================================================
@@ -3862,8 +3872,8 @@ FILE: App_LiderTorre/templates/lider_torre/movimiento_form.html
          @vue:mounted="navbar.change('TransacciÃ³n')"
          class="min-h-[calc(100svh-4rem)] max-w-screen p-8 flex flex-col justify-center items-center ">
         <div class="card card-border bg-base-100 ">
-            <div class="card-body">
-                <form method="post">
+            <div class="card-body [&>form_div.label]:text-wrap">
+                <form method="post" @submit.prevent="formHandler.handleSubmit($el)">
                     {% csrf_token %}
                     <div class="flex flex-col justify-center items-center [&_input,select,textarea,button.input]:w-64">
                         {% if form.tower %}
@@ -3925,8 +3935,9 @@ FILE: App_LiderTorre/templates/lider_torre/movimiento_form.html
                                           id="{{ form.descripcion.id_for_label }}"
                                           value="{{ form.descripcion.value|default:'' }}"
                                           required
+                                          rows="1"
                                           placeholder="Se relizo..."
-                                          class="block rounded-md w-48 bg-white px-3 py-1.5 text-base text-primary outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-accent sm:text-sm/6 {% if form.descripcion.errors %}input-error{% endif %}"></textarea>
+                                          class="min-h-10 block rounded-md w-48 bg-white px-3 py-1.5 text-base text-primary outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-accent sm:text-sm/6 {% if form.descripcion.errors %}input-error{% endif %}"></textarea>
                             </div>
                             {% if form.descripcion.errors %}
                                 <div class="label text-error text-sm">{{ form.descripcion.errors }}</div>
@@ -3967,8 +3978,13 @@ FILE: App_LiderTorre/templates/lider_torre/movimiento_form.html
                             {% endif %}
                         {% endfor %}
                         <div class="mt-4 flex gap-2 flex-col w-full">
-                            <button type="submit" class="btn btn-accent w-full">Registrar Movimiento</button>
+                            <button type="submit"
+                                    :disabled="formHandler.loading"
+                                    class="btn btn-accent w-full">
+                                <span v-if="formHandler.loading" class="loading loading-spinner"></span> Registrar Movimiento
+                            </button>
                             <a href="{% if 'condominio' in request.path %} {% url 'ver_finanzas' categoria_slug='condominio' %} {% elif 'basura' in request.path %} {% url 'ver_finanzas' categoria_slug='basura' %} {% else %} {% url 'url_index' %} {% endif %}"
+                               :class="{'pointer-events-none btn-disabled cursor-not-allowed': formHandler.loading}"
                                class="btn btn-dash btn-secondary me-2 w-full">Cancelar</a>
                         </div>
                     </div>
@@ -3976,7 +3992,7 @@ FILE: App_LiderTorre/templates/lider_torre/movimiento_form.html
             </div>
         </div>
     </div>
-{% endblock %}
+{% endblock content %}
 
 
 
@@ -4477,6 +4493,9 @@ FILE: static/css/tailwind.css
     --color-white: #fff;
     --spacing: 0.25rem;
     --breakpoint-sm: 40rem;
+    --container-3xs: 16rem;
+    --container-2xs: 18rem;
+    --container-xs: 20rem;
     --container-sm: 24rem;
     --container-md: 28rem;
     --container-lg: 32rem;
@@ -5347,6 +5366,9 @@ FILE: static/css/tailwind.css
         --btn-fg: color-mix(in oklch, var(--color-base-content) 20%, #0000);
       }
     }
+  }
+  .pointer-events-none {
+    pointer-events: none;
   }
   .list {
     @layer daisyui.l1.l2.l3 {
@@ -6683,6 +6705,9 @@ FILE: static/css/tailwind.css
       }
     }
   }
+  .mx-1 {
+    margin-inline: calc(var(--spacing) * 1);
+  }
   .mx-4 {
     margin-inline: calc(var(--spacing) * 4);
   }
@@ -7128,6 +7153,9 @@ FILE: static/css/tailwind.css
     width: calc(var(--spacing) * 7);
     height: calc(var(--spacing) * 7);
   }
+  .h-1 {
+    height: calc(var(--spacing) * 1);
+  }
   .h-5 {
     height: calc(var(--spacing) * 5);
   }
@@ -7152,20 +7180,26 @@ FILE: static/css/tailwind.css
   .max-h-\[calc\(100svh-12rem\)\] {
     max-height: calc(100svh - 12rem);
   }
+  .min-h-6 {
+    min-height: calc(var(--spacing) * 6);
+  }
+  .min-h-8 {
+    min-height: calc(var(--spacing) * 8);
+  }
+  .min-h-10 {
+    min-height: calc(var(--spacing) * 10);
+  }
+  .min-h-24 {
+    min-height: calc(var(--spacing) * 24);
+  }
   .min-h-32 {
     min-height: calc(var(--spacing) * 32);
   }
   .min-h-\[calc\(100svh-4rem\)\] {
     min-height: calc(100svh - 4rem);
   }
-  .min-h-\[calc\(100svh-6rem\)\] {
-    min-height: calc(100svh - 6rem);
-  }
   .min-h-\[calc\(100svh-8rem\)\] {
     min-height: calc(100svh - 8rem);
-  }
-  .min-h-\[calc\(100svh-12rem\)\] {
-    min-height: calc(100svh - 12rem);
   }
   .min-h-fit {
     min-height: fit-content;
@@ -7243,6 +7277,9 @@ FILE: static/css/tailwind.css
       }
     }
   }
+  .w-4 {
+    width: calc(var(--spacing) * 4);
+  }
   .w-5 {
     width: calc(var(--spacing) * 5);
   }
@@ -7273,6 +7310,18 @@ FILE: static/css/tailwind.css
   .w-max {
     width: max-content;
   }
+  .max-w-2xs {
+    max-width: var(--container-2xs);
+  }
+  .max-w-3xs {
+    max-width: var(--container-3xs);
+  }
+  .max-w-8 {
+    max-width: calc(var(--spacing) * 8);
+  }
+  .max-w-40 {
+    max-width: calc(var(--spacing) * 40);
+  }
   .max-w-\[50vw\] {
     max-width: 50vw;
   }
@@ -7284,6 +7333,9 @@ FILE: static/css/tailwind.css
   }
   .max-w-screen {
     max-width: 100vw;
+  }
+  .max-w-xs {
+    max-width: var(--container-xs);
   }
   .min-w-32 {
     min-width: calc(var(--spacing) * 32);
@@ -7422,6 +7474,9 @@ FILE: static/css/tailwind.css
   .gap-2 {
     gap: calc(var(--spacing) * 2);
   }
+  .gap-3 {
+    gap: calc(var(--spacing) * 3);
+  }
   .gap-4 {
     gap: calc(var(--spacing) * 4);
   }
@@ -7514,6 +7569,14 @@ FILE: static/css/tailwind.css
         border-color: #0000;
         box-shadow: none;
       }
+    }
+  }
+  .badge-outline {
+    @layer daisyui.l1.l2 {
+      color: var(--badge-color);
+      --badge-bg: #0000;
+      background-image: none;
+      border-color: currentColor;
     }
   }
   .border-base-200 {
@@ -7950,6 +8013,12 @@ FILE: static/css/tailwind.css
   .opacity-0 {
     opacity: 0%;
   }
+  .opacity-50 {
+    opacity: 50%;
+  }
+  .opacity-70 {
+    opacity: 70%;
+  }
   .opacity-100 {
     opacity: 100%;
   }
@@ -8090,6 +8159,18 @@ FILE: static/css/tailwind.css
       .card-title {
         --cardtitle-fs: 1.125rem;
       }
+    }
+  }
+  .badge-success {
+    @layer daisyui.l1.l2 {
+      --badge-color: var(--color-success);
+      --badge-fg: var(--color-success-content);
+    }
+  }
+  .badge-warning {
+    @layer daisyui.l1.l2 {
+      --badge-color: var(--color-warning);
+      --badge-fg: var(--color-warning-content);
     }
   }
   .btn-accent {
@@ -8373,11 +8454,6 @@ FILE: static/css/tailwind.css
       display: none;
     }
   }
-  .lg\:inline-block {
-    @media (width >= 64rem) {
-      display: inline-block;
-    }
-  }
   .lg\:w-16 {
     @media (width >= 64rem) {
       width: calc(var(--spacing) * 16);
@@ -8488,6 +8564,16 @@ FILE: static/css/tailwind.css
       line-height: var(--leading-relaxed);
     }
   }
+  .\[\&_\.label\]\:text-wrap {
+    & .label {
+      text-wrap: wrap;
+    }
+  }
+  .\[\&_div\.label\]\:text-wrap {
+    & div.label {
+      text-wrap: wrap;
+    }
+  }
   .\[\&_input\,select\,textarea\,button\.input\]\:w-64 {
     & input,select,textarea,button.input {
       width: calc(var(--spacing) * 64);
@@ -8509,6 +8595,16 @@ FILE: static/css/tailwind.css
     && {
       width: calc(var(--spacing) * 12);
       height: calc(var(--spacing) * 12);
+    }
+  }
+  .\[\&\&_div\.label\]\:text-wrap {
+    && div.label {
+      text-wrap: wrap;
+    }
+  }
+  .\[\&\>form_div\.label\]\:text-wrap {
+    &>form div.label {
+      text-wrap: wrap;
     }
   }
 }

@@ -1,86 +1,76 @@
-{% extends 'layouts/navbar.html' %}
-{% load static %}
-
-{% block title %}Inventario Cuarto de Basura{% endblock %}
-
+{% extends "layouts/complete.html" %}
 {% block content %}
-<div class="dashboard-container">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2>
-            <i class="fas fa-boxes text-warning"></i> 
-            Inventario: Cuarto de Basura
-        </h2>
-        
-        <div>
-            <a href="{% url 'url_dashboard' %}" class="btn btn-secondary me-2">
-                <i class="fas fa-arrow-left"></i> Volver
-            </a>
-            
+    <div v-scope
+         @vue:mounted="navbar.change('Inventario Cuarto de Basura')"
+         class="min-h-[calc(100svh-4rem)] max-w-screen overflow-hidden p-8 flex flex-col justify-stretch items-start ">
+        <div class="flex justify-stretch items-stretch w-full mb-4 gap-2  flex-row">
+            <a href="{% url 'ver_finanzas' categoria_slug='basura' %}"
+               class="btn btn-neutral flex-1 ">Volver</a>
             {% if es_admin_basura %}
-                <a href="{% url 'lider_general:inventario_crear' %}" class="btn btn-primary">
-                    <i class="fas fa-plus"></i> Nuevo Ítem
-                </a>
+                <a href="{% url 'lider_general:inventario_crear' %}"
+                   class="btn btn-primary flex-1">Nuevo Ítem</a>
             {% endif %}
         </div>
-    </div>
-    <hr>
-
-    {% if messages %}
-        <div class="mensajes-django-container mb-3">
-            {% for message in messages %}
-                <div class="alert alert-{{ message.tags }}">{{ message }}</div>
-            {% endfor %}
+        <div class="overflow-x-auto w-full max-h-[calc(100svh-12rem)] rounded-box border border-base-content/5 bg-base-100">
+            <table class="table table-sm lg:table-md table-pin-rows table-zebra">
+                <thead>
+                    <tr>
+                        <th>Descripción del Instrumento</th>
+                        <th class="text-center">Cantidad Disponible</th>
+                        <th class="text-center">Última Actualización</th>
+                        {% if es_admin_basura %}<th class="text-end">Acciones</th>{% endif %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in inventario %}
+                        <tr>
+                            <td class="font-bold">{{ item.descripcion }}</td>
+                            <td class="text-center">
+                                <span class="badge badge-outline  {% if item.cantidad > 0 %}badge-success{% elif item.cantidad == 0 %} badge-warning {% else %}badge-error{% endif %}">{{ item.cantidad }}</span>
+                            </td>
+                            <td class="text-center text-sm opacity-50">{{ item.ultima_actualizacion|date:"d/m/Y H:i" }}</td>
+                            {% if es_admin_basura %}
+                                <td class="text-end flex flex-wrap gap-2 justify-end">
+                                    <a href="{% url 'lider_general:inventario_editar' item.pk %}"
+                                       class="btn btn-sm btn-neutral"
+                                       title="Editar">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="size-4" viewBox="0 0 24 24">
+                                            <!-- Icon from Material Symbols by Google - https://github.com/google/material-design-icons/blob/master/LICENSE -->
+                                            <path fill="currentColor" d="M5 19h1.425L16.2 9.225L14.775 7.8L5 17.575zm-2 2v-4.25L16.2 3.575q.3-.275.663-.425t.762-.15t.775.15t.65.45L20.425 5q.3.275.438.65T21 6.4q0 .4-.137.763t-.438.662L7.25 21zM19 6.4L17.6 5zm-3.525 2.125l-.7-.725L16.2 9.225z" />
+                                        </svg>
+                                    </a>
+                                    <a href="{% url 'lider_general:inventario_eliminar' item.pk %}"
+                                       class="btn btn-sm btn-soft btn-error  "
+                                       title="Eliminar">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="size-4" viewBox="0 0 24 24">
+                                            <!-- Icon from Material Symbols by Google - https://github.com/google/material-design-icons/blob/master/LICENSE -->
+                                            <path fill="currentColor" d="m9.4 16.5l2.6-2.6l2.6 2.6l1.4-1.4l-2.6-2.6L16 9.9l-1.4-1.4l-2.6 2.6l-2.6-2.6L8 9.9l2.6 2.6L8 15.1zM7 21q-.825 0-1.412-.587T5 19V6H4V4h5V3h6v1h5v2h-1v13q0 .825-.587 1.413T17 21zM17 6H7v13h10zM7 6v13z" />
+                                        </svg>
+                                    </a>
+                                </td>
+                            {% endif %}
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="4" class="flex justify-center items-center w-full ">
+                                <div role="alert" class="alert alert-warning alert-outline ">
+                                    <span class="text-lg">No hay instrumentos registrados en el inventario actualmente.
+                                        <svg xmlns="http://www.w3.org/2000/svg"
+                                             class="size-6 inline-block"
+                                             viewBox="0 0 16 16">
+                                            <!-- Icon from Rivet Icons by Indiana University - https://github.com/indiana-university/rivet-icons/blob/develop/LICENSE -->
+                                            <g fill="currentColor">
+                                            <path d="M8 2a6 6 0 1 0 0 12A6 6 0 0 0 8 2M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8" />
+                                            <path d="M11 6a1 1 0 1 1-2 0a1 1 0 0 1 2 0M7 6a1 1 0 1 1-2 0a1 1 0 0 1 2 0m2.742 5.152a1 1 0 0 0 1.526-1.292l-.001-.002l-.001-.001l-.003-.004l-.007-.008l-.018-.02a3 3 0 0 0-.225-.224a4 4 0 0 0-.623-.458A4.6 4.6 0 0 0 8 8.5a4.6 4.6 0 0 0-2.39.643a4 4 0 0 0-.795.624l-.053.057l-.018.021l-.007.008l-.003.004v.001l-.002.001a1 1 0 0 0 1.526 1.293l.005-.005q.014-.016.062-.06a2 2 0 0 1 .314-.23A2.6 2.6 0 0 1 8 10.5c.624 0 1.073.185 1.36.357a2 2 0 0 1 .382.295" />
+                                            </g>
+                                        </svg>
+                                    </span>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
-    {% endif %}
-
-    <div class="table-responsive">
-        <table class="table table-striped table-hover align-middle">
-            <thead class="table-dark">
-                <tr>
-                    <th>Descripción del Instrumento</th>
-                    <th class="text-center">Cantidad Disponible</th>
-                    <th class="text-center">Última Actualización</th>
-                    {% if es_admin_basura %}
-                        <th class="text-end">Acciones</th>
-                    {% endif %}
-                </tr>
-            </thead>
-            <tbody>
-                {% for item in inventario %}
-                <tr>
-                    <td class="fw-bold">{{ item.descripcion }}</td>
-                    
-                    <td class="text-center">
-                        <span class="badge {% if item.cantidad > 0 %}bg-success{% else %}bg-danger{% endif %} fs-6">
-                            {{ item.cantidad }}
-                        </span>
-                    </td>
-                    
-                    <td class="text-center small text-muted">
-                        {{ item.ultima_actualizacion|date:"d/m/Y H:i" }}
-                    </td>
-
-                    {% if es_admin_basura %}
-                        <td class="text-end">
-                            <a href="{% url 'lider_general:inventario_editar' item.pk %}" class="btn btn-sm btn-info text-white" title="Editar">
-                                <i class="fas fa-edit"></i>
-                            </a>
-                            <a href="{% url 'lider_general:inventario_eliminar' item.pk %}" class="btn btn-sm btn-danger" title="Eliminar">
-                                <i class="fas fa-trash"></i>
-                            </a>
-                        </td>
-                    {% endif %}
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="4" class="text-center py-5 text-muted">
-                        <i class="fas fa-box-open fa-3x mb-3"></i><br>
-                        No hay instrumentos registrados en el inventario actualmente.
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
     </div>
-</div>
 {% endblock %}

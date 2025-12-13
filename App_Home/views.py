@@ -230,7 +230,6 @@ def vista_completar_perfil(request, user_id):
     )
 
 
-# TODO: check this func
 def cancelar_registro(request, user_id):
     """
     Elimina el usuario creado parcialmente si decide cancelar
