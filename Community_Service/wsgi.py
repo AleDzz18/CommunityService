@@ -13,4 +13,8 @@ from django.core.wsgi import get_wsgi_application
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "Community_Service.settings")
 
-app = get_wsgi_application()
+# Obtenemos la aplicación
+application = get_wsgi_application()
+
+# Esto es lo que busca Vercel
+app = application
