@@ -1,15 +1,31 @@
-{% extends 'layouts/complete.html' %}
+{% extends "layouts/complete.html" %}
 {% block content %}
-<div class="dashboard-container" style="max-width: 600px;">
-    <h2 class="text-danger">Confirmar Eliminación</h2>
-    <div class="alert alert-warning">
-        ¿Estás seguro de que deseas eliminar del censo a <strong>{{ object.nombres }} {{ object.apellidos }}</strong>?
-        <br>Esta acción no se puede deshacer.
+    <div v-scope
+         @vue:mounted="navbar.change('Confirmar eliminación de censo')"
+         class="min-h-[calc(100svh-4rem)] max-w-screen overflow-hidden p-8 flex flex-col justify-start items-center gap-8 ">
+        <h2 class="text-warning text-2xl ">Confirmar Eliminación</h2>
+        <div role="alert" class="alert alert-error py-6">
+            <span class="text-lg text-center">
+                <svg xmlns="http://www.w3.org/2000/svg"
+                     class="size-16 self-center w-full"
+                     viewBox="0 0 24 24">
+                    <!-- Icon from Iconoir by Luca Burgio - https://github.com/iconoir-icons/iconoir/blob/main/LICENSE -->
+                    <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.5">
+                    <path d="M20.043 21H3.957c-1.538 0-2.5-1.664-1.734-2.997l8.043-13.988c.77-1.337 2.699-1.337 3.468 0l8.043 13.988C22.543 19.336 21.58 21 20.043 21ZM12 9v4" />
+                    <path stroke-linejoin="round" d="m12 17.01l.01-.011" />
+                    </g>
+                </svg>
+                ¿Estás seguro de que deseas eliminar del censo a <strong>{{ object.nombres }} {{ object.apellidos }}</strong>?
+                <br>
+                Esta acción no se puede deshacer.
+            </span>
+        </div>
+        <form method="post"
+              class="flex justify-center flex-col lg:flex-row w-full max-w-2xs gap-2">
+            {% csrf_token %}
+            <a href="{% url 'lider_torre:censo_lista' %}"
+               class="btn btn-neutral w-full max-w-md">Cancelar</a>
+            <button type="submit" class="btn btn-dash btn-error w-full max-w-md">Sí, Eliminar</button>
+        </form>
     </div>
-    <form method="post">
-        {% csrf_token %}
-        <button type="submit" class="btn btn-danger">Sí, Eliminar</button>
-        <a href="{% url 'lider_torre:censo_lista' %}" class="btn btn-secondary">Cancelar</a>
-    </form>
-</div>
-{% endblock %}
+{% endblock content %}

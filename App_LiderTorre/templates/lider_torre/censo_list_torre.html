@@ -1,71 +1,87 @@
 {% extends "layouts/complete.html" %}
-{% block title %}Censo Torre {{ request.user.tower.nombre }}{% endblock %}
-
+{% block toolbaritems %}
+    <script type="module" src="https://unpkg.com/cally"></script>
+    <div class="flex items-center justify-between w-full flex-wrap gap-1">
+        <a href="{% url 'lider_torre:censo_crear' %}"
+           class="btn btn-soft btn-xs btn-success">
+            <svg xmlns="http://www.w3.org/2000/svg" class="size-4" viewBox="0 0 24 24">
+                <!-- Icon from Material Symbols by Google - https://github.com/google/material-design-icons/blob/master/LICENSE -->
+                <path fill="currentColor" d="M18 14v-3h-3V9h3V6h2v3h3v2h-3v3zm-9-2q-1.65 0-2.825-1.175T5 8t1.175-2.825T9 4t2.825 1.175T13 8t-1.175 2.825T9 12m-8 8v-2.8q0-.85.438-1.562T2.6 14.55q1.55-.775 3.15-1.162T9 13t3.25.388t3.15 1.162q.725.375 1.163 1.088T17 17.2V20z" />
+            </svg>
+            Registrar Vecino
+        </a>
+        <a href="{% url 'lider_torre:censo_pdf_torre' %}"
+           class="btn btn-dash btn-xs btn-secondary">
+            <svg xmlns="http://www.w3.org/2000/svg"
+                 class="size-4"
+                 viewBox="0 0 256 256">
+                <!-- Icon from Phosphor by Phosphor Icons - https://github.com/phosphor-icons/core/blob/main/LICENSE -->
+                <path fill="currentColor" d="M224 144v64a8 8 0 0 1-8 8H40a8 8 0 0 1-8-8v-64a8 8 0 0 1 16 0v56h160v-56a8 8 0 0 1 16 0m-101.66 5.66a8 8 0 0 0 11.32 0l40-40a8 8 0 0 0-11.32-11.32L136 124.69V32a8 8 0 0 0-16 0v92.69L93.66 98.34a8 8 0 0 0-11.32 11.32Z" />
+            </svg>
+            Descargar Censo de Mi Torre PDF
+        </a>
+    </div>
+{% endblock toolbaritems %}
 {% block content %}
-<div class="dashboard-container">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2>
-            <i class="fas fa-building"></i> 
-            Censo: Torre {{ request.user.tower.nombre }}
-        </h2>
-        
-        <a href="{% url 'lider_torre:censo_crear' %}" class="btn btn-success">
-            <i class="fas fa-user-plus"></i> Registrar Vecino
-        </a>
-
-        <a href="{% url 'lider_torre:censo_pdf_torre' %}" class="btn btn-danger">
-            <i class="fas fa-file-pdf"></i> Descargar Censo de Mi Torre PDF
-        </a>
+    <div v-scope
+         @vue:mounted="navbar.change('Censo: Torre {{ request.user.tower.nombre }}'); navbar.toolbarOpen()"
+         class="min-h-[calc(100svh-8rem)] max-w-screen overflow-hidden p-8 flex flex-col justify-stretch items-start ">
+        <div class="overflow-x-auto w-full max-h-[calc(100svh-12rem)] rounded-box border border-base-content/5 bg-base-100">
+            <table class="table table-sm lg:table-md table-pin-rows table-zebra text-center lg:text-start">
+                <thead class="text-wrap lg:text-nowrap ">
+                    <tr>
+                        <th>Apto</th>
+                        <th>Nombre Completo</th>
+                        <th>Cédula</th>
+                        <th>Edad</th>
+                        <th>Teléfono</th>
+                        <th>Rol Familiar</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for m in miembros %}
+                        <tr>
+                            <td>
+                                <span>{{ m.apartamento_completo }}</span>
+                            </td>
+                            <td>{{ m.nombres }} {{ m.apellidos }}</td>
+                            <td>{{ m.cedula }}</td>
+                            <td>{{ m.edad }} años</td>
+                            <td>{{ m.telefono|default:"N/A" }}</td>
+                            <td>
+                                {% if m.es_jefe_familia %}
+                                    <span class="badge badge-soft badge-secondary">Jefe</span>
+                                {% else %}
+                                    <span>Miembro</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end flex flex-wrap gap-2 justify-end">
+                                <a href="{% url 'lider_torre:censo_editar' m.pk %}"
+                                   class="btn btn-sm btn-neutral"
+                                   title="Editar">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="size-4" viewBox="0 0 24 24">
+                                        <!-- Icon from Material Symbols by Google - https://github.com/google/material-design-icons/blob/master/LICENSE -->
+                                        <path fill="currentColor" d="M5 19h1.425L16.2 9.225L14.775 7.8L5 17.575zm-2 2v-4.25L16.2 3.575q.3-.275.663-.425t.762-.15t.775.15t.65.45L20.425 5q.3.275.438.65T21 6.4q0 .4-.137.763t-.438.662L7.25 21zM19 6.4L17.6 5zm-3.525 2.125l-.7-.725L16.2 9.225z" />
+                                    </svg>
+                                </a>
+                                <a href="{% url 'lider_torre:censo_eliminar' m.pk %}"
+                                   class="btn btn-sm btn-soft btn-error  "
+                                   title="Eliminar">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="size-4" viewBox="0 0 24 24">
+                                        <!-- Icon from Material Symbols by Google - https://github.com/google/material-design-icons/blob/master/LICENSE -->
+                                        <path fill="currentColor" d="m9.4 16.5l2.6-2.6l2.6 2.6l1.4-1.4l-2.6-2.6L16 9.9l-1.4-1.4l-2.6 2.6l-2.6-2.6L8 9.9l2.6 2.6L8 15.1zM7 21q-.825 0-1.412-.587T5 19V6H4V4h5V3h6v1h5v2h-1v13q0 .825-.587 1.413T17 21zM17 6H7v13h10zM7 6v13z" />
+                                    </svg>
+                                </a>
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-center py-4">Aún no has registrado vecinos en tu torre.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
     </div>
-    <hr>
-    
-    <div class="table-responsive">
-        <table class="table table-striped table-hover align-middle">
-            <thead class="table-dark">
-                <tr>
-                    <th>Apto</th>
-                    <th>Nombre Completo</th>
-                    <th>Cédula</th>
-                    <th>Edad</th>
-                    <th>Teléfono</th>
-                    <th>Rol Familiar</th>
-                    <th class="text-end">Acciones</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for m in miembros %}
-                <tr>
-                    <td><span class="badge bg-success fs-6">{{ m.apartamento_completo }}</span></td>
-                    <td class="fw-bold">{{ m.nombres }} {{ m.apellidos }}</td>
-                    <td>{{ m.cedula }}</td>
-                    <td>{{ m.edad }} años</td>
-                    <td>{{ m.telefono|default:"-" }}</td>
-                    <td>
-                        {% if m.es_jefe_familia %}
-                            <span class="badge bg-primary"><i class="fas fa-crown"></i> Jefe de Familia</span>
-                        {% else %}
-                            <span class="text-muted small">Miembro</span>
-                        {% endif %}
-                    </td>
-                    <td class="text-end">
-                        <a href="{% url 'lider_torre:censo_editar' m.pk %}" class="btn btn-sm btn-info text-white" title="Editar Datos">
-                            <i class="fas fa-edit"></i>
-                        </a>
-                        <a href="{% url 'lider_torre:censo_eliminar' m.pk %}" class="btn btn-sm btn-danger" title="Eliminar">
-                            <i class="fas fa-trash"></i>
-                        </a>
-                    </td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="7" class="text-center py-4 text-muted">
-                        <i class="fas fa-user-slash fa-2x mb-2"></i><br>
-                        Aún no has registrado vecinos en tu torre.
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-</div>
-{% endblock %}
+{% endblock content %}

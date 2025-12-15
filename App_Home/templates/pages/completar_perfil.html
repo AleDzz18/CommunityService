@@ -1,6 +1,6 @@
-{% extends 'layouts/complete.html' %}
+{% extends "layouts/complete.html" %}
 {% block content %}
-    <div v-scope="{cedula: {{ usuario.cedula|default:'null' }}}"
+    <div v-scope="{cedula: '{{ usuario.cedula|default:'null' }}' }"
          class="min-h-svh flex flex-col justify-start items-stretch px-6 py-8 gap-4">
         <h1 class="text-xl">Perfil</h1>
         <div v-if="cedula == null"
