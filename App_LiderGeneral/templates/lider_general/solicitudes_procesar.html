@@ -1,42 +1,107 @@
-{% extends 'layouts/complete.html' %}
-{% block title %}Procesar Documento{% endblock %}
+{% extends "layouts/complete.html" %}
 {% block content %}
-<div class="dashboard-container" style="max-width: 600px;">
-    <h2>Procesar: {{ solicitud.get_tipo_display }}</h2>
-    
-    <div class="alert alert-info">
-        <strong>Solicitante:</strong> {{ solicitud.beneficiario.nombres }} {{ solicitud.beneficiario.apellidos }}<br>
-        <strong>Cédula:</strong> {{ solicitud.beneficiario.cedula }}<br>
-        
-        {# Se muestra la ubicación completa si está disponible #}
-        {% if solicitud.beneficiario.tower %}
-            <strong>Ubicación:</strong> Torre {{ solicitud.beneficiario.tower.nombre }} - Apto {{ solicitud.beneficiario.apartamento_letra }}
-        {% endif %}
+    <div v-scope
+         @vue:mounted="navbar.change('Procesar Documento')"
+         class="min-h-[calc(100svh-4rem)] max-w-screen overflow-hidden p-8 flex flex-col justify-start items-center">
+        <div class="card card-border card-md p-2 shadow-md w-full max-w-md">
+            <div class="card-title text-center">
+                <h2 class="w-full">Procesar: {{ solicitud.get_tipo_display }}</h2>
+                <div class="divider divider-primary"></div>
+            </div>
+            <div class="card-body ">
+                <p class="text-justify flex flex-col">
+                    <span>Solicitante::
+                        <br>
+                        <b>{{ solicitud.beneficiario.nombres }} {{ solicitud.beneficiario.apellidos }}</b></span>
+                    <span>Cédula:
+                        <br>
+                        <b>{{ solicitud.beneficiario.cedula }}</b></span>
+                    {% if solicitud.beneficiario.tower %}
+                        <span>Ubicación:
+                            <br>
+                            <b> Torre {{ solicitud.beneficiario.tower.nombre }} - Apto {{ solicitud.beneficiario.apartamento_letra }}</b></span>
+                    {% endif %}
+                </p>
+                <form method="post"
+                      class="flex justify-center flex-col  w-full gap-2 mt-4 [&>div_div.label]:text-wrap [&>div_input,select]:w-full [&>div_input,select]:">
+                    {% csrf_token %}
+                    {# ESTE BUCLE RENDERIZA AUTOMÁTICAMENTE CUALQUIER FORMULARIO (Conducta o Mudanza) #}
+                    {% for field in form %}
+                        {% if field.field.widget.input_type == 'checkbox' %}
+                            <div class="w-full mt-2">
+                                <label class="label ">
+                                    <input type="checkbox"
+                                           {% if field.value %}checked{% endif %}
+                                           class="checkbox checkbox-lg checkbox-primary [&&]:w-(--size) "
+                                           name="{{ field.html_name }}"
+                                           id="{{ field.id_for_label }}" />
+                                    <span>
+                                        <b class="text-primary">{{ field.label }}</b>
+                                        {% if field.help_text %}
+                                            <br>
+                                            <small class="text-xs text-wrap w-full">{{ field.help_text }}</small>
+                                        {% endif %}
+                                    </span>
+                                </label>
+                                {% if field.errors %}<div class="label text-error text-sm">{{ field.errors }}</div>{% endif %}
+                            </div>
+                        {% elif field.field.widget.input_type == 'select' %}
+                            <div>
+                                <label for="{{ field.id_for_label }}"
+                                       class="block text-sm/6 font-medium text-primary">{{ field.label }}</label>
+                                <div class="mt-2">
+                                    <select name="{{ field.html_name }}"
+                                            id="{{ field.id_for_label }}"
+                                            value="{{ field.value|default:'' }}"
+                                            class="select block rounded-md w-48 bg-white px-3 py-1.5 text-base text-primary outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-accent sm:text-sm/6 {% if field.errors %}input-error{% endif %}">
+                                        <option disabled {% if not field.value %}selected{% endif %}>Selecciona</option>
+                                        {% for value, label in field.field.choices %}<option value='{{ value }}'>{{ label }}</option>{% endfor %}
+                                    </select>
+                                </div>
+                                {% if field.errors %}<div class=" label text-error text-sm">{{ field.errors }}</div>{% endif %}
+                            </div>
+                        {% else %}
+                            <div>
+                                <label for="{{ field.id_for_label }}"
+                                       class="block text-sm/6 font-medium text-primary">{{ field.label }}</label>
+                                <div class="mt-2">
+                                    <input type="{{ field.field.widget.input_type|default:'text' }}"
+                                           name="{{ field.html_name }}"
+                                           id="{{ field.id_for_label }}"
+                                           value="{{ field.value|default:'' }}"
+                                           placeholder="{{ field.field.widget.attrs.placeholder|default:field.help_text|default:'' }}"
+                                           class=" block rounded-md bg-white px-3 py-1.5 text-base text-primary outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-accent sm:text-sm/6 {% if field.errors %}input-error{% endif %}" />
+                                </div>
+                                {% if field.errors %}<div class="label text-error text-sm">{{ field.errors }}</div>{% endif %}
+                            </div>
+                        {% endif %}
+                    {% endfor %}
+                    <div class="flex flex-col items-stretch gap-2 mt-4">
+                        <button type="submit" class="btn btn-soft btn-success w-full max-w-md">Guardar y Generar PDF</button>
+                        <a href="{% url 'lider_general:lista_solicitudes' %}"
+                           class="btn btn-soft btn-neutral w-full max-w-md">Volver</a>
+                    </div>
+                </form>
+            </div>
+        </div>
     </div>
-    
-    <form method="post">
-        {% csrf_token %}
-        
-        {# ESTE BUCLE RENDERIZA AUTOMÁTICAMENTE CUALQUIER FORMULARIO (Conducta o Mudanza) #}
-        {% for field in form %}
-        <div class="mb-3">
-            <label class="form-label fw-bold" for="{{ field.id_for_label }}">{{ field.label }}</label>
-            {{ field }}
-            {% if field.help_text %}
-                <div class="form-text">{{ field.help_text }}</div>
-            {% endif %}
-            {% for error in field.errors %}
-                <div class="text-danger small">{{ error }}</div>
+{% endblock content %}
+{# Campos del formulario (cedula y tipo_documento) #}
+<div>
+    <label for="{{ form.tipo_documento.id_for_label }}"
+           class="block text-sm/6 font-medium text-primary">{{ form.tipo_documento.label }}</label>
+    <div class="mt-2">
+        <select name="{{ form.tipo_documento.html_name }}"
+                id="{{ form.tipo_documento.id_for_label }}"
+                value="{{ form.tipo_documento.value|default:'' }}"
+                class="select block rounded-md w-48 bg-white px-3 py-1.5 text-base text-primary outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-accent sm:text-sm/6 {% if form.tipo_documento.errors %}input-error{% endif %}">
+            <option disabled {% if not form.tipo_documento.value %}selected{% endif %}>Selecciona</option>
+            {% for value, label in form.tipo_documento.field.choices %}
+                <option value='{{ value }}'>{{ label }}</option>
             {% endfor %}
-        </div>
-        {% endfor %}
-        
-        <div class="d-flex justify-content-between mt-4">
-            <a href="{% url 'lider_general:lista_solicitudes' %}" class="btn btn-secondary">Cancelar</a>
-            <button type="submit" class="btn btn-success">
-                <i class="fas fa-file-pdf"></i> Guardar y Generar PDF
-            </button>
-        </div>
-    </form>
+        </select>
+    </div>
+    {% if form.tipo_documento.errors %}
+        <div class=" label text-error text-sm">{{ form.tipo_documento.errors }}</div>
+    {% endif %}
 </div>
-{% endblock %}

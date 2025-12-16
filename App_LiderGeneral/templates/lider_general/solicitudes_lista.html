@@ -1,40 +1,43 @@
-{% extends 'layouts/complete.html' %}
-{% block title %}Solicitudes de Documentos{% endblock %}
+{% extends "layouts/complete.html" %}
 {% block content %}
-<div class="dashboard-container">
-    <h2><i class="fas fa-inbox"></i> Solicitudes Pendientes</h2>
-    <hr>
-    <div class="table-responsive">
-        <table class="table table-hover">
-            <thead class="table-dark">
-                <tr>
-                    <th>Fecha</th>
-                    <th>Vecino</th>
-                    <th>Torre/Apto</th>
-                    <th>Documento</th>
-                    <th>Acción</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for sol in solicitudes %}
-                <tr>
-                    <td>{{ sol.fecha_solicitud|date:"d/m/Y" }}</td>
-                    <td>{{ sol.beneficiario.nombres }} {{ sol.beneficiario.apellidos }}</td>
-                    <td><span class="badge bg-secondary">{{ sol.beneficiario.tower.nombre }} - {{ sol.beneficiario.apartamento_completo }}</span></td>
-                    <td>{{ sol.get_tipo_display }}</td>
-                    <td>
-                        <a href="{% url 'lider_general:procesar_solicitud' sol.pk %}" class="btn btn-primary btn-sm">
-                            <i class="fas fa-cog"></i> Procesar
-                        </a>
-                    </td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="5" class="text-center text-muted py-4">No hay solicitudes pendientes.</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+    <div v-scope
+         @vue:mounted="navbar.change('Solicitudes de Documentos')"
+         class="min-h-[calc(100svh-8rem)] max-w-screen overflow-hidden p-8 flex flex-col justify-stretch items-start gap-8">
+        <a href="{% url 'url_index' %}" class="btn btn-neutral w-full ">Volver al inicio</a>
+        <div class="overflow-x-auto w-full max-h-[calc(100svh-12rem)] rounded-box border border-base-content/5 bg-base-100">
+            <table class="table table-sm lg:table-md table-pin-rows table-zebra text-center lg:text-start">
+                <thead class="text-wrap lg:text-nowrap ">
+                    <tr>
+                        <th>Acción</th>
+                        <th>Vecino</th>
+                        <th>Torre/Apto</th>
+                        <th>Documento</th>
+                        <th>Fecha</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for sol in solicitudes %}
+                        <tr>
+                            <td>
+                                <a href="{% url 'lider_general:procesar_solicitud' sol.pk %}"
+                                   class="btn btn-soft btn-primary btn-sm">Procesar</a>
+                            </td>
+                            <td>{{ sol.beneficiario.nombres }} {{ sol.beneficiario.apellidos }}</td>
+                            <td>
+                                <span>{{ sol.beneficiario.tower.nombre }}
+                                    <br>
+                                {{ sol.beneficiario.apartamento_completo }}</span>
+                            </td>
+                            <td>{{ sol.get_tipo_display }}</td>
+                            <td>{{ sol.fecha_solicitud|date:"d/m/Y" }}</td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="5" class="text-center py-4">No hay solicitudes pendientes.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
     </div>
-</div>
-{% endblock %}
+{% endblock content %}

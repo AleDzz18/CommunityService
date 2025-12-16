@@ -2957,6 +2957,9 @@
   .max-w-full {
     max-width: 100%;
   }
+  .max-w-lg {
+    max-width: var(--container-lg);
+  }
   .max-w-md {
     max-width: var(--container-md);
   }
@@ -3347,6 +3350,12 @@
   .bg-base-100 {
     background-color: var(--color-base-100);
   }
+  .bg-base-100\/75 {
+    background-color: var(--color-base-100);
+    @supports (color: color-mix(in lab, red, red)) {
+      background-color: color-mix(in oklab, var(--color-base-100) 75%, transparent);
+    }
+  }
   .bg-base-300 {
     background-color: var(--color-base-300);
   }
@@ -3447,6 +3456,9 @@
   .p-3 {
     padding: calc(var(--spacing) * 3);
   }
+  .p-4 {
+    padding: calc(var(--spacing) * 4);
+  }
   .p-6 {
     padding: calc(var(--spacing) * 6);
   }
@@ -3540,6 +3552,9 @@
   }
   .text-end {
     text-align: end;
+  }
+  .text-justify {
+    text-align: justify;
   }
   .text-start {
     text-align: start;
@@ -4583,6 +4598,26 @@
   .\[\&\:\:part\(select\)\]\:p-2 {
     &::part(select) {
       padding: calc(var(--spacing) * 2);
+    }
+  }
+  .\[\&\>div_div\.label\]\:text-wrap {
+    &>div div.label {
+      text-wrap: wrap;
+    }
+  }
+  .\[\&\>div_input\,select\]\:w-full {
+    &>div input,select {
+      width: 100%;
+    }
+  }
+  .\[\&\>div_label\]\:text-wrap {
+    &>div label {
+      text-wrap: wrap;
+    }
+  }
+  .\[\&\>div\.label\]\:text-wrap {
+    &>div.label {
+      text-wrap: wrap;
     }
   }
   .\[\&\>form_div\.label\]\:text-wrap {

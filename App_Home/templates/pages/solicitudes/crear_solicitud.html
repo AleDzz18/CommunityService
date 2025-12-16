@@ -1,48 +1,63 @@
-{% extends 'layouts/complete.html' %} 
-{% block title %}Solicitar Documento{% endblock %}
+{% extends "layouts/complete.html" %}
 {% block content %}
-<div class="container mt-5">
-    <div class="row justify-content-center">
-        <div class="col-md-8 col-lg-6">
-            <div class="card shadow-lg">
-                <div class="card-header bg-primary text-white text-center">
-                    <h4 class="mb-0">Solicitar Documento Comunitario</h4>
-                </div>
-                <div class="card-body">
-                    <p class="text-muted text-center">
-                        Ingresa tu **Cédula de Identidad** y selecciona el tipo de documento. Tu solicitud será enviada al Líder General para su procesamiento.
-                    </p>
-                    
-                    <form method="post" class="mt-4">
-                        {% csrf_token %}
-                        
-                        {# Campos del formulario (cedula y tipo_documento) #}
-                        <div class="mb-3">
-                            <label for="{{ form.cedula.id_for_label }}" class="form-label fw-bold">{{ form.cedula.label }}</label>
-                            {{ form.cedula }}
-                            {% if form.cedula.errors %}
-                                <div class="text-danger small">{{ form.cedula.errors }}</div>
-                            {% endif %}
+    <div v-scope
+         @vue:mounted="navbar.change('Solicitar Documento')"
+         class="min-h-[calc(100svh-4rem)] max-w-screen overflow-hidden p-8 flex flex-col justify-start items-center">
+        <div class="card card-border card-md p-2 shadow-md w-full max-w-md">
+            <div class="card-title text-center">
+                <h2 class="w-full">Solicitar Documento Comunitario</h2>
+                <div class="divider divider-primary"></div>
+            </div>
+            <div class="card-body ">
+                <p class="text-justify">
+                    Ingresa tu <b>Cédula de Identidad</b> y selecciona el tipo de documento. Tu solicitud será enviada al Líder General para su procesamiento.
+                </p>
+                <form method="post"
+                      class="flex justify-center flex-col  w-full gap-2 mt-4 [&>div_div.label]:text-wrap [&>div_input,select]:w-full"
+                      @submit.prevent="formHandler.handleSubmit($el)">
+                    {% csrf_token %}
+                    {# Campos del formulario (cedula y tipo_documento) #}
+                    <div>
+                        <label for="{{ form.cedula.id_for_label }}"
+                               class="block text-sm/6 font-medium text-primary">{{ form.cedula.label }}</label>
+                        <div class="mt-2">
+                            <input type="text"
+                                   name="{{ form.cedula.html_name }}"
+                                   id="{{ form.cedula.id_for_label }}"
+                                   value="{{ form.cedula.value|default:'' }}"
+                                   placeholder="XXXXXXXX"
+                                   class="block rounded-md w-48 bg-white px-3 py-1.5 text-base text-primary outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-accent sm:text-sm/6 {% if form.cedula.errors %}input-error{% endif %}" />
                         </div>
-
-                        <div class="mb-3">
-                            <label for="{{ form.tipo_documento.id_for_label }}" class="form-label fw-bold">{{ form.tipo_documento.label }}</label>
-                            {{ form.tipo_documento }}
-                            {% if form.tipo_documento.errors %}
-                                <div class="text-danger small">{{ form.tipo_documento.errors }}</div>
-                            {% endif %}
+                        {% if form.cedula.errors %}<div class="label text-error text-sm">{{ form.cedula.errors }}</div>{% endif %}
+                    </div>
+                    <div>
+                        <label for="{{ form.tipo_documento.id_for_label }}"
+                               class="block text-sm/6 font-medium text-primary">{{ form.tipo_documento.label }}</label>
+                        <div class="mt-2">
+                            <select name="{{ form.tipo_documento.html_name }}"
+                                    id="{{ form.tipo_documento.id_for_label }}"
+                                    value="{{ form.tipo_documento.value|default:'' }}"
+                                    class="select block rounded-md w-48 bg-white px-3 py-1.5 text-base text-primary outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-accent sm:text-sm/6 {% if form.tipo_documento.errors %}input-error{% endif %}">
+                                <option disabled {% if not form.tipo_documento.value %}selected{% endif %}>Selecciona</option>
+                                {% for value, label in form.tipo_documento.field.choices %}
+                                    <option value='{{ value }}'>{{ label }}</option>
+                                {% endfor %}
+                            </select>
                         </div>
-
-                        <div class="d-grid gap-2">
-                            <button type="submit" class="btn btn-success btn-lg mt-3">
-                                <i class="fas fa-paper-plane"></i> Enviar Solicitud
-                            </button>
-                            <a href="{% url 'url_index' %}" class="btn btn-outline-secondary">Volver al Inicio</a>
-                        </div>
-                    </form>
-                </div>
+                        {% if form.tipo_documento.errors %}
+                            <div class=" label text-error text-sm">{{ form.tipo_documento.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="flex flex-col items-stretch gap-2 mt-4">
+                        <button type="submit"
+                                :disabled="formHandler.loading"
+                                class="btn btn-soft btn-success w-full max-w-md">Enviar Solicitud</button>
+                        <a href="{% url 'url_index' %}"
+                           :class="{'pointer-none btn-disabled' : formHandler.loading}"
+                           class="btn btn-soft btn-neutral w-full max-w-md">Volver al Inicio</a>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
-</div>
-{% endblock %}
+{% endblock content %}
