@@ -6,7 +6,7 @@
         <a href="{% url 'ver_beneficio' tipo_slug=tipo_slug %}"
            class="btn btn-neutral w-full ">Volver a la lista</a>
         <div class="alert alert-outline alert-info w-full text-lg">
-            <span>Aquí puedes seleccionar a los jefes de familia de tu torre que aún <b>no han sido incluidos</b> en el ciclo actual de {{ titulo }}</span>
+            <span>Aquí puedes seleccionar a los jefes de familia de tu torre que <b>aún no han sido incluidos</b> en el ciclo actual de {{ titulo }}</span>
         </div>
         <form method="post"
               action="{% url 'lider_torre:agregar_vecinos' tipo_slug=tipo_slug %}"
@@ -17,7 +17,9 @@
             <input type="hidden" name="action" value="add_selected">
             <input type="hidden" name="tipo_slug" value="{{ tipo_slug }}">
             <div class="fab">
-                <button class="btn btn-lg btn-success" :disabled="!atLeastOneChecked">Agregar seleccionados</button>
+                <button type="submit"
+                        class="btn btn-lg btn-success"
+                        :disabled="!atLeastOneChecked">Agregar seleccionados</button>
             </div>
             <div class="card w-full bg-base-100 shadow-sm">
                 <div class="card-title flex justify-start items-center px-8 mt-4">
@@ -44,11 +46,14 @@
                                 {% for miembro in object_list %}
                                     <tr>
                                         <td class="text-center">
-                                            <input type="checkbox"
-                                                   name="miembros_ids"
-                                                   value="{{ miembro.id }}"
-                                                   class="select-item checkbox"
-                                                   @change="checkboxcheck()">
+                                            <label class="flex justify-start items-center">
+                                                <input type="checkbox"
+                                                       name="miembros_ids"
+                                                       value="{{ miembro.id }}"
+                                                       class="select-item checkbox mr-2"
+                                                       @change="checkboxcheck()">
+                                                Agregar
+                                            </label>
                                         </td>
                                         <td>{{ miembro.cedula }}</td>
                                         <td>{{ miembro.nombres }} {{ miembro.apellidos }}</td>

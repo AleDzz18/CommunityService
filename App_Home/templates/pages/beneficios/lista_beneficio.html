@@ -169,19 +169,19 @@
                         {% for entrega in beneficiarios %}
                             <tr>
                                 <td>
-                                    <span class="badge bg-secondary">{{ entrega.beneficiario.tower.nombre }}</span>
+                                    <span>{{ entrega.beneficiario.tower.nombre }}</span>
                                 </td>
                                 <td>{{ entrega.beneficiario.apartamento_completo }}</td>
-                                <td class="fw-bold font-monospace">{{ entrega.beneficiario.cedula }}</td>
+                                <td>{{ entrega.beneficiario.cedula }}</td>
                                 <td>{{ entrega.beneficiario.nombres }} {{ entrega.beneficiario.apellidos }}</td>
                                 <td>
                                     {% if entrega.beneficiario.es_jefe_familia %}
-                                        <span class="badge bg-primary">Jefe de Familia</span>
+                                        <span class="badge badge-soft badge-secondary">Jefe</span>
                                     {% else %}
-                                        <span class="text-muted small">Miembro</span>
+                                        <span>Miembro</span>
                                     {% endif %}
                                 </td>
-                                <td class="small text-muted">
+                                <td>
                                     {% if entrega.agregado_por %}
                                         {{ entrega.agregado_por.username }}
                                     {% else %}
@@ -191,9 +191,8 @@
                             </tr>
                         {% empty %}
                             <tr>
-                                <td colspan="6" class="text-center py-5 text-muted">
-                                    <i class="fas fa-users-slash fa-3x mb-3"></i>
-                                    <p class="fs-5">No se encontraron beneficiarios en la lista.</p>
+                                <td colspan="6" class="text-center py-5 ">
+                                    <p>No se encontraron beneficiarios en la lista.</p>
                                     {% if busqueda %}
                                         <p>Intenta con otra búsqueda.</p>
                                     {% else %}

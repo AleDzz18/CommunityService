@@ -3928,6 +3928,12 @@
       --badge-fg: var(--color-error-content);
     }
   }
+  .badge-info {
+    @layer daisyui.l1.l2 {
+      --badge-color: var(--color-info);
+      --badge-fg: var(--color-info-content);
+    }
+  }
   .badge-secondary {
     @layer daisyui.l1.l2 {
       --badge-color: var(--color-secondary);
