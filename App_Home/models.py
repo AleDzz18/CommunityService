@@ -307,7 +307,7 @@ class CensoMiembro(models.Model):
     )
 
     # Ubicación
-    tower = models.ForeignKey(Tower, on_delete=models.CASCADE, verbose_name="Torre")
+    tower = models.ForeignKey(Tower, on_delete=models.CASCADE, verbose_name="Torre", default=None)
     piso = models.CharField(
         max_length=2, choices=PISOS, verbose_name="Piso", default=None
     )

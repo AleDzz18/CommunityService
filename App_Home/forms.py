@@ -204,6 +204,7 @@ class CensoMiembroForm(forms.ModelForm):
         # 1. Extraemos el dato 'torre_usuario' que nos manda la vista
         self.torre_usuario = kwargs.pop("torre_usuario", None)
         super().__init__(*args, **kwargs)
+        self.fields["tower"].empty_label = None
 
     class Meta:
         model = CensoMiembro

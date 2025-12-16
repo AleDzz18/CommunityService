@@ -179,10 +179,7 @@
                     <div class="flex gap-4">
                         <button type="submit"
                                 :disabled="formHandler.loading"
-                                class="flex mt-8 text-sm/6 font-semibold btn btn-neutral ">
-                            Guardar y
-                            Acceder
-                        </button>
+                                class="flex mt-8 text-sm/6 font-semibold btn btn-neutral ">Guardar</button>
                         <a href="{% url 'lider_torre:censo_lista' %}"
                            class="flex mt-8 text-sm/6 font-semibold btn btn-error"
                            :class="{'pointer-none btn-disabled' : formHandler.loading}"

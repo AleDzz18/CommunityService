@@ -1,46 +1,73 @@
 # App_LiderTorre/views.py
 
-from django.views.generic import CreateView, UpdateView, ListView, DeleteView, ListView, View
+from django.views.generic import (
+    CreateView,
+    UpdateView,
+    ListView,
+    DeleteView,
+    ListView,
+    View,
+)
 from django.urls import reverse_lazy, reverse
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib import messages
 from django.db import IntegrityError
+from django.db.models import Count, OuterRef, Subquery, IntegerField
+from django.db.models.functions import Coalesce
 from django.shortcuts import redirect, get_object_or_404
 from django.http import HttpResponseRedirect, HttpResponse
 from django.utils import timezone
 from django.views import View
-from App_Home.models import MovimientoFinanciero, CustomUser, CensoMiembro, CicloBeneficio, EntregaBeneficio
+from App_Home.models import (
+    MovimientoFinanciero,
+    CustomUser,
+    CensoMiembro,
+    CicloBeneficio,
+    EntregaBeneficio,
+    models,
+)
 from App_Home.forms import CensoMiembroForm
-from .mixins import LiderTorreRequiredMixin 
+from .mixins import LiderTorreRequiredMixin
 from .forms import IngresoCondominioForm, EgresoCondominioForm, IngresoBasuraForm
 from decimal import Decimal
 from io import BytesIO
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter, A4
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image , Table as PDFTable, TableStyle
+from reportlab.platypus import (
+    SimpleDocTemplate,
+    Paragraph,
+    Spacer,
+    Image,
+    Table as PDFTable,
+    TableStyle,
+)
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER, TA_RIGHT
 from reportlab.lib import colors
 
 # ==============================================================
 # La plantilla del formulario será la misma para todos los tipos de movimiento
-TEMPLATE_NAME = 'lider_torre/movimiento_form.html'
-SUCCESS_URL = None # Se define dinámicamente en get_success_url
+TEMPLATE_NAME = "lider_torre/movimiento_form.html"
+SUCCESS_URL = None  # Se define dinámicamente en get_success_url
+
 
 class BaseMovimientoCreateView(LoginRequiredMixin, LiderTorreRequiredMixin, CreateView):
     """Clase base que asigna automáticamente el creador, tipo, categoría y torre."""
+
     model = MovimientoFinanciero
     template_name = TEMPLATE_NAME
 
-    TIPO_MOVIMIENTO = None 
+    TIPO_MOVIMIENTO = None
     CATEGORIA_MOVIMIENTO = None
-    MONTO_FIELD = None 
+    MONTO_FIELD = None
 
     # Solución al Problema 2: Redirección dinámica
     def get_success_url(self):
         """Devuelve la URL de éxito dinámica basada en la categoría."""
-        categoria_slug = 'condominio' if 'Condominio' in self.CATEGORIA_MOVIMIENTO else 'basura'
-        return reverse_lazy('ver_finanzas', kwargs={'categoria_slug': categoria_slug})
+        categoria_slug = (
+            "condominio" if "Condominio" in self.CATEGORIA_MOVIMIENTO else "basura"
+        )
+        return reverse_lazy("ver_finanzas", kwargs={"categoria_slug": categoria_slug})
 
     def form_invalid(self, form):
         """Muestra los errores del formulario en la consola para debugging y asegura mensaje al usuario."""
@@ -48,97 +75,113 @@ class BaseMovimientoCreateView(LoginRequiredMixin, LiderTorreRequiredMixin, Crea
         print("--- DEBUG: Falla de Validación del Formulario (Causa de 200 OK) ---")
         if form.non_field_errors():
             print(f"Errores No de Campo (Non-Field Errors): {form.non_field_errors()}")
-        
+
         for field, errors in form.errors.items():
             print(f"Error en el campo '{field}': {errors}")
 
         # Asegura que el usuario vea un mensaje genérico si el template no muestra errores específicos
-        messages.error(self.request, "Hubo un error en los datos ingresados. Revisa el formulario para ver los errores específicos.")
-            
+        messages.error(
+            self.request,
+            "Hubo un error en los datos ingresados. Revisa el formulario para ver los errores específicos.",
+        )
+
         return super().form_invalid(form)
-    
+
     # -----------------------------------------------------------
     # MÉTODO form_valid
     # -----------------------------------------------------------
     def form_valid(self, form):
-        
+
         # 1. Asignar creador, tipo y categoría
         form.instance.creado_por = self.request.user
-        form.instance.tipo = 'ING' if 'Ingreso' in self.TIPO_MOVIMIENTO else 'EGR'
-        form.instance.categoria = 'CON' if 'Condominio' in self.CATEGORIA_MOVIMIENTO else 'BAS'
+        form.instance.tipo = "ING" if "Ingreso" in self.TIPO_MOVIMIENTO else "EGR"
+        form.instance.categoria = (
+            "CON" if "Condominio" in self.CATEGORIA_MOVIMIENTO else "BAS"
+        )
 
         # 2. Determinar la Torre (Lógica Central)
         # Se necesita asignar una torre para que el modelo no falle, incluso si el egreso es 'general'
-        torre_seleccionada = form.cleaned_data.get('tower')
-        
+        torre_seleccionada = form.cleaned_data.get("tower")
+
         if torre_seleccionada:
             # Opción 1: Usa la torre que viene en el formulario (Condominio General o Ingreso Basura General)
             form.instance.tower = torre_seleccionada
-            
-        elif form.instance.categoria == 'BAS' and form.instance.tipo == 'EGR':
+
+        elif form.instance.categoria == "BAS" and form.instance.tipo == "EGR":
             # ** CASO ESPECIAL: EGRESO BASURA GENERAL **
             # Se asigna la torre del usuario (si tiene) o la primera torre como asiento contable.
-            
+
             if self.request.user.tower:
                 form.instance.tower = self.request.user.tower
             else:
-                from App_Home.models import Tower 
+                from App_Home.models import Tower
+
                 try:
-                    form.instance.tower = Tower.objects.first() 
+                    form.instance.tower = Tower.objects.first()
                 except Exception as e:
-                    messages.error(self.request, f"Error: No se pudo asignar una torre de destino por defecto para el egreso general. {e}")
+                    messages.error(
+                        self.request,
+                        f"Error: No se pudo asignar una torre de destino por defecto para el egreso general. {e}",
+                    )
                     return self.form_invalid(form)
-                    
+
         elif self.request.user.tower:
             # Caso Líder de Torre (LDT): Usa la torre asignada al usuario LDT
             form.instance.tower = self.request.user.tower
-        
+
         else:
-            messages.error(self.request, "Error: No se pudo asignar una torre de destino.")
+            messages.error(
+                self.request, "Error: No se pudo asignar una torre de destino."
+            )
             return self.form_invalid(form)
 
         # 3. Control de Egreso Negativo (Solo si es un Egreso)
-        if form.instance.tipo == 'EGR':
+        if form.instance.tipo == "EGR":
             monto_egreso = form.cleaned_data.get(self.MONTO_FIELD)
-            
+
             # ---------------------------------------------------------------------------------
             # >>> LÓGICA DE SALDO GENERAL/ESPECÍFICO <<<
             # ---------------------------------------------------------------------------------
-            if form.instance.categoria == 'BAS':
+            if form.instance.categoria == "BAS":
                 # Si es BASURA, chequeamos el saldo GLOBAL de todas las torres
-                saldo_actual = MovimientoFinanciero.objects.calcular_saldo_general_basura()
+                saldo_actual = (
+                    MovimientoFinanciero.objects.calcular_saldo_general_basura()
+                )
             else:
                 # Si es CONDOMINIO, chequeamos el saldo por Torre
                 saldo_actual = MovimientoFinanciero.objects.calcular_saldo_torre(
-                    tower=form.instance.tower, 
-                    categoria=form.instance.categoria
+                    tower=form.instance.tower, categoria=form.instance.categoria
                 )
             # ---------------------------------------------------------------------------------
-            
+
             if saldo_actual < monto_egreso:
                 # Mensaje de error ajustado para reflejar si es saldo GENERAL o por Torre
-                torre_nombre = 'GENERAL' if form.instance.categoria == 'BAS' else form.instance.tower.nombre
-                
+                torre_nombre = (
+                    "GENERAL"
+                    if form.instance.categoria == "BAS"
+                    else form.instance.tower.nombre
+                )
+
                 messages.error(
-                    self.request, 
-                    f"Saldo insuficiente ({self.CATEGORIA_MOVIMIENTO}) en la administración {torre_nombre} para realizar este Egreso. Saldo actual: {saldo_actual:.2f} Bs."
+                    self.request,
+                    f"Saldo insuficiente ({self.CATEGORIA_MOVIMIENTO}) en la administración {torre_nombre} para realizar este Egreso. Saldo actual: {saldo_actual:.2f} Bs.",
                 )
                 return self.form_invalid(form)
 
         # 4. Asignar Montos (Se asigna el monto ingresado y cero al campo no usado)
         monto = form.cleaned_data[self.MONTO_FIELD]
-        
-        if self.MONTO_FIELD == 'monto_condominio':
+
+        if self.MONTO_FIELD == "monto_condominio":
             form.instance.monto_condominio = monto
-            form.instance.monto_basura = Decimal(0.00) 
-            
-        elif self.MONTO_FIELD == 'monto_basura':
+            form.instance.monto_basura = Decimal(0.00)
+
+        elif self.MONTO_FIELD == "monto_basura":
             form.instance.monto_basura = monto
-            form.instance.monto_condominio = Decimal(0.00) 
-            
+            form.instance.monto_condominio = Decimal(0.00)
+
         # 5. Guardar el objeto manipulado
         try:
-            self.object = form.save(commit=True) 
+            self.object = form.save(commit=True)
         except Exception as e:
             error_msg = f"Error de Base de Datos al intentar guardar el movimiento: {e}"
             print(f"--- DEBUG FATAL: {error_msg} ---")
@@ -148,67 +191,77 @@ class BaseMovimientoCreateView(LoginRequiredMixin, LiderTorreRequiredMixin, Crea
         # 6. Mensaje de éxito
         # Determinar el nombre de la administración para el mensaje de éxito
         torre_display = self.object.tower.nombre
-        if self.object.tipo == 'EGR' and self.object.categoria == 'BAS':
+        if self.object.tipo == "EGR" and self.object.categoria == "BAS":
             # Si es un egreso general de basura, mostramos 'GENERAL'
-            torre_display = 'GENERAL'
-        
+            torre_display = "GENERAL"
+
         # Usamos el nombre ajustado en el mensaje
-        messages.success(self.request, f"{self.TIPO_MOVIMIENTO} de {self.CATEGORIA_MOVIMIENTO} registrado con éxito en la Administración {torre_display}.")
-        
+        messages.success(
+            self.request,
+            f"{self.TIPO_MOVIMIENTO} de {self.CATEGORIA_MOVIMIENTO} registrado con éxito en la Administración {torre_display}.",
+        )
+
         # 7. Retornar la redirección
         return HttpResponseRedirect(self.get_success_url())
-    
+
 
 class RegistrarIngresoCondominioView(BaseMovimientoCreateView):
     form_class = IngresoCondominioForm
-    TIPO_MOVIMIENTO = 'Ingreso'
-    CATEGORIA_MOVIMIENTO = 'Condominio'
-    MONTO_FIELD = 'monto_condominio'
+    TIPO_MOVIMIENTO = "Ingreso"
+    CATEGORIA_MOVIMIENTO = "Condominio"
+    MONTO_FIELD = "monto_condominio"
+
 
 class RegistrarEgresoCondominioView(BaseMovimientoCreateView):
     form_class = EgresoCondominioForm
-    TIPO_MOVIMIENTO = 'Egreso'
-    CATEGORIA_MOVIMIENTO = 'Condominio'
-    MONTO_FIELD = 'monto_condominio'
+    TIPO_MOVIMIENTO = "Egreso"
+    CATEGORIA_MOVIMIENTO = "Condominio"
+    MONTO_FIELD = "monto_condominio"
+
 
 class RegistrarIngresoBasuraView(BaseMovimientoCreateView):
     form_class = IngresoBasuraForm
-    TIPO_MOVIMIENTO = 'Ingreso'
-    CATEGORIA_MOVIMIENTO = 'Cuarto de Basura'
-    MONTO_FIELD = 'monto_basura'
+    TIPO_MOVIMIENTO = "Ingreso"
+    CATEGORIA_MOVIMIENTO = "Cuarto de Basura"
+    MONTO_FIELD = "monto_basura"
+
 
 # ==============================================================
 # --- GESTIÓN DE CENSO LOCAL (LÍDER TORRE) ---
 # ==============================================================
 
+
 # 1. VISTA DE LISTA
 class CensoTorreListView(LiderTorreRequiredMixin, ListView):
     model = CensoMiembro
-    template_name = 'lider_torre/censo_list_torre.html'
-    context_object_name = 'miembros'
+    template_name = "lider_torre/censo_list_torre.html"
+    context_object_name = "miembros"
 
     def get_queryset(self):
         # FILTRO AUTOMÁTICO: Solo muestra gente de SU torre
-        return CensoMiembro.objects.filter(tower=self.request.user.tower).order_by('piso', 'apartamento_letra')
+        return CensoMiembro.objects.filter(tower=self.request.user.tower).order_by(
+            "piso", "apartamento_letra"
+        )
+
 
 # 2. VISTA DE CREACIÓN
 class CensoTorreCreateView(LiderTorreRequiredMixin, CreateView):
     model = CensoMiembro
     form_class = CensoMiembroForm
-    template_name = 'lider_torre/censo_form_torre.html'
-    success_url = reverse_lazy('lider_torre:censo_lista')
+    template_name = "lider_torre/censo_form_torre.html"
+    success_url = reverse_lazy("lider_torre:censo_lista")
 
     def get_form_kwargs(self):
         """Pasa la torre del usuario actual al formulario para validación."""
         kwargs = super().get_form_kwargs()
-        kwargs['torre_usuario'] = self.request.user.tower
+        kwargs["torre_usuario"] = self.request.user.tower
         return kwargs
 
     def get_form(self, form_class=None):
         form = super().get_form(form_class)
-        if 'tower' in form.fields:
-            form.fields['tower'].widget.attrs['hidden'] = True
-            form.fields['tower'].required = False
+        if "tower" in form.fields:
+            form.fields["tower"].widget.attrs["hidden"] = True
+            form.fields["tower"].required = False
         return form
 
     def form_valid(self, form):
@@ -216,28 +269,29 @@ class CensoTorreCreateView(LiderTorreRequiredMixin, CreateView):
         messages.success(self.request, "Vecino registrado correctamente.")
         return super().form_valid(form)
 
+
 # 3. VISTA DE EDICIÓN
 class CensoTorreUpdateView(LiderTorreRequiredMixin, UpdateView):
     model = CensoMiembro
     form_class = CensoMiembroForm
-    template_name = 'lider_torre/censo_form_torre.html'
-    success_url = reverse_lazy('lider_torre:censo_lista')
+    template_name = "lider_torre/censo_form_torre.html"
+    success_url = reverse_lazy("lider_torre:censo_lista")
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
         # Pasa la torre al formulario para la validación de 'Jefe de Familia Único'
-        kwargs['torre_usuario'] = self.request.user.tower
+        kwargs["torre_usuario"] = self.request.user.tower
         return kwargs
 
     def get_form(self, form_class=None):
         form = super().get_form(form_class)
-        if 'tower' in form.fields:
+        if "tower" in form.fields:
             # 1. Ocultamos el campo visualmente.
-            form.fields['tower'].widget.attrs['hidden'] = True
+            form.fields["tower"].widget.attrs["hidden"] = True
             # 2. Hacemos el campo NO requerido para que la validación inicial lo ignore.
-            form.fields['tower'].required = False
+            form.fields["tower"].required = False
         return form
-        
+
     # --- MÉTODO CRÍTICO AÑADIDO/CORREGIDO ---
     def form_valid(self, form):
         # 3. ¡IMPORTANTE! Asignamos explícitamente la torre del usuario al objeto.
@@ -245,12 +299,13 @@ class CensoTorreUpdateView(LiderTorreRequiredMixin, UpdateView):
         form.instance.tower = self.request.user.tower
         messages.success(self.request, "Cambios guardados correctamente.")
         return super().form_valid(form)
+
     # ----------------------------------------
 
     def get_queryset(self):
         # Seguridad: Asegura que solo pueda editar miembros de su propia torre
         return super().get_queryset().filter(tower=self.request.user.tower)
-        
+
     # Método de debugging que añadiste anteriormente
     def form_invalid(self, form):
         print("\n*** ERROR DE VALIDACIÓN DE FORMULARIO DE EDICIÓN ***")
@@ -261,11 +316,12 @@ class CensoTorreUpdateView(LiderTorreRequiredMixin, UpdateView):
         print("**************************************************\n")
         return super().form_invalid(form)
 
+
 # 4. VISTA DE ELIMINACIÓN
 class CensoTorreDeleteView(LiderTorreRequiredMixin, DeleteView):
     model = CensoMiembro
-    template_name = 'lider_torre/censo_confirm_delete.html'
-    success_url = reverse_lazy('lider_torre:censo_lista')
+    template_name = "lider_torre/censo_confirm_delete.html"
+    success_url = reverse_lazy("lider_torre:censo_lista")
 
     def get_queryset(self):
         return super().get_queryset().filter(tower=self.request.user.tower)
@@ -273,30 +329,33 @@ class CensoTorreDeleteView(LiderTorreRequiredMixin, DeleteView):
     def form_valid(self, form):
         messages.success(self.request, "Residente eliminado correctamente.")
         return super().form_valid(form)
-    
+
 
 # VISTA PARA AGREGAR VECINOS A LISTAS DE BENEFICIOS (CLAP/GAS)
 
+
 class AgregarVecinosTorreView(LoginRequiredMixin, LiderTorreRequiredMixin, ListView):
     model = CensoMiembro
-    template_name = 'lider_torre/agregar_beneficio.html'
-    context_object_name = 'vecinos'
+    template_name = "lider_torre/agregar_beneficio.html"
+    context_object_name = "vecinos"
 
     def _get_benefit_slug_map(self):
         """Mapea los códigos DB ('CLAP', 'GAS') a slugs minúsculos ('clap', 'gas') para la URL."""
         # Usa la lista TIPOS definida dentro del modelo CicloBeneficio
-        return [(db.lower(), db) for db, desc in CicloBeneficio.TIPOS] #
+        return [(db.lower(), db) for db, desc in CicloBeneficio.TIPOS]  #
 
     def get_queryset(self):
         user_tower = self.request.user.tower
         if not user_tower:
             return CensoMiembro.objects.none()
-            
-        tipo_slug = self.kwargs.get('tipo_slug')
-        
+
+        tipo_slug = self.kwargs.get("tipo_slug")
+
         # Encuentra el código DB ('CLAP' o 'GAS')
-        tipo_db = next((db for slug, db in self._get_benefit_slug_map() if slug == tipo_slug), None)
-        
+        tipo_db = next(
+            (db for slug, db in self._get_benefit_slug_map() if slug == tipo_slug), None
+        )
+
         if not tipo_db:
             return CensoMiembro.objects.none()
 
@@ -306,171 +365,270 @@ class AgregarVecinosTorreView(LoginRequiredMixin, LiderTorreRequiredMixin, ListV
             return CensoMiembro.objects.none()
 
         # 2. Excluir los que YA están en la lista (usando EntregaBeneficio)
-        ids_en_lista = EntregaBeneficio.objects.filter(ciclo=ciclo).values_list('beneficiario_id', flat=True)
-        
-        # 3. Filtrar y ordenar
-        return CensoMiembro.objects.filter(
-            tower=user_tower,
-            es_jefe_familia=True # Si este es el filtro deseado
-        ).exclude(id__in=ids_en_lista).order_by('piso', 'apartamento_letra')
+        ids_en_lista = EntregaBeneficio.objects.filter(ciclo=ciclo).values_list(
+            "beneficiario_id", flat=True
+        )
 
+        # AÑADE EL CONTEO MALPARIO
+
+        conteo_subquery = (
+            CensoMiembro.objects.filter(
+                tower=OuterRef("tower"),
+                piso=OuterRef("piso"),
+                apartamento_letra=OuterRef("apartamento_letra"),
+            )
+            .values("tower", "piso", "apartamento_letra")
+            .annotate(count_total=Count("id"))
+            .values("count_total")[:1]
+        )
+
+        # 3. Filtrar y ordenar
+        return (
+            CensoMiembro.objects.filter(
+                tower=user_tower, es_jefe_familia=True  # Si este es el filtro deseado
+            )
+            .exclude(id__in=ids_en_lista)
+            .annotate(
+                # La cuenta total menos 1 (para excluir al jefe de familia)
+                total_miembros_apt=Coalesce(
+                    Subquery(conteo_subquery, output_field=IntegerField()),
+                    1,  # Si la subconsulta no encuentra nada, el total es 1 (el jefe)
+                ),
+                miembros_contados=models.F("total_miembros_apt") - 1,
+            )
+            .order_by("piso", "apartamento_letra")
+        )
 
     def post(self, request, *args, **kwargs):
-        tipo_slug = self.kwargs['tipo_slug']
-        miembros_ids = request.POST.getlist('miembros_ids')
-        
+        tipo_slug = self.kwargs["tipo_slug"]
+        miembros_ids = request.POST.getlist("miembros_ids")
+
         if not miembros_ids:
             messages.error(request, "No seleccionaste a ningún vecino para agregar.")
-            return redirect('lider_torre:agregar_vecinos', tipo_slug=tipo_slug)
-            
+            return redirect("lider_torre:agregar_vecinos", tipo_slug=tipo_slug)
+
         try:
-            tipo_db = next(db for slug, db in self._get_benefit_slug_map() if slug == tipo_slug)
-            
+            tipo_db = next(
+                db for slug, db in self._get_benefit_slug_map() if slug == tipo_slug
+            )
+
             ciclo_activo = CicloBeneficio.objects.get(tipo=tipo_db, activo=True)
             torre_usuario = request.user.tower
-            
+
         except CicloBeneficio.DoesNotExist:
-            messages.error(request, f"No existe un ciclo activo para {tipo_slug.upper()}.")
-            return redirect('ver_beneficio', tipo_slug=tipo_slug)
+            messages.error(
+                request, f"No existe un ciclo activo para {tipo_slug.upper()}."
+            )
+            return redirect("ver_beneficio", tipo_slug=tipo_slug)
         except StopIteration:
             messages.error(request, "Tipo de beneficio inválido.")
-            return redirect('ver_beneficio', tipo_slug=tipo_slug)
+            return redirect("ver_beneficio", tipo_slug=tipo_slug)
 
         # 4. Crear los objetos EntregaBeneficio
         objetos_a_crear = []
-        miembros_seleccionados = CensoMiembro.objects.filter(id__in=miembros_ids, tower=torre_usuario)
-        
+        miembros_seleccionados = CensoMiembro.objects.filter(
+            id__in=miembros_ids, tower=torre_usuario
+        )
+
         for miembro in miembros_seleccionados:
             objetos_a_crear.append(
                 EntregaBeneficio(
-                    ciclo=ciclo_activo,
-                    beneficiario=miembro,
-                    agregado_por=request.user
+                    ciclo=ciclo_activo, beneficiario=miembro, agregado_por=request.user
                 )
             )
 
         # 5. Guardar en la base de datos de forma masiva
         try:
             EntregaBeneficio.objects.bulk_create(objetos_a_crear)
-            messages.success(request, f"Se agregaron **{len(objetos_a_crear)}** vecinos a la lista de {tipo_slug.upper()}.")
+            messages.success(
+                request,
+                f"Se agregaron **{len(objetos_a_crear)}** vecinos a la lista de {tipo_slug.upper()}.",
+            )
         except IntegrityError:
-            messages.warning(request, "Algunos vecinos ya estaban en la lista y fueron omitidos (duplicado).")
+            messages.warning(
+                request,
+                "Algunos vecinos ya estaban en la lista y fueron omitidos (duplicado).",
+            )
         except Exception as e:
             messages.error(request, f"Error al guardar los beneficiarios: {e}")
 
         # 6. Redirigir a la lista principal de beneficios
-        return redirect('ver_beneficio', tipo_slug=tipo_slug)
+        return redirect("ver_beneficio", tipo_slug=tipo_slug)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        tipo_slug = self.kwargs.get('tipo_slug')
-        context['tipo_slug'] = tipo_slug
-        context['titulo'] = "Agregar Vecinos a " + tipo_slug.upper()
-        
-        tipo_db = next((db for slug, db in self._get_benefit_slug_map() if slug == tipo_slug), None)
-        context['ciclo'] = CicloBeneficio.objects.filter(tipo=tipo_db, activo=True).first()
+        tipo_slug = self.kwargs.get("tipo_slug")
+        context["tipo_slug"] = tipo_slug
+        context["titulo"] = "Agregar Vecinos a " + tipo_slug.upper()
+
+        tipo_db = next(
+            (db for slug, db in self._get_benefit_slug_map() if slug == tipo_slug), None
+        )
+        context["ciclo"] = CicloBeneficio.objects.filter(
+            tipo=tipo_db, activo=True
+        ).first()
         return context
 
-# La vista para procesar el POST puede ser la misma 'AgregarBeneficiarioGeneralView' 
+
+# La vista para procesar el POST puede ser la misma 'AgregarBeneficiarioGeneralView'
 # reutilizada o una similar en App_LiderTorre si quieres separar lógica.
 # Por simplicidad, el formulario en el HTML apuntará a una vista de acción compartida o local.
 class ProcesarAgregarTorreView(LoginRequiredMixin, View):
     def post(self, request):
-        censo_id = request.POST.get('censo_id')
-        ciclo_id = request.POST.get('ciclo_id')
-        
+        censo_id = request.POST.get("censo_id")
+        ciclo_id = request.POST.get("ciclo_id")
+
         miembro = get_object_or_404(CensoMiembro, pk=censo_id)
         # SEGURIDAD: Verificar que el miembro pertenece a la torre del líder
         if miembro.tower != request.user.tower:
             messages.error(request, "No puedes agregar vecinos de otra torre.")
-            return redirect('url_dashboard')
+            return redirect("url_dashboard")
 
         ciclo = get_object_or_404(CicloBeneficio, pk=ciclo_id)
-        
-        EntregaBeneficio.objects.create(ciclo=ciclo, beneficiario=miembro, agregado_por=request.user)
-        messages.success(request, "Vecino agregado.")
-        
-        slug = 'clap' if ciclo.tipo == 'CLAP' else 'gas'
-        return redirect('lider_torre:agregar_vecinos', tipo_slug=slug)
-    
 
-class CensoPDFTorreView(LoginRequiredMixin, View): # O LiderTorreRequiredMixin si lo usas
+        EntregaBeneficio.objects.create(
+            ciclo=ciclo, beneficiario=miembro, agregado_por=request.user
+        )
+        messages.success(request, "Vecino agregado.")
+
+        slug = "clap" if ciclo.tipo == "CLAP" else "gas"
+        return redirect("lider_torre:agregar_vecinos", tipo_slug=slug)
+
+
+class CensoPDFTorreView(
+    LoginRequiredMixin, View
+):  # O LiderTorreRequiredMixin si lo usas
     """Genera un PDF con el censo específico de la torre del líder."""
-    
+
     def get(self, request, *args, **kwargs):
         # 1. Obtener los datos FILTRADOS por la torre del usuario
         torre_usuario = request.user.tower
-        miembros = CensoMiembro.objects.filter(tower=torre_usuario).order_by('piso', 'apartamento_letra')
+        miembros = CensoMiembro.objects.filter(tower=torre_usuario).order_by(
+            "piso", "apartamento_letra"
+        )
 
         # 2. Configuración del PDF
         buffer = BytesIO()
-        doc = SimpleDocTemplate(buffer, pagesize=A4, title=f"Censo Torre {torre_usuario.nombre}",
-                                topMargin=30, bottomMargin=30, leftMargin=30, rightMargin=30)
-        
+        doc = SimpleDocTemplate(
+            buffer,
+            pagesize=A4,
+            title=f"Censo Torre {torre_usuario.nombre}",
+            topMargin=30,
+            bottomMargin=30,
+            leftMargin=30,
+            rightMargin=30,
+        )
+
         Story = []
         styles = getSampleStyleSheet()
-        
-        estilo_titulo = ParagraphStyle('TituloPDF', parent=styles['Normal'], alignment=TA_CENTER, fontSize=18, fontName='Helvetica-Bold', spaceAfter=5)
-        estilo_subtitulo = ParagraphStyle('SubtituloPDF', parent=styles['Normal'], alignment=TA_CENTER, fontSize=12, textColor=colors.grey, spaceAfter=15)
-        estilo_fecha = ParagraphStyle('FechaPDF', parent=styles['Normal'], alignment=TA_RIGHT, fontSize=9, spaceAfter=20)
+
+        estilo_titulo = ParagraphStyle(
+            "TituloPDF",
+            parent=styles["Normal"],
+            alignment=TA_CENTER,
+            fontSize=18,
+            fontName="Helvetica-Bold",
+            spaceAfter=5,
+        )
+        estilo_subtitulo = ParagraphStyle(
+            "SubtituloPDF",
+            parent=styles["Normal"],
+            alignment=TA_CENTER,
+            fontSize=12,
+            textColor=colors.grey,
+            spaceAfter=15,
+        )
+        estilo_fecha = ParagraphStyle(
+            "FechaPDF",
+            parent=styles["Normal"],
+            alignment=TA_RIGHT,
+            fontSize=9,
+            spaceAfter=20,
+        )
 
         # Encabezado
-        Story.append(Paragraph(f"Censo Comunitario - Torre {torre_usuario.nombre}", estilo_titulo))
+        Story.append(
+            Paragraph(
+                f"Censo Comunitario - Torre {torre_usuario.nombre}", estilo_titulo
+            )
+        )
         Story.append(Paragraph("Balcones de Paraguaná I", estilo_subtitulo))
-        Story.append(Paragraph(f"Generado el: {timezone.now().strftime('%d/%m/%Y %I:%M %p')}", estilo_fecha))
-        
-        Story.append(Spacer(1, 10)) 
+        Story.append(
+            Paragraph(
+                f"Generado el: {timezone.now().strftime('%d/%m/%Y %I:%M %p')}",
+                estilo_fecha,
+            )
+        )
+
+        Story.append(Spacer(1, 10))
 
         # 3. Datos de la tabla (Quitamos columna Torre, agregamos Email si cabe)
         data = []
-        headers = ['Apto', 'Cédula', 'Nombre Completo', 'Jefe Fam.', 'Teléfono']
+        headers = ["Apto", "Cédula", "Nombre Completo", "Jefe Fam.", "Teléfono"]
         data.append(headers)
 
         for m in miembros:
             nombre_completo = f"{m.nombres} {m.apellidos}"
-            if len(nombre_completo) > 30: # Un poco más de espacio al quitar la columna Torre
+            if (
+                len(nombre_completo) > 30
+            ):  # Un poco más de espacio al quitar la columna Torre
                 nombre_completo = nombre_completo[:27] + "..."
 
-            data.append([
-                m.apartamento_completo, # Ejemplo: P1-A
-                m.cedula,
-                nombre_completo,
-                'SÍ' if m.es_jefe_familia else 'NO',
-                m.telefono if m.telefono else '-'
-            ])
-        
+            data.append(
+                [
+                    m.apartamento_completo,  # Ejemplo: P1-A
+                    m.cedula,
+                    nombre_completo,
+                    "SÍ" if m.es_jefe_familia else "NO",
+                    m.telefono if m.telefono else "-",
+                ]
+            )
+
         # 4. Configuración de la Tabla
         # Ancho disponible ~535.
         # Ajustamos columnas: Apto(60), Ced(80), Nombre(235), Jefe(60), Tel(100)
         col_widths = [60, 80, 235, 60, 100]
-        
+
         table = PDFTable(data, colWidths=col_widths)
-        
+
         # Estilo (Mismo tema visual)
-        table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2a9d8f')), # Un verde azulado para diferenciar Torre
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('VALIGN', (0, 0), (-1, 0), 'MIDDLE'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 10),
-            
-            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-            ('FONTSIZE', (0, 1), (-1, -1), 9),
-            ('VALIGN', (0, 1), (-1, -1), 'MIDDLE'),
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
-            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.whitesmoke, colors.white]),
-        ]))
-        
+        table.setStyle(
+            TableStyle(
+                [
+                    (
+                        "BACKGROUND",
+                        (0, 0),
+                        (-1, 0),
+                        colors.HexColor("#2a9d8f"),
+                    ),  # Un verde azulado para diferenciar Torre
+                    ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                    ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                    ("VALIGN", (0, 0), (-1, 0), "MIDDLE"),
+                    ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                    ("FONTSIZE", (0, 0), (-1, 0), 10),
+                    ("FONTNAME", (0, 1), (-1, -1), "Helvetica"),
+                    ("FONTSIZE", (0, 1), (-1, -1), 9),
+                    ("VALIGN", (0, 1), (-1, -1), "MIDDLE"),
+                    ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+                    (
+                        "ROWBACKGROUNDS",
+                        (0, 1),
+                        (-1, -1),
+                        [colors.whitesmoke, colors.white],
+                    ),
+                ]
+            )
+        )
+
         Story.append(table)
         Story.append(Spacer(1, 20))
         Story.append(Paragraph(f"Total de Vecinos: {len(miembros)}", estilo_fecha))
 
         # 5. Generar
         doc.build(Story)
-        response = HttpResponse(content_type='application/pdf')
+        response = HttpResponse(content_type="application/pdf")
         filename = f"Censo_Torre_{torre_usuario.nombre}_{timezone.now().strftime('%Y%m%d')}.pdf"
-        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        response["Content-Disposition"] = f'attachment; filename="{filename}"'
         response.write(buffer.getvalue())
         buffer.close()
         return response

@@ -1,80 +1,72 @@
-{% extends 'layouts/complete.html' %}
-{% block title %}Agregar Beneficiarios a {{ titulo }} - Torre {{ request.user.tower.nombre }}{% endblock %}
-
+{% extends "layouts/complete.html" %}
 {% block content %}
-<div class="dashboard-container">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2>
-            <i class="fas fa-user-plus text-primary"></i> 
-            Agregar Vecinos a la Lista de {{ titulo }}
-        </h2>
-        <a href="{% url 'ver_beneficio' tipo_slug=tipo_slug %}" class="btn btn-secondary">
-            <i class="fas fa-arrow-left"></i> Volver a la Lista
-        </a>
-    </div>
-
-    {% if messages %}
-        {% endif %}
-
-    <p class="text-muted">
-        Aquí puedes seleccionar a los jefes de familia de tu torre que aún **no han sido incluidos** en el ciclo actual de {{ titulo }}.
-    </p>
-
-    <form method="POST" action="{% url 'lider_torre:agregar_vecinos' tipo_slug=tipo_slug %}"> 
-        {% csrf_token %}
-        <input type="hidden" name="action" value="add_selected">
-        <input type="hidden" name="tipo_slug" value="{{ tipo_slug }}">
-        
-        <div class="card shadow-sm mb-4">
-            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-                Vecinos de la Torre {{ request.user.tower.nombre }}
-                <button type="submit" class="btn btn-success btn-sm">
-                    <i class="fas fa-plus"></i> Agregar Seleccionados ({{ total_a_agregar }})
-                </button>
+    <div v-scope
+         @vue:mounted="navbar.change('Agregar Beneficiarios a {{ titulo }} - Torre {{ request.user.tower.nombre }}')"
+         class="min-h-[calc(100svh-4rem)] max-w-screen overflow-hidden p-8 flex flex-col justify-stretch items-start gap-4 ">
+        <a href="{% url 'ver_beneficio' tipo_slug=tipo_slug %}"
+           class="btn btn-neutral w-full ">Volver a la lista</a>
+        <div class="alert alert-outline alert-info w-full text-lg">
+            <span>Aquí puedes seleccionar a los jefes de familia de tu torre que aún <b>no han sido incluidos</b> en el ciclo actual de {{ titulo }}</span>
+        </div>
+        <form method="post"
+              action="{% url 'lider_torre:agregar_vecinos' tipo_slug=tipo_slug %}"
+              class="flex flex-col justify-stretch items-start w-full"
+              v-scope="{ atLeastOneChecked: false, checkboxcheck(){ var checkboxes = document.querySelectorAll('input[type=\'checkbox\'].select-item'); for (var checkbox of checkboxes) { if (checkbox.checked) {this.atLeastOneChecked = true; return} } this.atLeastOneChecked = false }, checkallToggle(el){ var checkboxes = document.querySelectorAll('input[type=\'checkbox\'].select-item'); for (var checkbox of checkboxes) { checkbox.checked = el.checked; } if (el.checked){this.atLeastOneChecked = true} else {this.atLeastOneChecked = false} } }"
+              @vue:mounted="checkboxcheck()">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="add_selected">
+            <input type="hidden" name="tipo_slug" value="{{ tipo_slug }}">
+            <div class="fab">
+                <button class="btn btn-lg btn-success" :disabled="!atLeastOneChecked">Agregar seleccionados</button>
             </div>
-            <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table table-striped table-hover mb-0">
-                        <thead>
-                            <tr>
-                                <th scope="col" style="width: 5%;"><input type="checkbox" id="select-all"></th>
-                                <th scope="col">Cédula</th>
-                                <th scope="col">Jefe de Familia</th>
-                                <th scope="col">Apartamento</th>
-                                <th scope="col">Miembros (Excl. Jefe)</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for miembro in object_list %}
-                            <tr>
-                                <td><input type="checkbox" name="miembros_ids" value="{{ miembro.id }}" class="select-item"></td>
-                                <td class="font-monospace">{{ miembro.cedula }}</td>
-                                <td>{{ miembro.nombres }} {{ miembro.apellidos }}</td>
-                                <td>{{ miembro.apartamento_completo }}</td>
-                                <td>{{ miembro.miembros_contados }}</td>
-                            </tr>
-                            {% empty %}
-                            <tr>
-                                <td colspan="5" class="text-center py-4 text-muted">
-                                    <i class="fas fa-check-circle fa-2x mb-2"></i>
-                                    <p>¡Todos los jefes de familia de tu torre ya están en la lista de {{ titulo }}!</p>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+            <div class="card w-full bg-base-100 shadow-sm">
+                <div class="card-title flex justify-start items-center px-8 mt-4">
+                    <span>Vecinos de la Torre {{ request.user.tower.nombre }}</span>
+                </div>
+                <div class="card-body">
+                    <div class="overflow-x-auto w-full max-h-[calc(100svh-8rem)] rounded-box border border-base-content/5 bg-base-100">
+                        <table class="table table-sm lg:table-md table-pin-rows table-zebra">
+                            <thead class="text-wrap lg:text-nowrap ">
+                                <tr>
+                                    <th>
+                                        <label class="flex justify-start items-center">
+                                            <input class="checkbox mr-2" type="checkbox" @click="checkallToggle($el)">
+                                            Todos
+                                        </label>
+                                    </th>
+                                    <th>Cédula</th>
+                                    <th>Jefe de Familia</th>
+                                    <th>Apartamento</th>
+                                    <th>Miembros (Excl. Jefe)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for miembro in object_list %}
+                                    <tr>
+                                        <td class="text-center">
+                                            <input type="checkbox"
+                                                   name="miembros_ids"
+                                                   value="{{ miembro.id }}"
+                                                   class="select-item checkbox"
+                                                   @change="checkboxcheck()">
+                                        </td>
+                                        <td>{{ miembro.cedula }}</td>
+                                        <td>{{ miembro.nombres }} {{ miembro.apellidos }}</td>
+                                        <td>{{ miembro.apartamento_completo }}</td>
+                                        <td>{{ miembro.miembros_contados }}</td>
+                                    </tr>
+                                {% empty %}
+                                    <tr>
+                                        <td colspan="5" class="text-center py-4 ">
+                                            <p>¡Todos los jefes de familia de tu torre ya están en la lista de {{ titulo }}!</p>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
-        </div>
-    </form>
-    
-    <script>
-        document.getElementById('select-all').onclick = function() {
-            var checkboxes = document.querySelectorAll('input[type="checkbox"].select-item');
-            for (var checkbox of checkboxes) {
-                checkbox.checked = this.checked;
-            }
-        }
-    </script>
-</div>
+        </form>
+    </div>
 {% endblock content %}
