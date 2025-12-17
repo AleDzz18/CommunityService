@@ -192,9 +192,27 @@ class CensoTorreListView(LiderTorreRequiredMixin, ListView):
     context_object_name = 'miembros'
 
     def get_queryset(self):
-        # FILTRO AUTOMÁTICO: Solo muestra gente de SU torre
-        return CensoMiembro.objects.filter(tower=self.request.user.tower).order_by('piso', 'apartamento_letra')
+        # 1. Filtro base: Solo gente de SU torre
+        qs = CensoMiembro.objects.filter(tower=self.request.user.tower).order_by('piso', 'apartamento_letra')
+        
+        # 2. Capturar el parámetro de búsqueda
+        q = self.request.GET.get('q')
+        
+        # 3. Aplicar filtrado si existe búsqueda
+        if q:
+            qs = qs.filter(
+                Q(nombres__icontains=q) | 
+                Q(apellidos__icontains=q) | 
+                Q(cedula__icontains=q)
+            )
+        return qs
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # 4. Pasar 'q' al context para que el input mantenga el texto escrito
+        context['q'] = self.request.GET.get('q', '')
+        return context
+    
 # 2. VISTA DE CREACIÓN
 class CensoTorreCreateView(LiderTorreRequiredMixin, CreateView):
     model = CensoMiembro

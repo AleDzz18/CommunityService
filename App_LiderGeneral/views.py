@@ -202,16 +202,29 @@ class CensoGeneralListView(LiderGeneralRequiredMixin, ListView):
 
     def get_queryset(self):
         qs = super().get_queryset().select_related('tower')
-        # Filtro por Torre desde el GET
+        # 2. Capturar parámetros del GET
+        q = self.request.GET.get('q')
         torre_id = self.request.GET.get('torre')
+
+        # 3. Filtrado unificado (Nombre, Apellido o Cédula)
+        if q:
+            qs = qs.filter(
+                Q(nombres__icontains=q) | 
+                Q(apellidos__icontains=q) | 
+                Q(cedula__icontains=q)
+            )
+
+        # 4. Filtro por Torre (Existente)
         if torre_id and torre_id.isdigit():
             qs = qs.filter(tower_id=int(torre_id))
+            
         return qs
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['torres'] = Tower.objects.all() # Para el dropdown del filtro
         context['torre_seleccionada'] = self.request.GET.get('torre')
+        context['q'] = self.request.GET.get('q', '')
         return context
 
 class CensoGeneralCreateView(LiderGeneralRequiredMixin, CreateView):

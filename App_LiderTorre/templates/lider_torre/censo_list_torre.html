@@ -20,6 +20,28 @@
         </a>
     </div>
     <hr>
+
+    <form method="GET" class="mb-4">
+        <div class="row g-2 align-items-center">
+            <div class="col-md-6 col-lg-5">
+                <div class="input-group">
+                    <span class="input-group-text bg-white"><i class="fas fa-search"></i></span>
+                    <input type="text" name="q" class="form-control" 
+                        placeholder="Buscar por nombre o cédula..." 
+                        value="{{ q }}">
+                    <button type="submit" class="btn btn-primary">Buscar</button>
+                </div>
+            </div>
+
+            <div class="col-md-auto">
+                {% if q %}
+                    <a href="{% url 'lider_torre:censo_lista' %}" class="btn btn-outline-danger">
+                        <i class="fas fa-times"></i> Limpiar Filtro
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+    </form>
     
     <div class="table-responsive">
         <table class="table table-striped table-hover align-middle">
