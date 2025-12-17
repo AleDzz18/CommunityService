@@ -40,6 +40,12 @@
             </select>
         </div>
         <div class="col-md-4">
+            <label for="monto_minimo" class="form-label fw-bold">Monto Mínimo (Bs)</label>
+            <input type="number" name="monto_minimo" id="monto_minimo" 
+                class="form-control" step="0.01" 
+                value="{{ monto_minimo }}" placeholder="Ej: 150.00">
+        </div>
+        <div class="col-md-4">
             <button type="submit" class="btn btn-primary w-100">
                 <i class="fas fa-search"></i> Consultar Estatus
             </button>

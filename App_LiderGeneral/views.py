@@ -34,6 +34,8 @@ from reportlab.lib import colors
 import os
 from io import BytesIO
 
+from django.db.models import Sum
+
 
 # --- MIXINS DE PERMISOS (Definirlos al principio) ---
 
@@ -131,7 +133,7 @@ class RegistrarEgresoBasuraGeneralView(LiderGeneralOrAdminBasuraRequiredMixin, B
     TIPO_MOVIMIENTO = 'Egreso'
     CATEGORIA_MOVIMIENTO = 'Cuarto de Basura'
     MONTO_FIELD = 'monto_basura'
-    
+
 class EstadoSolvenciaBasuraView(LoginRequiredMixin, LiderGeneralOrAdminBasuraRequiredMixin, TemplateView):
     template_name = 'lider_general/estado_solvencia_basura.html'
 
@@ -142,25 +144,38 @@ class EstadoSolvenciaBasuraView(LoginRequiredMixin, LiderGeneralOrAdminBasuraReq
         try:
             mes = int(self.request.GET.get('mes', hoy.month))
             anio = int(self.request.GET.get('anio', hoy.year))
+            # Capturamos el monto, si está vacío o es 0, lo tratamos igual
+            monto_minimo_raw = self.request.GET.get('monto_minimo', '')
+            monto_minimo = float(monto_minimo_raw) if monto_minimo_raw and float(monto_minimo_raw) > 0 else 0
         except ValueError:
             mes = hoy.month
             anio = hoy.year
+            monto_minimo = 0
 
         torres = Tower.objects.all().order_by('nombre')
-        
-        pagos_registrados = MovimientoFinanciero.objects.filter(
-            categoria='BAS',
-            tipo='ING',
-            fecha__year=anio,
-            fecha__month=mes,
-            tower__isnull=False
-        ).values_list('tower_id', flat=True).distinct()
-
         reporte_solvencia = []
+        
         for torre in torres:
-            es_solvente = torre.id in pagos_registrados
+            # Calculamos la suma total acumulada
+            total_acumulado = MovimientoFinanciero.objects.filter(
+                categoria='BAS',
+                tipo='ING',
+                fecha__year=anio,
+                fecha__month=mes,
+                tower=torre
+            ).aggregate(total=Sum('monto_basura'))['total'] or 0
+
+            # --- NUEVA LÓGICA COMBINADA ---
+            if monto_minimo > 0:
+                # Si el usuario definió un monto, debe llegar a esa cifra
+                es_solvente = total_acumulado >= monto_minimo
+            else:
+                # Si el monto es 0 (primera carga), basta con que tenga ALGO registrado
+                es_solvente = total_acumulado > 0
+
             reporte_solvencia.append({
                 'torre': torre,
+                'total_acumulado': total_acumulado,
                 'status': 'SOLVENTE' if es_solvente else 'PENDIENTE',
                 'css_class': 'bg-success text-white' if es_solvente else 'bg-warning text-dark'
             })
@@ -169,6 +184,7 @@ class EstadoSolvenciaBasuraView(LoginRequiredMixin, LiderGeneralOrAdminBasuraReq
             'reporte': reporte_solvencia,
             'mes_actual': mes,
             'anio_actual': anio,
+            'monto_minimo': monto_minimo if monto_minimo > 0 else '', # Para que el input no muestre 0.0 si no se ha usado
             'meses_choices': range(1, 13),
             'anios_choices': range(hoy.year - 2, hoy.year + 3),
         })

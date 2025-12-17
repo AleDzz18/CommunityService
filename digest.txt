@@ -3848,6 +3848,7 @@ class IngresoCondominioForm(MovimientoFormBase):
 
     class Meta(MovimientoFormBase.Meta):
         # Campos a mostrar en el formulario de ingreso de condominio
+        exclude = ('tipo', 'categoria', 'tower', 'creado_por', 'monto_basura')
         fields = MovimientoFormBase.Meta.fields + ['monto_condominio']
 
 class EgresoCondominioForm(MovimientoFormBase):
@@ -3860,6 +3861,7 @@ class EgresoCondominioForm(MovimientoFormBase):
     )
 
     class Meta(MovimientoFormBase.Meta):
+        exclude = ('tipo', 'categoria', 'tower', 'creado_por', 'monto_basura')
         fields = MovimientoFormBase.Meta.fields + ['monto_condominio']
 
 # --- Formularios EspecÃ­ficos para Cuarto de Basura ---
@@ -3874,6 +3876,7 @@ class IngresoBasuraForm(MovimientoFormBase):
     )
 
     class Meta(MovimientoFormBase.Meta):
+        exclude = ('tipo', 'categoria', 'tower', 'creado_por', 'monto_condominio')
         fields = MovimientoFormBase.Meta.fields + ['monto_basura']
 
 
@@ -3960,13 +3963,16 @@ urlpatterns = [
     # Beneficios para Vecinos
     path('beneficios/agregar/<str:tipo_slug>/', views.AgregarVecinosTorreView.as_view(), name='agregar_vecinos'),
     path('beneficios/procesar/', views.ProcesarAgregarTorreView.as_view(), name='procesar_agregar'),
+
+    # Editar Movimiento Financiero
+    path('movimiento/editar/<int:pk>/', views.EditarMovimientoView.as_view(), name='editar_movimiento'),
 ]
 
 
 ================================================
 FILE: App_LiderTorre/views.py
 ================================================
-Error reading file with 'cp1252': 'charmap' codec can't decode byte 0x8d in position 5371: character maps to <undefined>
+Error reading file with 'cp1252': 'charmap' codec can't decode byte 0x8d in position 5428: character maps to <undefined>
 
 
 ================================================
@@ -4345,7 +4351,8 @@ FILE: App_LiderTorre/templates/lider_torre/movimiento_form.html
 
         <div class="mt-4">
             <button type="submit" class="btn btn-primary me-2">
-                <i class="fas fa-save"></i> Registrar Movimiento
+                <i class="fas fa-save"></i> 
+                {% if view.object %} Actualizar Movimiento {% else %} Registrar Movimiento {% endif %}
             </button>
             <a href="{% url 'url_dashboard' %}" class="btn btn-secondary">
                 <i class="fas fa-times"></i> Cancelar
