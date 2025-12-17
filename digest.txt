@@ -41,6 +41,14 @@ Directory structure:
     │       ├── layouts/
     │       │   ├── base.html
     │       │   └── navbar.html
+    │       ├── registration/
+    │       │   ├── password_reset_complete_custom.html
+    │       │   ├── request_reset_code_form.html
+    │       │   ├── reset_code_email.html
+    │       │   ├── reset_code_email.txt
+    │       │   ├── reset_code_sent.html
+    │       │   ├── set_new_password_form.html
+    │       │   └── verify_reset_code_form.html
     │       └── solicitudes/
     │           └── crear_solicitud.html
     ├── App_LiderGeneral/
@@ -250,13 +258,13 @@ class AppHomeConfig(AppConfig):
 ================================================
 FILE: App_Home/forms.py
 ================================================
-Error reading file with 'cp1252': 'charmap' codec can't decode byte 0x81 in position 2468: character maps to <undefined>
+Error reading file with 'cp1252': 'charmap' codec can't decode byte 0x81 in position 2576: character maps to <undefined>
 
 
 ================================================
 FILE: App_Home/models.py
 ================================================
-Error reading file with 'cp1252': 'charmap' codec can't decode byte 0x8d in position 14904: character maps to <undefined>
+Error reading file with 'cp1252': 'charmap' codec can't decode byte 0x8d in position 14975: character maps to <undefined>
 
 
 ================================================
@@ -273,6 +281,7 @@ FILE: App_Home/urls.py
 ================================================
 from django.urls import path
 from . import views
+from django.contrib.auth import views as auth_views # Mantenemos esta importaciÃ³n si otras URLs la usan.
 
 urlpatterns = [
     path('', views.vista_dashboard, name='url_dashboard'),
@@ -294,13 +303,20 @@ urlpatterns = [
 
     # --- VISTAS DE DOCUMENTOS ---
     path('solicitudes/nueva/', views.vista_solicitar_documento, name='solicitar_documento'),
+
+    # --- VISTAS DE RESTABLECIMIENTO DE CONTRASEÃ‘A PERSONALIZADAS ---
+    path('password/request-code/', views.RequestResetCodeView.as_view(), name='request_reset_code'),
+    path('password/code-sent/', views.reset_code_sent, name='reset_code_sent'),
+    path('password/verify-code/', views.VerifyResetCodeView.as_view(), name='verify_reset_code'),
+    path('password/set-new/', views.SetNewPasswordView.as_view(), name='set_new_password'),
+    path('password/reset/complete/', views.PasswordResetCompleteCustomView.as_view(), name='password_reset_complete_custom'),
 ]
 
 
 ================================================
 FILE: App_Home/views.py
 ================================================
-Error reading file with 'cp1252': 'charmap' codec can't decode byte 0x81 in position 8572: character maps to <undefined>
+Error reading file with 'cp1252': 'charmap' codec can't decode byte 0x81 in position 8815: character maps to <undefined>
 
 
 ================================================
@@ -2054,7 +2070,7 @@ FILE: App_Home/templates/login.html
             </div>
             
             <div class="forgot-link">
-                <a href="#">Forgot Password?</a>
+                <a href="{% url 'request_reset_code' %}">Forgot Password?</a>
             </div>
             
             <button type="submit" class="btn">Login</button>
@@ -2393,6 +2409,273 @@ FILE: App_Home/templates/layouts/navbar.html
 {% endblock main %} 
 
 {% endblock navbar %}
+
+
+================================================
+FILE: App_Home/templates/registration/password_reset_complete_custom.html
+================================================
+{% extends 'layouts/base.html' %}
+{% load static %}
+
+{% block title %}ContraseÃ±a Restablecida{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="login-box">
+        <h2>ContraseÃ±a Restablecida</h2> 
+        <div class="form-container">
+            {# Muestra el mensaje de Ã©xito enviado desde SetNewPasswordView #}
+            {% if messages %}
+                {% for message in messages %}
+                    <p class="{% if message.tags %}alert alert-{{ message.tags }}{% endif %} message-text">{{ message }}</p> 
+                {% endfor %}
+            {% else %}
+                <p class="message-text">Tu contraseÃ±a ha sido restablecida con Ã©xito.</p>
+            {% endif %}
+
+            <div class="signup-link">
+                <a href="{% url 'url_login' %}">Ir a la pÃ¡gina de inicio de sesiÃ³n</a> 
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock content %}
+
+
+================================================
+FILE: App_Home/templates/registration/request_reset_code_form.html
+================================================
+{% extends 'layouts/base.html' %}
+{% load static %}
+
+{% block title %}Solicitar CÃ³digo{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="login-box">
+        <h2>Restablecer ContraseÃ±a</h2>
+        <div class="form-container">
+            <p class="message-text">Introduce tu direcciÃ³n de correo electrÃ³nico para recibir un cÃ³digo de verificaciÃ³n.</p> 
+            
+            <form method="POST">
+                {% csrf_token %} 
+                
+                {% if messages %}
+                    {% for message in messages %}
+                        <p class="{% if message.tags %}alert alert-{{ message.tags }}{% endif %}">{{ message }}</p> 
+                    {% endfor %}
+                {% endif %}
+
+                <div class="input-box">
+                    {{ form.email.errors }}
+                    <input type="email" name="email" id="id_email" required 
+                           placeholder=" " 
+                           value="{% if form.email.value %}{{ form.email.value }}{% endif %}">
+                    <label for="id_email">Correo ElectrÃ³nico</label> 
+                </div>
+                
+                <button type="submit" class="btn">Solicitar CÃ³digo</button>
+                <div class="signup-link">
+                    <a href="{% url 'url_login' %}">Volver al Login</a> 
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock content %}
+
+
+================================================
+FILE: App_Home/templates/registration/reset_code_email.html
+================================================
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tu CÃ³digo de VerificaciÃ³n para {{ site_name }}</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Poppins', sans-serif; background-color: #1f293a; color: #ecf0f1;">
+    <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #1f293a;">
+        <tr>
+            <td align="center">
+                <table width="600" border="0" cellspacing="0" cellpadding="20" style="max-width: 600px; margin: 40px auto; background-color: #1a2433; border-radius: 12px; border: 1px solid #2c4766;">
+                    
+                    <tr>
+                        <td align="center" style="padding-bottom: 20px; border-bottom: 1px solid #2c4766;">
+                            <h1 style="margin: 0; color: #fff; font-size: 2.5em; font-weight: 700;">Balcones De <span style="color: #0ef;">Paraguana I</span></h1>
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <td style="padding: 30px 20px;">
+                            <h2 style="color: #0ef; margin-top: 0;">Restablecimiento de ContraseÃ±a</h2>
+                            <p style="margin-bottom: 15px; line-height: 1.6;">Hola {{ user.username }},</p>
+                            <p style="margin-bottom: 15px; line-height: 1.6;">Has solicitado un cÃ³digo de verificaciÃ³n para restablecer tu contraseÃ±a en <strong>{{ site_name }}</strong>.</p>
+                            <p style="margin-bottom: 25px; line-height: 1.6;">Usa el siguiente cÃ³digo para continuar:</p>
+
+                            <div style="text-align: center; margin-bottom: 25px;">
+                                <p style="display: inline-block; padding: 15px 30px; background-color: #1f293a; border-radius: 40px; border: 2px solid #0ef; color: #0ef; font-size: 2.2em; font-weight: bold; letter-spacing: 5px; margin: 0;">
+                                    {{ code }}
+                                </p>
+                            </div>
+
+                            <p style="margin-bottom: 15px; line-height: 1.6;">Este cÃ³digo expirarÃ¡ en <strong>{{ expiration_minutes }} minutos</strong>.</p>
+                            <p style="margin-bottom: 15px; line-height: 1.6;">Si no solicitaste este cambio, por favor, ignora este correo electrÃ³nico de forma segura.</p>
+                            <p style="margin-bottom: 0; line-height: 1.6;">Gracias,<br>El equipo de {{ site_name }}</p>
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <td align="center" style="padding-top: 20px; border-top: 1px solid #2c4766;">
+                            <p style="margin: 0; font-size: 0.8em; color: #777;">
+                                Este es un correo electrÃ³nico automatizado, por favor no respondas a este mensaje.
+                            </p>
+                        </td>
+                    </tr>
+
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
+
+
+================================================
+FILE: App_Home/templates/registration/reset_code_email.txt
+================================================
+Hola {{ user.username }},
+
+Has solicitado un cÃ³digo de verificaciÃ³n para restablecer tu contraseÃ±a en {{ site_name }}.
+
+Tu cÃ³digo de verificaciÃ³n es: {{ code }}
+
+Este cÃ³digo expirarÃ¡ en {{ expiration_minutes }} minutos.
+
+Si no solicitaste este cÃ³digo, por favor, ignora este correo.
+
+Gracias,
+El equipo de {{ site_name }}
+
+
+================================================
+FILE: App_Home/templates/registration/reset_code_sent.html
+================================================
+{% extends 'layouts/base.html' %}
+{% load static %}
+
+{% block title %}CÃ³digo Enviado{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="login-box">
+        <h2>CÃ³digo Enviado</h2> 
+        <div class="form-container">
+            <p class="message-text">
+                Hemos enviado un cÃ³digo de verificaciÃ³n a tu correo. Por favor, revisa tu bandeja de entrada (y la carpeta de spam). 
+            </p>
+            <p class="message-text">
+                Una vez que tengas el cÃ³digo, puedes <a href="{% url 'verify_reset_code' %}">verificarlo aquÃ­</a>. 
+            </p>
+            <div class="signup-link">
+                <a href="{% url 'url_login' %}">Volver al Login</a> 
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock content %}
+
+
+================================================
+FILE: App_Home/templates/registration/set_new_password_form.html
+================================================
+{% extends 'layouts/base.html' %}
+{% load static %}
+
+{% block title %}Establecer Nueva ContraseÃ±a{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="login-box">
+        <h2>Establecer Nueva ContraseÃ±a</h2>
+        
+        <div class="form-container">
+            <form method="POST">
+                {% csrf_token %} 
+
+                {% if messages %}
+                    {% for message in messages %}
+                        <p class="{% if message.tags %}alert alert-{{ message.tags }}{% endif %}">{{ message }}</p> 
+                    {% endfor %}
+                {% endif %}
+
+                {% for field in form %}
+                    <div class="input-box">
+                        {{ field.errors }}
+                        {{ field }}
+                        <label for="{{ field.id_for_label }}">{{ field.label }}</label> 
+                        {% if field.help_text %}
+                            <small>{{ field.help_text|safe }}</small>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+                
+                <button type="submit" class="btn">Cambiar ContraseÃ±a</button>
+                <div class="signup-link">
+                    <a href="{% url 'url_login' %}">Volver al Login</a> 
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock content %}
+
+
+================================================
+FILE: App_Home/templates/registration/verify_reset_code_form.html
+================================================
+{% extends 'layouts/base.html' %}
+{% load static %}
+
+{% block title %}Verificar CÃ³digo{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="login-box">
+        <h2>Verificar CÃ³digo de Restablecimiento</h2>
+        <div class="form-container">
+            <p class="message-text">Introduce tu correo electrÃ³nico y el cÃ³digo de verificaciÃ³n que te enviamos.</p>
+            
+            <form method="POST">
+                {% csrf_token %} 
+                
+                {% if messages %}
+                    {% for message in messages %}
+                        <p class="{% if message.tags %}alert alert-{{ message.tags }}{% endif %}">{{ message }}</p> 
+                    {% endfor %}
+                {% endif %}
+
+                <div class="input-box">
+                    {{ form.email.errors }}
+                    {{ form.email }}
+                    <label for="{{ form.email.id_for_label }}">Correo ElectrÃ³nico</label> 
+                </div>
+                <div class="input-box">
+                    {{ form.code.errors }}
+                    {{ form.code }}
+                    <label for="{{ form.code.id_for_label }}">CÃ³digo de VerificaciÃ³n</label> 
+                </div>
+                
+                <button type="submit" class="btn">Verificar CÃ³digo</button>
+                <div class="signup-link">
+                    <a href="{% url 'request_reset_code' %}">Solicitar nuevo cÃ³digo</a> 
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock content %}
 
 
 ================================================
@@ -4247,6 +4530,14 @@ LOGIN_REDIRECT_URL = '/'
 
 # URL a la que se redirige a los usuarios despuÃ©s de cerrar sesiÃ³n
 LOGOUT_REDIRECT_URL = '/login/'
+
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True # Es el mÃ©todo de encriptaciÃ³n estÃ¡ndar para el puerto 587
+EMAIL_HOST_USER = 'balconesdeparaguana1.cs@gmail.com@gmail.com' # <-- Â¡Verifica tu correo de envÃ­o!
+EMAIL_HOST_PASSWORD = '' # <-- Â¡ESTO DEBE SER LA CONTRASEÃ‘A DE APLICACIÃ“N DE GMAIL! (ej: 'abcd efgh ijkl mnop')
+DEFAULT_FROM_EMAIL = 'Balcones de Paraguana I <balconesdeparaguana1.cs@gmail.com>' # <-- Opcional: El correo que aparecerÃ¡ como remitente.
 
 
 ================================================

@@ -366,6 +366,8 @@ def ver_ingresos_egresos(request, categoria_slug):
             
         # Preparar los datos para la plantilla
         movimientos_con_saldo.append({
+            'id': mov.id,
+            'tower': mov.tower,
             'fecha': mov.fecha,
             'descripcion': mov.descripcion,
             'tasa_bcv': round(mov.tasa_bcv, 2),

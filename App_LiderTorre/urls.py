@@ -25,4 +25,7 @@ urlpatterns = [
     # Beneficios para Vecinos
     path('beneficios/agregar/<str:tipo_slug>/', views.AgregarVecinosTorreView.as_view(), name='agregar_vecinos'),
     path('beneficios/procesar/', views.ProcesarAgregarTorreView.as_view(), name='procesar_agregar'),
+
+    # Editar Movimiento Financiero
+    path('movimiento/editar/<int:pk>/', views.EditarMovimientoView.as_view(), name='editar_movimiento'),
 ]

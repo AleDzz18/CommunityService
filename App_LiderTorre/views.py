@@ -22,6 +22,9 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER, TA_RIGHT
 from reportlab.lib import colors
 
+
+from django.core.exceptions import PermissionDenied
+
 # ==============================================================
 # La plantilla del formulario será la misma para todos los tipos de movimiento
 TEMPLATE_NAME = 'lider_torre/movimiento_form.html'
@@ -474,3 +477,56 @@ class CensoPDFTorreView(LoginRequiredMixin, View): # O LiderTorreRequiredMixin s
         response.write(buffer.getvalue())
         buffer.close()
         return response
+
+
+class EditarMovimientoView(LoginRequiredMixin, LiderTorreRequiredMixin, UpdateView):
+    model = MovimientoFinanciero
+    template_name = TEMPLATE_NAME # Reutilizamos la misma plantilla de registro
+    
+    def get_success_url(self):
+        # Retorna al listado de finanzas de la categoría editada
+        categoria = self.object.categoria
+        slug = 'condominio' if categoria == 'CON' else 'basura'
+        return reverse_lazy('ver_finanzas', kwargs={'categoria_slug': slug})
+
+    def dispatch(self, request, *args, **kwargs):
+        obj = self.get_object()
+        user = request.user
+        
+        # Lógica de Seguridad:
+        # 1. Si es staff/superuser o Líder General (puedes ajustar esta condición según tus roles)
+        es_lider_general = user.is_staff or user.groups.filter(name='Lider General').exists()
+        
+        # 2. Si es líder de la torre correspondiente
+        es_dueno_torre = obj.tower == user.tower
+        
+        if not (es_lider_general or es_dueno_torre):
+            messages.error(request, "No tienes permiso para editar movimientos de otra torre.")
+            return redirect('url_dashboard')
+            
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_form_class(self):
+        """Selecciona el formulario correcto según el tipo y categoría del movimiento"""
+        obj = self.get_object()
+        
+        if obj.categoria == 'CON':
+            # Corregido: Usar 'ING' en lugar de 'INGRESOS'
+            return IngresoCondominioForm if obj.tipo == 'ING' else EgresoCondominioForm
+        else:
+            # Para Basura: Verifica si es ingreso o egreso (si tienes ambos formularios)
+            if obj.tipo == 'ING':
+                return IngresoBasuraForm
+            else:
+                # Si no tienes EgresoBasuraForm aún, podrías usar el mismo de ingreso 
+                # o crear uno siguiendo el ejemplo del paso anterior.
+                return IngresoBasuraForm
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['titulo'] = f"Editar {self.object.get_tipo_display()} - {self.object.get_categoria_display()}"
+        return context
+    
+    def form_valid(self, form):
+        messages.success(self.request, "El movimiento se ha actualizado correctamente.")
+        return super().form_valid(form)
