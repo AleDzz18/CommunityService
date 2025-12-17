@@ -45,13 +45,19 @@
             <div class="col-md-4">
                 <form method="GET" class="d-flex">
                     <select name="torre" id="id_torre_filtro" class="form-select me-2">
-                        <option value="">-- Todas las Torres --</option>
+                        <option value="" {% if not request.GET.torre %}selected{% endif %}>Todas las Torres</option>
                         {% for torre in torres %}
-                            <option value="{{ torre.id }}" {% if torre_seleccionada|pluralize == torre.id|pluralize %}selected{% endif %}>
-                                Torre {{ torre.nombre }}
+                            <option value="{{ torre.id }}" {% if request.GET.torre == torre.id|stringformat:"s" %}selected{% endif %}>
+                                {{ torre.nombre }}
                             </option>
                         {% endfor %}
                     </select>
+                    <div class="col-md-4">
+                        <label for="q" class="form-label fw-bold">Buscar por Nombre o Cédula</label>
+                        <input type="text" name="q" id="q" class="form-control" 
+                            placeholder="Ej: Perez o 12345678" 
+                            value="{{ query_search }}">
+                    </div>
                     <button type="submit" class="btn btn-info"><i class="fas fa-filter"></i> Filtrar</button>
                 </form>
             </div>

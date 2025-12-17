@@ -34,7 +34,7 @@ from reportlab.lib import colors
 import os
 from io import BytesIO
 
-from django.db.models import Sum
+from django.db.models import Sum, Q
 
 
 # --- MIXINS DE PERMISOS (Definirlos al principio) ---
@@ -295,12 +295,20 @@ class AgregarBeneficiarioGeneralView(LoginRequiredMixin, LiderGeneralRequiredMix
         # El Líder General puede ver todas las torres
         qs = CensoMiembro.objects.all().exclude(id__in=ids_en_lista).select_related('tower').order_by('tower__nombre', 'piso', 'apartamento_letra')
         
+        query = self.request.GET.get('q')
+        if query:
+            qs = qs.filter(
+                Q(nombres__icontains=query) | 
+                Q(apellidos__icontains=query) | 
+                Q(cedula__icontains=query)
+            )
+        
         # Opcional: Filtro por Torre (útil para el Líder General)
         torre_id = self.request.GET.get('torre')
         if torre_id and torre_id.isdigit():
             qs = qs.filter(tower_id=int(torre_id))
 
-        return qs
+        return qs.order_by('tower__nombre', 'piso', 'apartamento_letra')
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -315,7 +323,8 @@ class AgregarBeneficiarioGeneralView(LoginRequiredMixin, LiderGeneralRequiredMix
         context['ciclo_activo'] = ciclo
         context['torres'] = Tower.objects.all() # Para un posible filtro en el template
         context['torre_seleccionada'] = self.request.GET.get('torre')
-        
+
+        context['query_search'] = self.request.GET.get('q', '')
         return context
 
     # El método POST se debe redefinir aquí para manejar la adición masiva de la lista.

@@ -2844,7 +2844,7 @@ urlpatterns = [
 ================================================
 FILE: App_LiderGeneral/views.py
 ================================================
-Error reading file with 'cp1252': 'charmap' codec can't decode byte 0x81 in position 22849: character maps to <undefined>
+Error reading file with 'cp1252': 'charmap' codec can't decode byte 0x81 in position 23747: character maps to <undefined>
 
 
 ================================================
@@ -3298,6 +3298,12 @@ FILE: App_LiderGeneral/templates/lider_general/estado_solvencia_basura.html
                     <option value="{{ year }}" {% if anio_actual == year %}selected{% endif %}>{{ year }}</option>
                 {% endfor %}
             </select>
+        </div>
+        <div class="col-md-4">
+            <label for="monto_minimo" class="form-label fw-bold">Monto MÃ­nimo (Bs)</label>
+            <input type="number" name="monto_minimo" id="monto_minimo" 
+                class="form-control" step="0.01" 
+                value="{{ monto_minimo }}" placeholder="Ej: 150.00">
         </div>
         <div class="col-md-4">
             <button type="submit" class="btn btn-primary w-100">

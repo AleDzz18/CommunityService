@@ -24,6 +24,7 @@ from reportlab.lib import colors
 
 
 from django.core.exceptions import PermissionDenied
+from django.db.models import Q
 
 # ==============================================================
 # La plantilla del formulario será la misma para todos los tipos de movimiento
@@ -311,11 +312,23 @@ class AgregarVecinosTorreView(LoginRequiredMixin, LiderTorreRequiredMixin, ListV
         # 2. Excluir los que YA están en la lista (usando EntregaBeneficio)
         ids_en_lista = EntregaBeneficio.objects.filter(ciclo=ciclo).values_list('beneficiario_id', flat=True)
         
-        # 3. Filtrar y ordenar
-        return CensoMiembro.objects.filter(
+        # --- LÓGICA DE FILTRADO ---
+        # 1. Filtro base: Solo jefes de mi torre que no están en la lista
+        queryset = CensoMiembro.objects.filter(
             tower=user_tower,
-            es_jefe_familia=True # Si este es el filtro deseado
-        ).exclude(id__in=ids_en_lista).order_by('piso', 'apartamento_letra')
+            es_jefe_familia=True 
+        ).exclude(id__in=ids_en_lista)
+
+        # 2. Filtro de búsqueda por texto (NUEVO)
+        query = self.request.GET.get('q')
+        if query:
+            queryset = queryset.filter(
+                Q(nombres__icontains=query) | 
+                Q(apellidos__icontains=query) | 
+                Q(cedula__icontains=query)
+            )
+
+        return queryset.order_by('piso', 'apartamento_letra')
 
 
     def post(self, request, *args, **kwargs):
@@ -369,6 +382,8 @@ class AgregarVecinosTorreView(LoginRequiredMixin, LiderTorreRequiredMixin, ListV
         tipo_slug = self.kwargs.get('tipo_slug')
         context['tipo_slug'] = tipo_slug
         context['titulo'] = "Agregar Vecinos a " + tipo_slug.upper()
+
+        context['query_search'] = self.request.GET.get('q', '')
         
         tipo_db = next((db for slug, db in self._get_benefit_slug_map() if slug == tipo_slug), None)
         context['ciclo'] = CicloBeneficio.objects.filter(tipo=tipo_db, activo=True).first()

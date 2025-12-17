@@ -22,6 +22,20 @@
         Aquí puedes seleccionar a los jefes de familia de tu torre que aún **no han sido incluidos** en el ciclo actual de {{ titulo }}.
     </p>
 
+    <form method="GET" class="row g-2 mb-4">
+        <div class="col-sm-9">
+            <div class="input-group">
+                <span class="input-group-text bg-white"><i class="fas fa-search text-muted"></i></span>
+                <input type="text" name="q" class="form-control" 
+                    placeholder="Buscar por nombre, apellido o cédula..." 
+                    value="{{ query_search }}">
+            </div>
+        </div>
+        <div class="col-sm-3">
+            <button type="submit" class="btn btn-primary w-100">Filtrar</button>
+        </div>
+    </form>
+
     <form method="POST" action="{% url 'lider_torre:agregar_vecinos' tipo_slug=tipo_slug %}"> 
         {% csrf_token %}
         <input type="hidden" name="action" value="add_selected">
