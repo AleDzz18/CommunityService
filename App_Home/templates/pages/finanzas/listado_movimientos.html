@@ -24,9 +24,9 @@
                     </svg>
                 </div>
                 <div tabindex="-1"
-                     class="dropdown-content card bg-base-100 z-1 w-fit shadow-md ">
+                     class="dropdown-content card bg-base-100 z-1 w-fit shadow-md max-sm:**:text-xs max-sm:**:h-fit  max-h-[calc(100svh-10rem)] overflow-y-scroll ">
                     <div class="card-body flex flex-col lg:flex-row justify-center items-center">
-                        <div class="min-w-32 flex flex-row flex-wrap lg:flex-col justify-stretch w-full">
+                        <div class="min-w-32 flex flex-row flex-wrap lg:flex-col justify-center max-sm:items-stretch w-full max-sm:**:py-1">
                             <button v-for="(range, index) in ranges"
                                     :key="index"
                                     class="btn btn-ghost rounded-none px-4 w-fit lg:w-full"
@@ -35,7 +35,7 @@
                         <div class="divider divider-horizontal"></div>
                         <div class="flex flex-col justify-stretch">
                             <div class="filter mb-2 self-center">
-                                <input class="btn filter-reset btn-dash btn-primary "
+                                <input class="btn filter-reset btn-dash btn-primary [&&]:max-sm:h-fit [&&]:max-sm:w-1 [&&]:max-sm:aspect-auto "
                                        type="radio"
                                        name="datemode"
                                        aria-label="X"
@@ -53,7 +53,7 @@
                                        v-model="justEnd"
                                        @click="setSelection('end')" />
                             </div>
-                            <calendar-range :value="(startDate && endDate) ? startDate + '/' + endDate : ''" @change.native="date = $el.value; setDate()" class="cally bg-base-100 border border-base-300 shadow-lg rounded-box" months="2">
+                            <calendar-range :value="(startDate && endDate) ? startDate + '/' + endDate : ''" @change.native="date = $el.value; setDate()" class="cally bg-base-100 border border-base-300 shadow-lg rounded-box " months="2">
                             <svg aria-label="Previous"
                                  class="fill-current size-4"
                                  slot="previous"

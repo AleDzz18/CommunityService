@@ -25,7 +25,7 @@
                                    name="{{ form.cedula.html_name }}"
                                    id="{{ form.cedula.id_for_label }}"
                                    value="{{ form.cedula.value|default:'' }}"
-                                   placeholder="XXXXXXXX"
+                                   placeholder="XX.XXX.XXX"
                                    class="block rounded-md w-48 bg-white px-3 py-1.5 text-base text-primary outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-accent sm:text-sm/6 {% if form.cedula.errors %}input-error{% endif %}" />
                         </div>
                         {% if form.cedula.errors %}<div class="label text-error text-sm">{{ form.cedula.errors }}</div>{% endif %}

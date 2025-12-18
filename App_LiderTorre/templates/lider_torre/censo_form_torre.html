@@ -1,9 +1,13 @@
 {% extends "layouts/complete.html" %}
 {% block content %}
     <script type="module" src="https://unpkg.com/cally"></script>
-    <div v-scope="{datepicker: false, date: '{{ form.fecha_nacimiento.value|default:'' }}'}"
-         @vue:mounted="navbar.change({% if form.instance.pk %} 'Editar Datos' {% else %} 'Registrar Nuevo Vecino' {% endif %} + ' - Torre {{ request.user.tower.nombre }}')"
-         class="min-h-svh flex flex-col justify-start items-stretch px-6 py-8 gap-4">
+    <div v-scope="{datepicker: false, date:
+        {% if form.fecha_nacimiento.value|date:'Y-m-d' %}
+            '{{ form.fecha_nacimiento.value|date:'Y-m-d' }}'
+        {% else %}
+            '{{ form.fecha_nacimiento.value|default:'' }}'
+        {% endif %}
+        } " @vue:mounted="navbar.change( {% if form.instance.pk %} 'Editar Datos' {% else %} 'Registrar Nuevo Vecino' {% endif %} + ' - Torre {{ request.user.tower.nombre }}')" class="min-h-svh flex flex-col justify-start items-stretch px-6 py-8 gap-4">
         <div class="card w-full card-border bg-base-100 card-md shadow-sm static">
             <div class="card-body [&>form_div.label]:text-wrap [&>form_input,select]:w-full">
                 <h2 class="card-title">Datos del habitante</h2>
@@ -85,7 +89,7 @@
                                        name="{{ form.cedula.html_name }}"
                                        id="{{ form.cedula.id_for_label }}"
                                        value="{{ form.cedula.value|default:'' }}"
-                                       placeholder="XXXXXXXX"
+                                       placeholder="XX.XXX.XXX"
                                        class="block rounded-md w-48 bg-white px-3 py-1.5 text-base text-primary outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-accent sm:text-sm/6 {% if form.cedula.errors %}input-error{% endif %}" />
                             </div>
                             {% if form.cedula.errors %}<div class="label text-error text-sm">{{ form.cedula.errors }}</div>{% endif %}
@@ -107,7 +111,7 @@
                                         @click="datepicker = !datepicker">${date || 'Selecciona fecha'}</button>
                                 <div tabindex="-1"
                                      class="dropdown-content menu bg-base-100 rounded-box z-1 p-2 shadow-sm">
-                                    <calendar-date class="cally" :max="new Date().toISOString().slice(0, 10)" @change.native="date = $el.value; datepicker = false; document.activeElement.blur()">
+                                    <calendar-date class="cally" :value="date" :max="new Date().toISOString().slice(0, 10)" @change.native="date = $el.value; datepicker = false; document.activeElement.blur()">
                                     <calendar-select-year class="[&::part(select)]:input [&::part(select)]:h-fit [&::part(select)]:w-fit [&::part(select)]:ml-1 [&::part(select)]:p-2 [&::part(label)]:hidden" slot="heading" max-years="300"></calendar-select-year>
                                     <svg aria-label="Previous"
                                          class="fill-current size-4"

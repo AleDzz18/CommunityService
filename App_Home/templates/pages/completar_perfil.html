@@ -64,7 +64,7 @@
                                        id="{{ formulario.cedula.id_for_label }}"
                                        value="{{ formulario.cedula.value|default:'' }}"
                                        required
-                                       placeholder="XXXXXXXX"
+                                       placeholder="XX.XXX.XXX"
                                        class="block rounded-md w-48 bg-white px-3 py-1.5 text-base text-primary outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-accent sm:text-sm/6 {% if formulario.cedula.errors %}input-error{% endif %}" />
                             </div>
                             {% if formulario.cedula.errors %}<div class="label text-error text-sm">{{ formulario.cedula.errors }}</div>{% endif %}
