@@ -31,6 +31,16 @@
     <div v-scope
          @vue:mounted="navbar.change('Censo General (Administración)'); navbar.toolbarOpen()"
          class="min-h-[calc(100svh-8rem)] max-w-screen overflow-hidden p-8 flex flex-col justify-stretch items-start ">
+        <!-- TODO: acomodar -->
+        <div class="input-group">
+            <span class="input-group-text bg-white"><i class="fas fa-search"></i></span>
+            <input type="text"
+                   name="q"
+                   class="form-control"
+                   placeholder="Nombre, apellido o cédula..."
+                   value="{{ q }}"
+                   onchange="this.form.submit()">
+        </div>
         <div class="overflow-x-auto w-full max-h-[calc(100svh-12rem)] rounded-box border border-base-content/5 bg-base-100">
             <table class="table table-sm lg:table-md table-pin-rows table-zebra text-center lg:text-start">
                 <thead class="text-wrap lg:text-nowrap ">

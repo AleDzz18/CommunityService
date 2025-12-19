@@ -113,7 +113,12 @@
                             <button type="submit"
                                     :disabled="formHandler.loading"
                                     class="btn btn-accent w-full">
-                                <span v-if="formHandler.loading" class="loading loading-spinner"></span> Registrar Movimiento
+                                <span v-if="formHandler.loading" class="loading loading-spinner"></span>
+                                {% if view.object %}
+                                    Actualizar Movimiento
+                                {% else %}
+                                    Registrar Movimiento
+                                {% endif %}
                             </button>
                             <a href="{% if 'condominio' in request.path %} {% url 'ver_finanzas' categoria_slug='condominio' %} {% elif 'basura' in request.path %} {% url 'ver_finanzas' categoria_slug='basura' %} {% else %} {% url 'url_index' %} {% endif %}"
                                :class="{'pointer-events-none btn-disabled cursor-not-allowed': formHandler.loading}"

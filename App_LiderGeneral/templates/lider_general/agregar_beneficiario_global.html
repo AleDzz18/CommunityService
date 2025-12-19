@@ -15,6 +15,16 @@
          class="min-h-[calc(100svh-4rem)] max-w-screen overflow-hidden p-8 flex flex-col justify-stretch items-start gap-4 ">
         <a href="{% url 'ver_beneficio' tipo_slug=tipo_slug %}"
            class="btn btn-neutral w-full ">Volver a la lista</a>
+        <!-- TODO: acomodar -->
+        <div class="col-md-4">
+            <label for="q" class="form-label fw-bold">Buscar por Nombre o Cédula</label>
+            <input type="text"
+                   name="q"
+                   id="q"
+                   class="form-control"
+                   placeholder="Ej: Perez o 12345678"
+                   value="{{ query_search }}">
+        </div>
         {% if not ciclo_activo %}
             <div class="alert alert-dash alert-warning text-center w-full text-lg flex flex-col justify-center items-center">
                 <p>No hay un ciclo de beneficio activo ({{ titulo }}) para agregar personas.</p>

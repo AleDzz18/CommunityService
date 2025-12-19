@@ -28,6 +28,17 @@
                 {% for year in anios_choices %}<option value="{{ year }}">{{ year }}</option>{% endfor %}
             </select>
         </div>
+        <div class="col-md-4">
+            <!-- TODO: Acomodar -->
+            <label for="monto_minimo" class="form-label fw-bold">Monto Mínimo (Bs)</label>
+            <input type="number"
+                   name="monto_minimo"
+                   id="monto_minimo"
+                   class="form-control"
+                   step="0.01"
+                   value="{{ monto_minimo }}"
+                   placeholder="Ej: 150.00">
+        </div>
     </div>
 {% endblock toolbaritems %}
 {% block content %}

@@ -2505,13 +2505,19 @@ FILE: App_LiderGeneral/templates/lider_general/agregar_beneficiario_global.html
             <div class="col-md-4">
                 <form method="GET" class="d-flex">
                     <select name="torre" id="id_torre_filtro" class="form-select me-2">
-                        <option value="">-- Todas las Torres --</option>
+                        <option value="" {% if not request.GET.torre %}selected{% endif %}>Todas las Torres</option>
                         {% for torre in torres %}
-                            <option value="{{ torre.id }}" {% if torre_seleccionada|pluralize == torre.id|pluralize %}selected{% endif %}>
-                                Torre {{ torre.nombre }}
+                            <option value="{{ torre.id }}" {% if request.GET.torre == torre.id|stringformat:"s" %}selected{% endif %}>
+                                {{ torre.nombre }}
                             </option>
                         {% endfor %}
                     </select>
+                    <div class="col-md-4">
+                        <label for="q" class="form-label fw-bold">Buscar por Nombre o CÃ©dula</label>
+                        <input type="text" name="q" id="q" class="form-control" 
+                            placeholder="Ej: Perez o 12345678" 
+                            value="{{ query_search }}">
+                    </div>
                     <button type="submit" class="btn btn-info"><i class="fas fa-filter"></i> Filtrar</button>
                 </form>
             </div>
@@ -2901,6 +2907,12 @@ FILE: App_LiderGeneral/templates/lider_general/estado_solvencia_basura.html
                     <option value="{{ year }}" {% if anio_actual == year %}selected{% endif %}>{{ year }}</option>
                 {% endfor %}
             </select>
+        </div>
+        <div class="col-md-4">
+            <label for="monto_minimo" class="form-label fw-bold">Monto MÃ­nimo (Bs)</label>
+            <input type="number" name="monto_minimo" id="monto_minimo" 
+                class="form-control" step="0.01" 
+                value="{{ monto_minimo }}" placeholder="Ej: 150.00">
         </div>
         <div class="col-md-4">
             <button type="submit" class="btn btn-primary w-100">
@@ -3453,6 +3465,7 @@ class IngresoCondominioForm(MovimientoFormBase):
 
     class Meta(MovimientoFormBase.Meta):
         # Campos a mostrar en el formulario de ingreso de condominio
+        exclude = ('tipo', 'categoria', 'tower', 'creado_por', 'monto_basura')
         fields = MovimientoFormBase.Meta.fields + ['monto_condominio']
 
 class EgresoCondominioForm(MovimientoFormBase):
@@ -3465,6 +3478,7 @@ class EgresoCondominioForm(MovimientoFormBase):
     )
 
     class Meta(MovimientoFormBase.Meta):
+        exclude = ('tipo', 'categoria', 'tower', 'creado_por', 'monto_basura')
         fields = MovimientoFormBase.Meta.fields + ['monto_condominio']
 
 # --- Formularios EspecÃ­ficos para Cuarto de Basura ---
@@ -3479,6 +3493,7 @@ class IngresoBasuraForm(MovimientoFormBase):
     )
 
     class Meta(MovimientoFormBase.Meta):
+        exclude = ('tipo', 'categoria', 'tower', 'creado_por', 'monto_condominio')
         fields = MovimientoFormBase.Meta.fields + ['monto_basura']
 
 
@@ -3565,13 +3580,16 @@ urlpatterns = [
     # Beneficios para Vecinos
     path('beneficios/agregar/<str:tipo_slug>/', views.AgregarVecinosTorreView.as_view(), name='agregar_vecinos'),
     path('beneficios/procesar/', views.ProcesarAgregarTorreView.as_view(), name='procesar_agregar'),
+
+    # Editar Movimiento Financiero
+    path('movimiento/editar/<int:pk>/', views.EditarMovimientoView.as_view(), name='editar_movimiento'),
 ]
 
 
 ================================================
 FILE: App_LiderTorre/views.py
 ================================================
-Error reading file with 'cp1252': 'charmap' codec can't decode byte 0x8d in position 5371: character maps to <undefined>
+Error reading file with 'cp1252': 'charmap' codec can't decode byte 0x8d in position 5460: character maps to <undefined>
 
 
 ================================================
@@ -3604,6 +3622,20 @@ FILE: App_LiderTorre/templates/lider_torre/agregar_beneficio.html
     <p class="text-muted">
         AquÃ­ puedes seleccionar a los jefes de familia de tu torre que aÃºn **no han sido incluidos** en el ciclo actual de {{ titulo }}.
     </p>
+
+    <form method="GET" class="row g-2 mb-4">
+        <div class="col-sm-9">
+            <div class="input-group">
+                <span class="input-group-text bg-white"><i class="fas fa-search text-muted"></i></span>
+                <input type="text" name="q" class="form-control" 
+                    placeholder="Buscar por nombre, apellido o cÃ©dula..." 
+                    value="{{ query_search }}">
+            </div>
+        </div>
+        <div class="col-sm-3">
+            <button type="submit" class="btn btn-primary w-100">Filtrar</button>
+        </div>
+    </form>
 
     <form method="POST" action="{% url 'lider_torre:agregar_vecinos' tipo_slug=tipo_slug %}"> 
         {% csrf_token %}

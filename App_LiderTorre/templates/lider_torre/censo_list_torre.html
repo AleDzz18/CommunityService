@@ -26,6 +26,30 @@
     <div v-scope
          @vue:mounted="navbar.change('Censo: Torre {{ request.user.tower.nombre }}'); navbar.toolbarOpen()"
          class="min-h-[calc(100svh-8rem)] max-w-screen overflow-hidden p-8 flex flex-col justify-stretch items-start ">
+        <!-- TODO: Acomodar -->
+        <form method="GET" class="mb-4">
+            <div class="row g-2 align-items-center">
+                <div class="col-md-6 col-lg-5">
+                    <div class="input-group">
+                        <span class="input-group-text bg-white"><i class="fas fa-search"></i></span>
+                        <input type="text"
+                               name="q"
+                               class="form-control"
+                               placeholder="Buscar por nombre o cédula..."
+                               value="{{ q }}">
+                        <button type="submit" class="btn btn-primary">Buscar</button>
+                    </div>
+                </div>
+                <div class="col-md-auto">
+                    {% if q %}
+                        <a href="{% url 'lider_torre:censo_lista' %}"
+                           class="btn btn-outline-danger">
+                            <i class="fas fa-times"></i> Limpiar Filtro
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+        </form>
         <div class="overflow-x-auto w-full max-h-[calc(100svh-12rem)] rounded-box border border-base-content/5 bg-base-100">
             <table class="table table-sm lg:table-md table-pin-rows table-zebra text-center lg:text-start">
                 <thead class="text-wrap lg:text-nowrap ">

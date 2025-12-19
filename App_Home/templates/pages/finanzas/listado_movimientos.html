@@ -129,6 +129,7 @@
                             <th>Egresos (Bs)</th>
                             <th>Torre</th>
                             <th>Saldo Acumulado (Bs)</th>
+                            <th>Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -147,6 +148,21 @@
                                     {% endif %}
                                 </td>
                                 <td>{{ mov.saldo }}</td>
+                                <!-- TODO: arreglar -->
+                                <td class="text-center">
+                                    {% with user_groups=user.groups.all|stringformat:"s" %}
+                                        {% if user.is_staff or "Lider General" in user_groups or mov.tower == user.tower %}
+                                            {% if mov.id %}
+                                                <a href="{% url 'lider_torre:editar_movimiento' mov.id %}"
+                                                   class="btn btn-sm btn-warning">
+                                                    <i class="fas fa-edit"></i>
+                                                </a>
+                                            {% endif %}
+                                        {% else %}
+                                            <span class="badge bg-secondary"><i class="fas fa-lock"></i>N</span>
+                                        {% endif %}
+                                    {% endwith %}
+                                </td>
                             </tr>
                         {% endfor %}
                     </tbody>
