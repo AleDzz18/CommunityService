@@ -1,28 +1,31 @@
-{% extends 'layouts/complete.html' %}
-
-{% block title %}Confirmar Eliminación{% endblock %}
-
+{% extends "layouts/complete.html" %}
 {% block content %}
-<div class="user-container">
-    <h2>Confirmar Eliminación</h2>
-    <hr>
-    
-    <div class="alert alert-warning" role="alert">
-        <h4 class="alert-heading">¡Advertencia!</h4>
-        <p>Estás a punto de eliminar al usuario **{{ usuario.username }}** (`{{ usuario.get_rol_display }}`). Esta acción es **irreversible**.</p>
+    <div v-scope
+         @vue:mounted="navbar.change('Confirmar eliminación de censo')"
+         class="min-h-[calc(100svh-4rem)] max-w-screen overflow-hidden p-8 flex flex-col justify-start items-center gap-8 ">
+        <h2 class="text-warning text-2xl ">Confirmar Eliminación</h2>
+        <div role="alert" class="alert alert-error py-6">
+            <span class="text-lg text-center">
+                <svg xmlns="http://www.w3.org/2000/svg"
+                     class="size-16 self-center w-full"
+                     viewBox="0 0 24 24">
+                    <!-- Icon from Iconoir by Luca Burgio - https://github.com/iconoir-icons/iconoir/blob/main/LICENSE -->
+                    <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.5">
+                    <path d="M20.043 21H3.957c-1.538 0-2.5-1.664-1.734-2.997l8.043-13.988c.77-1.337 2.699-1.337 3.468 0l8.043 13.988C22.543 19.336 21.58 21 20.043 21ZM12 9v4" />
+                    <path stroke-linejoin="round" d="m12 17.01l.01-.011" />
+                    </g>
+                </svg>
+                Estás a punto de eliminar al usuario <b>{{ usuario.username }}</b> <b>{{ usuario.get_rol_display }}</b>. Esta acción es <b>irreversible</b>.
+                <br>
+                ¿Estás seguro de que deseas eliminar a <strong>{{ usuario.first_name }} {{ usuario.last_name }}</strong>?
+            </span>
+        </div>
+        <form method="post"
+              class="flex justify-center flex-col lg:flex-row w-full max-w-2xs gap-2">
+            {% csrf_token %}
+            <a href="{% url 'lider_general:lista_usuarios' %}"
+               class="btn btn-neutral w-full max-w-md">Cancelar</a>
+            <button type="submit" class="btn btn-dash btn-error w-full max-w-md">Sí, Eliminar</button>
+        </form>
     </div>
-    
-    <p>¿Estás seguro de que deseas eliminar a **{{ usuario.first_name }} {{ usuario.last_name }}**?</p>
-    
-    <form method="post" style="display: inline;">
-        {% csrf_token %}
-        <button type="submit" class="btn btn-danger me-2">
-            <i class="fas fa-trash"></i> Confirmar Eliminación
-        </button>
-    </form>
-    
-    <a href="{% url 'lider_general:lista_usuarios' %}" class="btn btn-secondary">
-        <i class="fas fa-times"></i> Cancelar
-    </a>
-</div>
-{% endblock %}
+{% endblock content %}

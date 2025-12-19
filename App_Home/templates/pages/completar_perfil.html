@@ -10,13 +10,13 @@
             completos</span>
         </div>
         <div class="card w-full card-border bg-base-100 card-md shadow-sm static">
-            <div class="card-body [&>form_div.label]:text-wrap">
+            <div class="card-body [&>form_div.label]:text-wrap [&>form_input,select]:w-full">
                 <h2 class="card-title">Datos de Perfil</h2>
                 <div class="divider divider-primary"></div>
                 <form method="post" @submit.prevent="formHandler.handleSubmit($el)">
                     {% csrf_token %}
                     <h3 class="text-lg text-primary mb-2">Información Personal</h3>
-                    <div class="grid grid-cols-1 lg:grid-cols-3  gap-4 w-fit">
+                    <div class="grid grid-cols-1 lg:grid-cols-3  gap-4 w-full">
                         <div>
                             <label for="{{ formulario.first_name.id_for_label }}"
                                    class="block text-sm/6 font-medium text-primary">
@@ -27,8 +27,7 @@
                                        name="{{ formulario.first_name.html_name }}"
                                        id="{{ formulario.first_name.id_for_label }}"
                                        value="{{ formulario.first_name.value|default:'' }}"
-                                       required
-                                       placeholder="John"
+                                       placeholder="John Luis"
                                        class="block rounded-md w-48 bg-white px-3 py-1.5 text-base text-primary outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-accent sm:text-sm/6 {% if formulario.first_name.errors %}input-error{% endif %}" />
                             </div>
                             {% if formulario.first_name.errors %}
@@ -45,8 +44,7 @@
                                        name="{{ formulario.last_name.html_name }}"
                                        id="{{ formulario.last_name.id_for_label }}"
                                        value="{{ formulario.last_name.value|default:'' }}"
-                                       required
-                                       placeholder="Doe Foo"
+                                       placeholder="Doe Hernandez"
                                        class="block rounded-md w-48 bg-white px-3 py-1.5 text-base text-primary outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-accent sm:text-sm/6 {% if formulario.last_name.errors %}input-error{% endif %}" />
                             </div>
                             {% if formulario.last_name.errors %}
@@ -63,7 +61,6 @@
                                        name="{{ formulario.cedula.html_name }}"
                                        id="{{ formulario.cedula.id_for_label }}"
                                        value="{{ formulario.cedula.value|default:'' }}"
-                                       required
                                        placeholder="XX.XXX.XXX"
                                        class="block rounded-md w-48 bg-white px-3 py-1.5 text-base text-primary outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-accent sm:text-sm/6 {% if formulario.cedula.errors %}input-error{% endif %}" />
                             </div>
@@ -72,7 +69,7 @@
                     </div>
                     <div class="divider"></div>
                     <h3 class="text-lg text-primary mb-2">Asignación de Rol</h3>
-                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 w-fit">
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 w-full">
                         <div>
                             <label for="{{ formulario.rol.id_for_label }}"
                                    class="block text-sm/6 font-medium text-primary">{{ formulario.rol.label }}</label>
@@ -80,9 +77,8 @@
                                 <select name="{{ formulario.rol.html_name }}"
                                         id="{{ formulario.rol.id_for_label }}"
                                         value="{{ formulario.rol.value|default:'' }}"
-                                        required
                                         class="select block rounded-md w-48 bg-white px-3 py-1.5 text-base text-primary outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-accent sm:text-sm/6 {% if formulario.rol.errors %}input-error{% endif %}">
-                                    <option disabled selected>Selecciona</option>
+                                    <option disabled {% if not formulario.rol.value %}selected{% endif %}>Selecciona</option>
                                     {% for value, label in formulario.rol.field.choices %}<option value='{{ value }}'>{{ label }}</option>{% endfor %}
                                 </select>
                             </div>
@@ -94,7 +90,10 @@
                                 {{ formulario.tower.label }}
                             </label>
                             <div class="mt-2">
-                                <select name="{{ formulario.tower.html_name }}" id="{{ formulario.tower.id_for_label }}" value="{{ formulario.tower.value|default:'' }}" class="select block rounded-md w-48 bg-white px-3 py-1.5 text-base text-primary outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-accent sm:text-sm/6 {% if formulario.tower.errors %}input-error{% endif %}"">
+                                <select name="{{ formulario.tower.html_name }}"
+                                        id="{{ formulario.tower.id_for_label }}"
+                                        value="{{ formulario.tower.value|default:'' }}"
+                                        class="select block rounded-md w-48 bg-white px-3 py-1.5 text-base text-primary outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-accent sm:text-sm/6 {% if formulario.tower.errors %}input-error{% endif %}">
                                     {% for value, label in formulario.tower.field.choices %}<option value='{{ value }}'>{{ label }}</option>{% endfor %}
                                 </select>
                             </div>
@@ -104,7 +103,7 @@
                     <div class="divider"></div>
                     <h3 class="text-lg text-primary mb-1">Optar por Roles Secundarios (Opcional)</h3>
                     <p class="text-neutral mb-2">Marca si deseas colaborar con roles de gestión específicos.</p>
-                    <div class="join join-vertical lg:join-horizontal">
+                    <div class="join join-vertical lg:join-horizontal w-full lg:max-w-2xs">
                         <input type="checkbox"
                                name="{{ formulario.es_admin_basura.name }}"
                                aria-label="{{ formulario.es_admin_basura.label }}"

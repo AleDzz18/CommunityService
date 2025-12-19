@@ -16,7 +16,7 @@
                     {% csrf_token %}
                     {% for hidden in form.hidden_fields %}{{ hidden }}{% endfor %}
                     <h3 class="text-lg text-primary mb-2">Ubicación en la Torre</h3>
-                    <div class="grid grid-cols-1 sm: lg:grid-cols-3 gap-4 w-full">
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 w-full">
                         <div>
                             <label for="{{ form.tower.id_for_label }}"
                                    class="block text-sm/6 font-medium text-primary">{{ form.tower.label }}</label>

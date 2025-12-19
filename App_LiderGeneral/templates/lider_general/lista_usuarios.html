@@ -1,66 +1,73 @@
-{% extends 'layouts/complete.html' %}
-
-{% block title %}Administración de Usuarios{% endblock %}
-
-{% block content %}
-<div class="user-container">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2>Gestión de Usuarios</h2>
-        <a href="{% url 'lider_general:crear_usuario' %}" class="btn btn-primary">
-            <i class="fas fa-plus"></i> Crear Nuevo Usuario
+{% extends "layouts/complete.html" %}
+{% block toolbaritems %}
+    <div class="flex items-center justify-between w-full flex-wrap gap-1">
+        <a href="{% url 'lider_general:crear_usuario' %}"
+           class="btn btn-soft btn-xs btn-success">
+            <svg xmlns="http://www.w3.org/2000/svg" class="size-4" viewBox="0 0 24 24">
+                <!-- Icon from Material Symbols by Google - https://github.com/google/material-design-icons/blob/master/LICENSE -->
+                <path fill="currentColor" d="M18 14v-3h-3V9h3V6h2v3h3v2h-3v3zm-9-2q-1.65 0-2.825-1.175T5 8t1.175-2.825T9 4t2.825 1.175T13 8t-1.175 2.825T9 12m-8 8v-2.8q0-.85.438-1.562T2.6 14.55q1.55-.775 3.15-1.162T9 13t3.25.388t3.15 1.162q.725.375 1.163 1.088T17 17.2V20z" />
+            </svg>
+            Crear Nuevo Usuario
         </a>
     </div>
-
-    {% if messages %}
-        {% for message in messages %}
-            <div class="alert alert-{{ message.tags }}">{{ message }}</div>
-        {% endfor %}
-    {% endif %}
-
-    <div class="table-responsive">
-        <table class="table table-striped table-hover">
-            <thead>
-                <tr>
-                    <th>Usuario</th>
-                    <th>Nombre Completo</th>
-                    <th>Rol Principal</th>
-                    <th>Torre</th>
-                    <th>Activo</th>
-                    <th>Acciones</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for usuario in usuarios %}
-                <tr>
-                    <td>{{ usuario.username }}</td>
-                    <td>{{ usuario.get_full_name|default:'N/A' }}</td>
-                    <td>{{ usuario.get_rol_display }}</td>
-                    <td>{{ usuario.tower.nombre|default:'N/A' }}</td>
-                    <td>
-                        {% if usuario.is_active %}
-                            <span class="badge bg-success">Sí</span>
-                        {% else %}
-                            <span class="badge bg-danger">No</span>
-                        {% endif %}
-                    </td>
-                    <td>
-                        <a href="{% url 'lider_general:editar_usuario' usuario.pk %}" class="btn btn-sm btn-info" title="Editar">
-                            <i class="fas fa-edit"></i>
-                            Editar
-                        </a>
-                        <a href="{% url 'lider_general:eliminar_usuario' usuario.pk %}" class="btn btn-sm btn-danger" title="Eliminar">
-                            <i class="fas fa-trash"></i>
-                            Eliminar
-                        </a>
-                    </td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="6" class="text-center">No hay usuarios registrados.</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+{% endblock toolbaritems %}
+{% block content %}
+    <div v-scope
+         @vue:mounted="navbar.change('Administración de Usuarios'); navbar.toolbarOpen()"
+         class="min-h-[calc(100svh-8rem)] max-w-screen overflow-hidden p-8 flex flex-col justify-stretch items-start gap-8">
+        <a href="{% url 'url_index' %}" class="btn btn-neutral w-full ">Volver al inicio</a>
+        <div class="overflow-x-auto w-full max-h-[calc(100svh-12rem)] rounded-box border border-base-content/5 bg-base-100">
+            <table class="table table-sm lg:table-md table-pin-rows table-zebra text-center lg:text-start">
+                <thead class="text-wrap lg:text-nowrap ">
+                    <tr>
+                        <th>Usuario</th>
+                        <th>Nombre Completo</th>
+                        <th>Rol Principal</th>
+                        <th>Torre</th>
+                        <th>Activo</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for usuario in usuarios %}
+                        <tr>
+                            <td>{{ usuario.username }}</td>
+                            <td>{{ usuario.get_full_name|default:'N/A' }}</td>
+                            <td>{{ usuario.get_rol_display }}</td>
+                            <td>{{ usuario.tower.nombre|default:'N/A' }}</td>
+                            <td>
+                                {% if usuario.is_active %}
+                                    <span class="badge badge-soft badge-success">Sí</span>
+                                {% else %}
+                                    <span class="badge badge-soft badge-error">No</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end flex flex-wrap gap-2 justify-end">
+                                <a href="{% url 'lider_general:editar_usuario' usuario.pk %}"
+                                   class="btn btn-sm btn-neutral"
+                                   title="Editar">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="size-4" viewBox="0 0 24 24">
+                                        <!-- Icon from Material Symbols by Google - https://github.com/google/material-design-icons/blob/master/LICENSE -->
+                                        <path fill="currentColor" d="M5 19h1.425L16.2 9.225L14.775 7.8L5 17.575zm-2 2v-4.25L16.2 3.575q.3-.275.663-.425t.762-.15t.775.15t.65.45L20.425 5q.3.275.438.65T21 6.4q0 .4-.137.763t-.438.662L7.25 21zM19 6.4L17.6 5zm-3.525 2.125l-.7-.725L16.2 9.225z" />
+                                    </svg>
+                                </a>
+                                <a href="{% url 'lider_general:eliminar_usuario' usuario.pk %}"
+                                   class="btn btn-sm btn-soft btn-error  "
+                                   title="Eliminar">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="size-4" viewBox="0 0 24 24">
+                                        <!-- Icon from Material Symbols by Google - https://github.com/google/material-design-icons/blob/master/LICENSE -->
+                                        <path fill="currentColor" d="m9.4 16.5l2.6-2.6l2.6 2.6l1.4-1.4l-2.6-2.6L16 9.9l-1.4-1.4l-2.6 2.6l-2.6-2.6L8 9.9l2.6 2.6L8 15.1zM7 21q-.825 0-1.412-.587T5 19V6H4V4h5V3h6v1h5v2h-1v13q0 .825-.587 1.413T17 21zM17 6H7v13h10zM7 6v13z" />
+                                    </svg>
+                                </a>
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="6" class="text-center">No hay usuarios registrados.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
     </div>
-</div>
-{% endblock %}
+{% endblock content %}

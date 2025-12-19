@@ -1,53 +1,234 @@
-{% extends 'layouts/complete.html' %}
-
-{% block title %}
-    {% if form.instance.pk %}Editar Usuario: {{ form.instance.username }}{% else %}Crear Nuevo Usuario{% endif %}
-{% endblock %}
-
+{% extends "layouts/complete.html" %}
 {% block content %}
-<div class="user-container">
-    <h2>
-        {% if form.instance.pk %}Editar Usuario: {{ form.instance.username }}{% else %}Crear Nuevo Usuario{% endif %}
-    </h2>
-    <hr>
-    
-    <form method="post">
-        {% csrf_token %}
-
-        {% if form.non_field_errors %}
-            <div class="alert alert-danger">
-                {% for error in form.non_field_errors %}
-                    <p>{{ error }}</p>
-                {% endfor %}
+    <div v-scope
+         @vue:mounted="navbar.change({% if form.instance.pk %}'Editar Usuario: {{ form.instance.username }}'{% else %}'Crear Nuevo Usuario'{% endif %})"
+         class="min-h-svh flex flex-col justify-start items-stretch px-6 py-8 gap-4">
+        <h1 class="text-xl">Perfil</h1>
+        <div class="card w-full card-border bg-base-100 card-md shadow-sm static">
+            <div class="card-body [&>form_div.label]:text-wrap [&>form_input,select]:w-full">
+                <h2 class="card-title">Datos de Perfil</h2>
+                <div class="divider divider-primary"></div>
+                <form method="post" @submit.prevent="formHandler.handleSubmit($el)">
+                    {% csrf_token %}
+                    <h3 class="text-lg text-primary mb-2">Datos de inicio de sesión</h3>
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 w-full">
+                        <div>
+                            <label for="{{ form.username.id_for_label }}"
+                                   class="block text-sm/6 font-medium text-primary">{{ form.username.label }}</label>
+                            <div class="mt-2">
+                                <input type="text"
+                                       name="{{ form.username.html_name }}"
+                                       id="{{ form.username.id_for_label }}"
+                                       value="{{ form.username.value|default:'' }}"
+                                       placeholder="johnluis1"
+                                       class="block rounded-md w-48 bg-white px-3 py-1.5 text-base text-primary outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-accent sm:text-sm/6 {% if form.username.errors %}input-error{% endif %}" />
+                            </div>
+                            {% if form.username.errors %}<div class="label text-error text-sm">{{ form.username.errors }}</div>{% endif %}
+                        </div>
+                        <div>
+                            <label for="{{ form.email.id_for_label }}"
+                                   class="block text-sm/6 font-medium text-primary">{{ form.email.label }}</label>
+                            <div class="mt-2">
+                                <input type="email"
+                                       name="{{ form.email.html_name }}"
+                                       id="{{ form.email.id_for_label }}"
+                                       value="{{ form.email.value|default:'' }}"
+                                       placeholder="johnluis@example.com"
+                                       class="block rounded-md w-48 bg-white px-3 py-1.5 text-base text-primary outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-accent sm:text-sm/6 {% if form.email.errors %}input-error{% endif %}" />
+                            </div>
+                            {% if form.email.errors %}<div class="label text-error text-sm">{{ form.email.errors }}</div>{% endif %}
+                        </div>
+                        <div>
+                            <label for="{{ form.password.id_for_label }}"
+                                   class="block text-sm/6 font-medium text-primary">{{ form.password.label }}</label>
+                            <div class="mt-2">
+                                <input type="password"
+                                       name="{{ form.password.html_name }}"
+                                       id="{{ form.password.id_for_label }}"
+                                       autocomplete="off"
+                                       placeholder="Contraseña nueva"
+                                       class="block rounded-md w-48 bg-white px-3 py-1.5 text-base text-primary outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-accent sm:text-sm/6 {% if form.password.errors %}input-error{% endif %}" />
+                            </div>
+                            {% if form.password.errors %}<div class="label text-error text-sm">{{ form.password.errors }}</div>{% endif %}
+                        </div>
+                    </div>
+                    <div class="divider"></div>
+                    <h3 class="text-lg text-primary mb-2">Información Personal</h3>
+                    <div class="grid grid-cols-1 lg:grid-cols-3  gap-4 w-full">
+                        <div>
+                            <label for="{{ form.first_name.id_for_label }}"
+                                   class="block text-sm/6 font-medium text-primary">{{ form.first_name.label }}</label>
+                            <div class="mt-2">
+                                <input type="text"
+                                       name="{{ form.first_name.html_name }}"
+                                       id="{{ form.first_name.id_for_label }}"
+                                       value="{{ form.first_name.value|default:'' }}"
+                                       placeholder="John Luis"
+                                       class="block rounded-md w-48 bg-white px-3 py-1.5 text-base text-primary outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-accent sm:text-sm/6 {% if form.first_name.errors %}input-error{% endif %}" />
+                            </div>
+                            {% if form.first_name.errors %}<div class="label text-error text-sm">{{ form.first_name.errors }}</div>{% endif %}
+                        </div>
+                        <div>
+                            <label for="{{ form.last_name.id_for_label }}"
+                                   class="block text-sm/6 font-medium text-primary">{{ form.last_name.label }}</label>
+                            <div class="mt-2">
+                                <input type="text"
+                                       name="{{ form.last_name.html_name }}"
+                                       id="{{ form.last_name.id_for_label }}"
+                                       value="{{ form.last_name.value|default:'' }}"
+                                       placeholder="Doe Hernandez"
+                                       class="block rounded-md w-48 bg-white px-3 py-1.5 text-base text-primary outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-accent sm:text-sm/6 {% if form.last_name.errors %}input-error{% endif %}" />
+                            </div>
+                            {% if form.last_name.errors %}<div class="label text-error text-sm">{{ form.last_name.errors }}</div>{% endif %}
+                        </div>
+                        <div>
+                            <label for="{{ form.cedula.id_for_label }}"
+                                   class="block text-sm/6 font-medium text-primary">{{ form.cedula.label }}</label>
+                            <div class="mt-2">
+                                <input type="text"
+                                       name="{{ form.cedula.html_name }}"
+                                       id="{{ form.cedula.id_for_label }}"
+                                       value="{{ form.cedula.value|default:'' }}"
+                                       placeholder="XX.XXX.XXX"
+                                       class="block rounded-md w-48 bg-white px-3 py-1.5 text-base text-primary outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-accent sm:text-sm/6 {% if form.cedula.errors %}input-error{% endif %}" />
+                            </div>
+                            {% if form.cedula.errors %}<div class="label text-error text-sm">{{ form.cedula.errors }}</div>{% endif %}
+                        </div>
+                    </div>
+                    <div class="divider"></div>
+                    <h3 class="text-lg text-primary mb-2">Asignación de Rol</h3>
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 w-full">
+                        <div>
+                            <label for="{{ form.rol.id_for_label }}"
+                                   class="block text-sm/6 font-medium text-primary">{{ form.rol.label }}</label>
+                            <div class="mt-2">
+                                <select name="{{ form.rol.html_name }}"
+                                        id="{{ form.rol.id_for_label }}"
+                                        class="select block rounded-md w-48 bg-white px-3 py-1.5 text-base text-primary outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-accent sm:text-sm/6 {% if form.rol.errors %}input-error{% endif %}">
+                                    <option disabled {% if not form.rol.value %}selected{% endif %}>Selecciona</option>
+                                    {% for value, label in form.rol.field.choices %}
+                                        <option value='{{ value }}'
+                                                {% if form.rol.value|stringformat:"s" == value|stringformat:"s" %}selected{% endif %}>
+                                            {{ label }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            {% if form.rol.errors %}<div class=" label text-error text-sm">{{ form.rol.errors }}</div>{% endif %}
+                        </div>
+                        <div>
+                            <label for="{{ form.tower.id_for_label }}"
+                                   class="block text-sm/6 font-medium text-primary">{{ form.tower.label }}</label>
+                            <div class="mt-2">
+                                <select name="{{ form.tower.html_name }}"
+                                        id="{{ form.tower.id_for_label }}"
+                                        class="select block rounded-md w-48 bg-white px-3 py-1.5 text-base text-primary outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-accent sm:text-sm/6 {% if form.tower.errors %}input-error{% endif %}">
+                                    {% for value, label in form.tower.field.choices %}
+                                        <option value='{{ value }}'
+                                                {% if form.tower.value|stringformat:"s" == value|stringformat:"s" %}selected{% endif %}>
+                                            {{ label }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            {% if form.tower.errors %}<div class=" label text-error text-sm">{{ form.tower.errors }}</div>{% endif %}
+                        </div>
+                    </div>
+                    <div class="divider"></div>
+                    <h3 class="text-lg text-primary mb-1">Optar por Roles Secundarios (Opcional)</h3>
+                    <p class="text-neutral mb-2">Marca si deseas colaborar con roles de gestión específicos.</p>
+                    <div class="join join-vertical lg:join-horizontal w-full lg:max-w-2xs">
+                        <input type="checkbox"
+                               name="{{ form.es_admin_basura.name }}"
+                               aria-label="{{ form.es_admin_basura.label }}"
+                               id="{{ form.es_admin_basura.id_for_label }}"
+                               class="join-item btn btn-dash btn-primary "
+                               v-scope="{dchecked: '{{ form.es_admin_basura.value }}'}"
+                               @vue:mounted="if (dchecked != 'False'){ $el.checked = true}" />
+                        <input type="checkbox"
+                               name="{{ form.es_admin_clap.name }}"
+                               aria-label="{{ form.es_admin_clap.label }}"
+                               id="{{ form.es_admin_clap.id_for_label }}"
+                               class="join-item btn btn-dash btn-primary"
+                               v-scope="{dchecked: '{{ form.es_admin_clap.value }}'}"
+                               @vue:mounted="if (dchecked != 'False'){ $el.checked = true}" />
+                        <input type="checkbox"
+                               name="{{ form.es_admin_bombonas.name }}"
+                               aria-label="{{ form.es_admin_bombonas.label }}"
+                               id="{{ form.es_admin_bombonas.id_for_label }}"
+                               class="join-item btn btn-dash btn-primary"
+                               v-scope="{dchecked: '{{ form.es_admin_bombonas.value }}'}"
+                               @vue:mounted="if (dchecked != 'False'){ $el.checked = true}" />
+                    </div>
+                    <div class="divider"></div>
+                    <h3 class="text-lg text-primary mb-1">Configuración de administración (Avanzado)</h3>
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 w-full">
+                        <div class="w-full lg:col-span-3">
+                            <label class="label ">
+                                <input type="checkbox"
+                                       {% if form.is_active.value %}checked{% endif %}
+                                       class="checkbox checkbox-lg checkbox-primary [&&]:w-(--size) "
+                                       name="{{ form.is_active.html_name }}"
+                                       id="{{ form.is_active.id_for_label }}" />
+                                <span>
+                                    <b class="text-primary">{{ form.is_active.label }}</b>
+                                    {% if form.is_active.help_text %}
+                                        <br>
+                                        <small class="text-xs text-wrap w-full">{{ form.is_active.help_text }}</small>
+                                    {% endif %}
+                                </span>
+                            </label>
+                            {% if form.is_active.errors %}<div class="label text-error text-sm">{{ form.is_active.errors }}</div>{% endif %}
+                        </div>
+                        <div class="w-full lg:col-span-3">
+                            <label class="label ">
+                                <input type="checkbox"
+                                       {% if form.is_staff.value %}checked{% endif %}
+                                       class="checkbox checkbox-lg checkbox-primary [&&]:w-(--size) "
+                                       name="{{ form.is_staff.html_name }}"
+                                       id="{{ form.is_staff.id_for_label }}" />
+                                <span>
+                                    <b class="text-primary">{{ form.is_staff.label }}</b>
+                                    {% if form.is_staff.help_text %}
+                                        <br>
+                                        <small class="text-xs text-wrap w-full">{{ form.is_staff.help_text }}</small>
+                                    {% endif %}
+                                </span>
+                            </label>
+                            {% if form.is_staff.errors %}<div class="label text-error text-sm">{{ form.is_staff.errors }}</div>{% endif %}
+                        </div>
+                        <div class="w-full lg:col-span-3">
+                            <label class="label ">
+                                <input type="checkbox"
+                                       {% if form.is_superuser.value %}checked{% endif %}
+                                       class="checkbox checkbox-lg checkbox-primary [&&]:w-(--size) "
+                                       name="{{ form.is_superuser.html_name }}"
+                                       id="{{ form.is_superuser.id_for_label }}" />
+                                <span>
+                                    <b class="text-primary">{{ form.is_superuser.label }}</b>
+                                    {% if form.is_superuser.help_text %}
+                                        <br>
+                                        <small class="text-xs text-wrap w-full">{{ form.is_superuser.help_text }}</small>
+                                    {% endif %}
+                                </span>
+                            </label>
+                            {% if form.is_superuser.errors %}<div class="label text-error text-sm">{{ form.is_superuser.errors }}</div>{% endif %}
+                        </div>
+                    </div>
+                    <div class="flex gap-4">
+                        <button type="submit"
+                                :disabled="formHandler.loading"
+                                class="flex mt-8 text-sm/6 font-semibold btn btn-neutral ">Guardar cambios</button>
+                        <a href="{% url 'lider_general:lista_usuarios' %}"
+                           class="flex mt-8 text-sm/6 font-semibold btn btn-error"
+                           :class="{'pointer-none btn-disabled' : formHandler.loading}"
+                           onclick="return confirm('¿Estás seguro? Cualquier información nueva se perderá.');">
+                            Cancelar
+                        </a>
+                    </div>
+                </form>
             </div>
-        {% endif %}
-
-        {# Grid de 2 columnas para los campos #}
-        <div class="row g-3">
-            {% for field in form %}
-            <div class="col-md-6">
-                <div class="form-group">
-                    <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
-                    {{ field }}
-                    {% for error in field.errors %}
-                        <div class="text-danger small">{{ error }}</div>
-                    {% endfor %}
-                    {% if field.help_text %}
-                        <small class="form-text text-muted">{{ field.help_text }}</small>
-                    {% endif %}
-                </div>
-            </div>
-            {% endfor %}
         </div>
-
-        <div class="mt-4">
-            <button type="submit" class="btn btn-success me-2">
-                <i class="fas fa-save"></i> Guardar Cambios
-            </button>
-            <a href="{% url 'lider_general:lista_usuarios' %}" class="btn btn-secondary">
-                <i class="fas fa-times"></i> Cancelar
-            </a>
-        </div>
-    </form>
-</div>
-{% endblock %}
+    </div>
+{% endblock content %}
+<!--  -->
