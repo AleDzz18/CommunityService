@@ -34,6 +34,8 @@ from reportlab.lib import colors
 import os
 from io import BytesIO
 
+from django.db.models import Sum, Q
+
 
 # --- MIXINS DE PERMISOS (Definirlos al principio) ---
 
@@ -131,7 +133,7 @@ class RegistrarEgresoBasuraGeneralView(LiderGeneralOrAdminBasuraRequiredMixin, B
     TIPO_MOVIMIENTO = 'Egreso'
     CATEGORIA_MOVIMIENTO = 'Cuarto de Basura'
     MONTO_FIELD = 'monto_basura'
-    
+
 class EstadoSolvenciaBasuraView(LoginRequiredMixin, LiderGeneralOrAdminBasuraRequiredMixin, TemplateView):
     template_name = 'lider_general/estado_solvencia_basura.html'
 
@@ -142,25 +144,38 @@ class EstadoSolvenciaBasuraView(LoginRequiredMixin, LiderGeneralOrAdminBasuraReq
         try:
             mes = int(self.request.GET.get('mes', hoy.month))
             anio = int(self.request.GET.get('anio', hoy.year))
+            # Capturamos el monto, si está vacío o es 0, lo tratamos igual
+            monto_minimo_raw = self.request.GET.get('monto_minimo', '')
+            monto_minimo = float(monto_minimo_raw) if monto_minimo_raw and float(monto_minimo_raw) > 0 else 0
         except ValueError:
             mes = hoy.month
             anio = hoy.year
+            monto_minimo = 0
 
         torres = Tower.objects.all().order_by('nombre')
-        
-        pagos_registrados = MovimientoFinanciero.objects.filter(
-            categoria='BAS',
-            tipo='ING',
-            fecha__year=anio,
-            fecha__month=mes,
-            tower__isnull=False
-        ).values_list('tower_id', flat=True).distinct()
-
         reporte_solvencia = []
+        
         for torre in torres:
-            es_solvente = torre.id in pagos_registrados
+            # Calculamos la suma total acumulada
+            total_acumulado = MovimientoFinanciero.objects.filter(
+                categoria='BAS',
+                tipo='ING',
+                fecha__year=anio,
+                fecha__month=mes,
+                tower=torre
+            ).aggregate(total=Sum('monto_basura'))['total'] or 0
+
+            # --- NUEVA LÓGICA COMBINADA ---
+            if monto_minimo > 0:
+                # Si el usuario definió un monto, debe llegar a esa cifra
+                es_solvente = total_acumulado >= monto_minimo
+            else:
+                # Si el monto es 0 (primera carga), basta con que tenga ALGO registrado
+                es_solvente = total_acumulado > 0
+
             reporte_solvencia.append({
                 'torre': torre,
+                'total_acumulado': total_acumulado,
                 'status': 'SOLVENTE' if es_solvente else 'PENDIENTE',
                 'css_class': 'bg-success text-white' if es_solvente else 'bg-warning text-dark'
             })
@@ -169,6 +184,7 @@ class EstadoSolvenciaBasuraView(LoginRequiredMixin, LiderGeneralOrAdminBasuraReq
             'reporte': reporte_solvencia,
             'mes_actual': mes,
             'anio_actual': anio,
+            'monto_minimo': monto_minimo if monto_minimo > 0 else '', # Para que el input no muestre 0.0 si no se ha usado
             'meses_choices': range(1, 13),
             'anios_choices': range(hoy.year - 2, hoy.year + 3),
         })
@@ -186,16 +202,29 @@ class CensoGeneralListView(LiderGeneralRequiredMixin, ListView):
 
     def get_queryset(self):
         qs = super().get_queryset().select_related('tower')
-        # Filtro por Torre desde el GET
+        # 2. Capturar parámetros del GET
+        q = self.request.GET.get('q')
         torre_id = self.request.GET.get('torre')
+
+        # 3. Filtrado unificado (Nombre, Apellido o Cédula)
+        if q:
+            qs = qs.filter(
+                Q(nombres__icontains=q) | 
+                Q(apellidos__icontains=q) | 
+                Q(cedula__icontains=q)
+            )
+
+        # 4. Filtro por Torre (Existente)
         if torre_id and torre_id.isdigit():
             qs = qs.filter(tower_id=int(torre_id))
+            
         return qs
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['torres'] = Tower.objects.all() # Para el dropdown del filtro
         context['torre_seleccionada'] = self.request.GET.get('torre')
+        context['q'] = self.request.GET.get('q', '')
         return context
 
 class CensoGeneralCreateView(LiderGeneralRequiredMixin, CreateView):
@@ -279,12 +308,20 @@ class AgregarBeneficiarioGeneralView(LoginRequiredMixin, LiderGeneralRequiredMix
         # El Líder General puede ver todas las torres
         qs = CensoMiembro.objects.all().exclude(id__in=ids_en_lista).select_related('tower').order_by('tower__nombre', 'piso', 'apartamento_letra')
         
+        query = self.request.GET.get('q')
+        if query:
+            qs = qs.filter(
+                Q(nombres__icontains=query) | 
+                Q(apellidos__icontains=query) | 
+                Q(cedula__icontains=query)
+            )
+        
         # Opcional: Filtro por Torre (útil para el Líder General)
         torre_id = self.request.GET.get('torre')
         if torre_id and torre_id.isdigit():
             qs = qs.filter(tower_id=int(torre_id))
 
-        return qs
+        return qs.order_by('tower__nombre', 'piso', 'apartamento_letra')
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -299,7 +336,8 @@ class AgregarBeneficiarioGeneralView(LoginRequiredMixin, LiderGeneralRequiredMix
         context['ciclo_activo'] = ciclo
         context['torres'] = Tower.objects.all() # Para un posible filtro en el template
         context['torre_seleccionada'] = self.request.GET.get('torre')
-        
+
+        context['query_search'] = self.request.GET.get('q', '')
         return context
 
     # El método POST se debe redefinir aquí para manejar la adición masiva de la lista.

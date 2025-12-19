@@ -22,6 +22,10 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER, TA_RIGHT
 from reportlab.lib import colors
 
+
+from django.core.exceptions import PermissionDenied
+from django.db.models import Q
+
 # ==============================================================
 # La plantilla del formulario será la misma para todos los tipos de movimiento
 TEMPLATE_NAME = 'lider_torre/movimiento_form.html'
@@ -188,9 +192,27 @@ class CensoTorreListView(LiderTorreRequiredMixin, ListView):
     context_object_name = 'miembros'
 
     def get_queryset(self):
-        # FILTRO AUTOMÁTICO: Solo muestra gente de SU torre
-        return CensoMiembro.objects.filter(tower=self.request.user.tower).order_by('piso', 'apartamento_letra')
+        # 1. Filtro base: Solo gente de SU torre
+        qs = CensoMiembro.objects.filter(tower=self.request.user.tower).order_by('piso', 'apartamento_letra')
+        
+        # 2. Capturar el parámetro de búsqueda
+        q = self.request.GET.get('q')
+        
+        # 3. Aplicar filtrado si existe búsqueda
+        if q:
+            qs = qs.filter(
+                Q(nombres__icontains=q) | 
+                Q(apellidos__icontains=q) | 
+                Q(cedula__icontains=q)
+            )
+        return qs
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # 4. Pasar 'q' al context para que el input mantenga el texto escrito
+        context['q'] = self.request.GET.get('q', '')
+        return context
+    
 # 2. VISTA DE CREACIÓN
 class CensoTorreCreateView(LiderTorreRequiredMixin, CreateView):
     model = CensoMiembro
@@ -308,11 +330,23 @@ class AgregarVecinosTorreView(LoginRequiredMixin, LiderTorreRequiredMixin, ListV
         # 2. Excluir los que YA están en la lista (usando EntregaBeneficio)
         ids_en_lista = EntregaBeneficio.objects.filter(ciclo=ciclo).values_list('beneficiario_id', flat=True)
         
-        # 3. Filtrar y ordenar
-        return CensoMiembro.objects.filter(
+        # --- LÓGICA DE FILTRADO ---
+        # 1. Filtro base: Solo jefes de mi torre que no están en la lista
+        queryset = CensoMiembro.objects.filter(
             tower=user_tower,
-            es_jefe_familia=True # Si este es el filtro deseado
-        ).exclude(id__in=ids_en_lista).order_by('piso', 'apartamento_letra')
+            es_jefe_familia=True 
+        ).exclude(id__in=ids_en_lista)
+
+        # 2. Filtro de búsqueda por texto (NUEVO)
+        query = self.request.GET.get('q')
+        if query:
+            queryset = queryset.filter(
+                Q(nombres__icontains=query) | 
+                Q(apellidos__icontains=query) | 
+                Q(cedula__icontains=query)
+            )
+
+        return queryset.order_by('piso', 'apartamento_letra')
 
 
     def post(self, request, *args, **kwargs):
@@ -366,6 +400,8 @@ class AgregarVecinosTorreView(LoginRequiredMixin, LiderTorreRequiredMixin, ListV
         tipo_slug = self.kwargs.get('tipo_slug')
         context['tipo_slug'] = tipo_slug
         context['titulo'] = "Agregar Vecinos a " + tipo_slug.upper()
+
+        context['query_search'] = self.request.GET.get('q', '')
         
         tipo_db = next((db for slug, db in self._get_benefit_slug_map() if slug == tipo_slug), None)
         context['ciclo'] = CicloBeneficio.objects.filter(tipo=tipo_db, activo=True).first()
@@ -474,3 +510,56 @@ class CensoPDFTorreView(LoginRequiredMixin, View): # O LiderTorreRequiredMixin s
         response.write(buffer.getvalue())
         buffer.close()
         return response
+
+
+class EditarMovimientoView(LoginRequiredMixin, LiderTorreRequiredMixin, UpdateView):
+    model = MovimientoFinanciero
+    template_name = TEMPLATE_NAME # Reutilizamos la misma plantilla de registro
+    
+    def get_success_url(self):
+        # Retorna al listado de finanzas de la categoría editada
+        categoria = self.object.categoria
+        slug = 'condominio' if categoria == 'CON' else 'basura'
+        return reverse_lazy('ver_finanzas', kwargs={'categoria_slug': slug})
+
+    def dispatch(self, request, *args, **kwargs):
+        obj = self.get_object()
+        user = request.user
+        
+        # Lógica de Seguridad:
+        # 1. Si es staff/superuser o Líder General (puedes ajustar esta condición según tus roles)
+        es_lider_general = user.is_staff or user.groups.filter(name='Lider General').exists()
+        
+        # 2. Si es líder de la torre correspondiente
+        es_dueno_torre = obj.tower == user.tower
+        
+        if not (es_lider_general or es_dueno_torre):
+            messages.error(request, "No tienes permiso para editar movimientos de otra torre.")
+            return redirect('url_dashboard')
+            
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_form_class(self):
+        """Selecciona el formulario correcto según el tipo y categoría del movimiento"""
+        obj = self.get_object()
+        
+        if obj.categoria == 'CON':
+            # Corregido: Usar 'ING' en lugar de 'INGRESOS'
+            return IngresoCondominioForm if obj.tipo == 'ING' else EgresoCondominioForm
+        else:
+            # Para Basura: Verifica si es ingreso o egreso (si tienes ambos formularios)
+            if obj.tipo == 'ING':
+                return IngresoBasuraForm
+            else:
+                # Si no tienes EgresoBasuraForm aún, podrías usar el mismo de ingreso 
+                # o crear uno siguiendo el ejemplo del paso anterior.
+                return IngresoBasuraForm
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['titulo'] = f"Editar {self.object.get_tipo_display()} - {self.object.get_categoria_display()}"
+        return context
+    
+    def form_valid(self, form):
+        messages.success(self.request, "El movimiento se ha actualizado correctamente.")
+        return super().form_valid(form)

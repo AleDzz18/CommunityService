@@ -159,6 +159,7 @@ class EgresoBasuraGeneralForm(LiderGeneralMovimientoBaseForm):
         self.fields['tower'].required = False
 
     class Meta(LiderGeneralMovimientoBaseForm.Meta):
+        exclude = ('tipo', 'categoria', 'tower', 'creado_por', 'monto_condominio')
         fields = LiderGeneralMovimientoBaseForm.Meta.fields + ['monto_basura']
 
 

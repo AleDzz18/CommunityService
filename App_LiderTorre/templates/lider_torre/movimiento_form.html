@@ -84,7 +84,8 @@
 
         <div class="mt-4">
             <button type="submit" class="btn btn-primary me-2">
-                <i class="fas fa-save"></i> Registrar Movimiento
+                <i class="fas fa-save"></i> 
+                {% if view.object %} Actualizar Movimiento {% else %} Registrar Movimiento {% endif %}
             </button>
             <a href="{% url 'url_dashboard' %}" class="btn btn-secondary">
                 <i class="fas fa-times"></i> Cancelar

@@ -47,6 +47,7 @@ class IngresoCondominioForm(MovimientoFormBase):
 
     class Meta(MovimientoFormBase.Meta):
         # Campos a mostrar en el formulario de ingreso de condominio
+        exclude = ('tipo', 'categoria', 'tower', 'creado_por', 'monto_basura')
         fields = MovimientoFormBase.Meta.fields + ['monto_condominio']
 
 class EgresoCondominioForm(MovimientoFormBase):
@@ -59,6 +60,7 @@ class EgresoCondominioForm(MovimientoFormBase):
     )
 
     class Meta(MovimientoFormBase.Meta):
+        exclude = ('tipo', 'categoria', 'tower', 'creado_por', 'monto_basura')
         fields = MovimientoFormBase.Meta.fields + ['monto_condominio']
 
 # --- Formularios Específicos para Cuarto de Basura ---
@@ -73,4 +75,5 @@ class IngresoBasuraForm(MovimientoFormBase):
     )
 
     class Meta(MovimientoFormBase.Meta):
+        exclude = ('tipo', 'categoria', 'tower', 'creado_por', 'monto_condominio')
         fields = MovimientoFormBase.Meta.fields + ['monto_basura']

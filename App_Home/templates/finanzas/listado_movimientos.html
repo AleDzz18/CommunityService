@@ -60,10 +60,11 @@
                 <a href="{% url 'descargar_pdf' categoria_slug=categoria_slug %}?{{ request.GET.urlencode }}" class="btn btn-danger float-end">
                     <i class="fas fa-file-pdf"></i> Descargar PDF
                 </a>
-
-                <a href="{% url 'lider_general:inventario_lista' %}" class="btn btn-outline-secondary">
-                    <i class="fas fa-boxes"></i> Ver Inventario de Basura
-                </a>
+                {% if categoria_slug == 'basura' %}
+                    <a href="{% url 'lider_general:inventario_lista' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-boxes"></i> Ver Inventario de Basura
+                    </a>
+                {% endif %}
             </div>
         </form>
 
@@ -79,6 +80,7 @@
                             <th>Egresos (Bs)</th>
                             <th>Torre</th>
                             <th>Saldo Acumulado (Bs)</th>
+                            <th>Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -97,6 +99,20 @@
                                     {% endif %}
                                 </td>
                                 <td>{{ mov.saldo }}</td>
+                                <td class="text-center">
+                                    {% with user_groups=user.groups.all|stringformat:"s" %}
+                                        {% if user.is_staff or "Lider General" in user_groups or mov.tower == user.tower %}
+                                            {% if mov.id %}
+                                                <a href="{% url 'lider_torre:editar_movimiento' mov.id %}" 
+                                                    class="btn btn-sm btn-warning">
+                                                    <i class="fas fa-edit"></i>
+                                                </a>
+                                            {% endif %}
+                                        {% else %}
+                                            <span class="badge bg-secondary"><i class="fas fa-lock"></i></span>
+                                        {% endif %}
+                                    {% endwith %}
+                                </td>
                             </tr>
                         {% endfor %}
                     </tbody>

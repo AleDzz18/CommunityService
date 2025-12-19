@@ -69,6 +69,35 @@ Sobrescribe el contenido del archivo digest.txt existente con esta nueva salida.
 
 Incluye el digest.txt actualizado en tu commit antes de subir tus cambios.
 
+### 7. Mantenimiento del archivo digest.txt (Repositorio Público)
+
+Para facilitar el análisis del proyecto por herramientas de IA y mantener una visión global del código, utilizamos `gitingest`. Al ser un repositorio público, el proceso es directo:
+
+   1. **Instalación/Actualización de la herramienta:**
+      Si no la tienes, instálala usando pip:
+      ```bash
+      pip install gitingest
+
+   2. Generar el nuevo resumen: Desde tu terminal (en cualquier carpeta), ejecuta el comando apuntando a la URL pública del repositorio:
+
+   Bash
+$env:GITHUB_TOKEN=""
+gitingest https://github.com/AleDzz18/CommunityService
+
+   3. Actualizar el archivo local:
+
+   El comando anterior generará un archivo llamado digest.txt en tu carpeta actual.
+
+   Copia ese archivo a la raíz de tu proyecto local, sobrescribiendo el digest.txt antiguo.
+
+   4. Sincronizar: Incluye el digest.txt actualizado en tu próximo commit:
+
+   Bash
+
+   git add digest.txt
+   git commit -m "Actualización de digest.txt con los últimos cambios"
+   git push
+
 8. Flujo de Trabajo y Sincronización (Commit y Push)
 Para evitar conflictos y pérdidas de trabajo en nuestro repositorio privado, sigue siempre este flujo antes de subir tu trabajo:
 

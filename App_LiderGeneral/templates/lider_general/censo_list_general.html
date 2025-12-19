@@ -33,6 +33,13 @@
                     {% endfor %}
                 </select>
             </div>
+            <div class="input-group">
+                <span class="input-group-text bg-white"><i class="fas fa-search"></i></span>
+                <input type="text" name="q" class="form-control" 
+                    placeholder="Nombre, apellido o cédula..." 
+                    value="{{ q }}"
+                    onchange="this.form.submit()">
+            </div>
             <div class="col-auto">
                 {% if torre_seleccionada %}
                     <a href="{% url 'lider_general:censo_lista' %}" class="btn btn-outline-secondary btn-sm">
