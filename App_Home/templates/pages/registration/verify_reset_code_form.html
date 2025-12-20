@@ -1,41 +1,64 @@
-{% extends 'layouts/base.html' %}
-{% load static %}
-
-{% block title %}Verificar Código{% endblock %}
-
-{% block content %}
-<div class="container">
-    <div class="login-box">
-        <h2>Verificar Código de Restablecimiento</h2>
-        <div class="form-container">
-            <p class="message-text">Introduce tu correo electrónico y el código de verificación que te enviamos.</p>
-            
-            <form method="POST">
-                {% csrf_token %} 
-                
-                {% if messages %}
-                    {% for message in messages %}
-                        <p class="{% if message.tags %}alert alert-{{ message.tags }}{% endif %}">{{ message }}</p> 
-                    {% endfor %}
-                {% endif %}
-
-                <div class="input-box">
-                    {{ form.email.errors }}
-                    {{ form.email }}
-                    <label for="{{ form.email.id_for_label }}">Correo Electrónico</label> 
-                </div>
-                <div class="input-box">
-                    {{ form.code.errors }}
-                    {{ form.code }}
-                    <label for="{{ form.code.id_for_label }}">Código de Verificación</label> 
-                </div>
-                
-                <button type="submit" class="btn">Verificar Código</button>
-                <div class="signup-link">
-                    <a href="{% url 'request_reset_code' %}">Solicitar nuevo código</a> 
-                </div>
-            </form>
+{% extends "layouts/base.html" %}
+{% block main %}
+    <div v-scope
+         class="flex min-h-full flex-col justify-center px-6 py-12 lg:px-8">
+        <div class="flex min-h-full flex-col items-center justify-center px-6 lg:px-8 lg:min-w-2xl">
+            <div class="sm:mx-auto sm:w-full sm:max-w-sm">
+                <h2 class="text-center text-2xl/9 font-bold tracking-tight text-primary">Restablecer contraseña</h2>
+                <h3 class="text-center text-2xl/9 tracking-tight text-primary">Verificar Código</h3>
+            </div>
+            <div class="mt-10 sm:mx-auto sm:w-full sm:max-w-sm flex flex-col justify-start items-center">
+                <p class="text-center">Introduce tu correo electrónico y el código de verificación que te enviamos.</p>
+                <form method="post"
+                      @submit.prevent="formHandler.handleSubmit($el)"
+                      class="w-full space-y-6">
+                    {% csrf_token %}
+                    <div class="flex flex-col justify-center items-stretch gap-4 [&_input]:w-full">
+                        <div>
+                            <label for="{{ formulario.email.id_for_label|default:'if_email' }}"
+                                   class="block text-sm/6 font-medium text-primary">
+                                {{ formulario.email.label|default:'Email' }}
+                            </label>
+                            <div class="mt-2">
+                                <input type="email"
+                                       name="{{ formulario.email.html_name|default:'email' }}"
+                                       id="{{ formulario.email.id_for_label|default:'if_email' }}"
+                                       value="{{ formulario.email.value|default:'' }}"
+                                       required
+                                       placeholder="John.Doe@example.com"
+                                       class="block rounded-md  bg-white px-3 py-1.5 text-base text-primary outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-accent sm:text-sm/6 {% if formulario.email.errors %}input-error{% endif %}" />
+                            </div>
+                            {% if formulario.email.errors %}<div class="label text-error text-sm">{{ formulario.email.errors }}</div>{% endif %}
+                        </div>
+                        <div>
+                            <label for="{{ form.code.id_for_label }}"
+                                   class="block text-sm/6 font-medium text-primary">{{ form.code.label }}</label>
+                            <div class="mt-2">
+                                <input type="text"
+                                       name="{{ form.code.html_name }}"
+                                       id="{{ form.code.id_for_label }}"
+                                       placeholder="XXXXXX"
+                                       class="block rounded-md  bg-white px-3 py-1.5 text-base text-primary outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-accent sm:text-sm/6 {% if form.code.errors %}input-error{% endif %}" />
+                            </div>
+                            {% if form.code.errors %}<div class="label text-error text-sm">{{ form.code.errors }}</div>{% endif %}
+                        </div>
+                    </div>
+                    <div class="space-y-2">
+                        <button type="submit"
+                                :disabled="formHandler.loading"
+                                class="flex btn btn-neutral text-sm/6 font-semibold w-full">
+                            <span v-if="formHandler.loading" class="loading loading-spinner"></span>
+                            Verificar Código
+                        </button>
+                        <a href="{% url 'request_reset_code' %}"
+                           :class="{'pointer-none btn-disabled' : formHandler.loading}"
+                           class="flex btn btn-accent text-sm/6 font-semibold w-full">Solicitar nuevo código</a>
+                    </div>
+                </form>
+                <div class="divider  w-full"></div>
+                <a class="btn btn-neutral btn-outline w-full"
+                   href="{% url 'url_login' %}">Volver al Login</a>
+            </div>
         </div>
     </div>
-</div>
-{% endblock content %}
+{% endblock main %}

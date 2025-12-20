@@ -715,9 +715,11 @@ class EditarMovimientoView(LoginRequiredMixin, LiderTorreRequiredMixin, UpdateVi
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        categoria = self.object.categoria
         context["titulo"] = (
             f"Editar {self.object.get_tipo_display()} - {self.object.get_categoria_display()}"
         )
+        context["categoria_slug"] = "condominio" if categoria == "CON" else "basura"
         return context
 
     def form_valid(self, form):

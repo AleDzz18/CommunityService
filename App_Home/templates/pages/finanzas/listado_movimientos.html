@@ -119,7 +119,7 @@
          class="min-h-[calc(100svh-8rem)] max-w-screen overflow-hidden p-8 flex flex-col justify-stretch items-start ">
         {% if movimientos %}
             <div class="overflow-x-auto w-full max-h-[calc(100svh-12rem)] rounded-box border border-base-content/5 bg-base-100">
-                <table class="table table-sm lg:table-md table-pin-rows table-zebra">
+                <table class="table table-sm lg:table-md table-pin-rows table-zebra text-center">
                     <thead>
                         <tr>
                             <th>Fecha</th>
@@ -148,18 +148,28 @@
                                     {% endif %}
                                 </td>
                                 <td>{{ mov.saldo }}</td>
-                                <!-- TODO: arreglar -->
-                                <td class="text-center">
+                                <td class="text-end flex flex-wrap justify-center">
                                     {% with user_groups=user.groups.all|stringformat:"s" %}
                                         {% if user.is_staff or "Lider General" in user_groups or mov.tower == user.tower %}
                                             {% if mov.id %}
                                                 <a href="{% url 'lider_torre:editar_movimiento' mov.id %}"
-                                                   class="btn btn-sm btn-warning">
-                                                    <i class="fas fa-edit"></i>
+                                                   class="btn btn-sm btn-neutral"
+                                                   title="Editar">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" class="size-4" viewBox="0 0 24 24">
+                                                        <!-- Icon from Material Symbols by Google - https://github.com/google/material-design-icons/blob/master/LICENSE -->
+                                                        <path fill="currentColor" d="M5 19h1.425L16.2 9.225L14.775 7.8L5 17.575zm-2 2v-4.25L16.2 3.575q.3-.275.663-.425t.762-.15t.775.15t.65.45L20.425 5q.3.275.438.65T21 6.4q0 .4-.137.763t-.438.662L7.25 21zM19 6.4L17.6 5zm-3.525 2.125l-.7-.725L16.2 9.225z" />
+                                                    </svg>
                                                 </a>
                                             {% endif %}
                                         {% else %}
-                                            <span class="badge bg-secondary"><i class="fas fa-lock"></i>N</span>
+                                            <a class="btn btn-sm opacity-25" title="No action">
+                                                <svg xmlns="http://www.w3.org/2000/svg"
+                                                     class="size-4 "
+                                                     viewBox="0 0 24 24">
+                                                    <!-- Icon from Tabler Icons by Paweł Kuna - https://github.com/tabler/tabler-icons/blob/master/LICENSE -->
+                                                    <path fill="currentColor" d="M15 21a1 1 0 0 1 0-2h1v-2H8v2h1a1 1 0 0 1 0 2H5a1 1 0 0 1 0-2h1v-2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h1V5a1 1 0 1 1 2 0v1h8V5a1 1 0 0 1 2 0v1h1a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-1v2h1a1 1 0 0 1 0 2zM12.914 8l-7 7h4.17L17 8zM19 10.914L14.914 15H19zM8.084 8H5v3.084z" />
+                                                </svg>
+                                            </a>
                                         {% endif %}
                                     {% endwith %}
                                 </td>

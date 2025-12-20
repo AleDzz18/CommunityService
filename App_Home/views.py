@@ -858,11 +858,21 @@ def vista_solicitar_documento(request):
 
 
 def handler404(request, exception):
-    return render(request=request, template_name="c404.html", status=404)
+    return render(
+        request=request,
+        template_name="c404.html",
+        status=404,
+        context={"page": request.path},
+    )
 
 
 def handler500(request):
-    return render(request=request, template_name="c500.html", status=500)
+    return render(
+        request=request,
+        template_name="c500.html",
+        status=500,
+        context={"page": request.get_full_path},
+    )
 
 
 # --- Vistas para el restablecimiento de contraseña con CÓDIGO ---
@@ -917,6 +927,7 @@ class RequestResetCodeView(FormView):
             messages.error(
                 self.request, "No existe un usuario con ese correo electrónico."
             )
+            return self.form_invalid(form)
 
         return super().form_valid(form)
 

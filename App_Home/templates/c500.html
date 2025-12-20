@@ -1,5 +1,21 @@
 {% extends "layouts/base.html" %}
 {% block main %}
-    <!-- TODO: implementar xd  -->
-    <div v-scope>woops, error 500</div>
+    <div class="flex min-h-svh justify-center items-center px-6 py-24 sm:py-32 lg:px-8">
+        <div class="text-center">
+            <p class="text-lg font-extrabold text-primary">500</p>
+            <h1 class="mt-4 text-5xl font-semibold tracking-tight text-balance text-gray-900 sm:text-7xl">
+                ¡Vaya! Algo se ha roto.
+            </h1>
+            <p class="mt-6 text-lg font-medium text-pretty text-gray-500 sm:text-xl/8">
+                Error interno del servidor. Lo sentimos, algo salió mal de nuestro lado. Estamos trabajando para solucionarlo. Por favor, intenta recargar la página en unos minutos.
+            </p>
+            <p class="mt-6 text-lg font-medium text-pretty text-gray-500 sm:text-xl/8">
+                Hubo un error inesperado al procesar tu solicitud en: {{ page }}
+            </p>
+            <div class="mt-10 flex items-center justify-center gap-x-6">
+                <a href="{% url 'url_index' %}"
+                   class="rounded-md bg-secondary px-3.5 py-2.5 text-sm font-semibold text-white shadow-xs hover:bg-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">Volver al inicio</a>
+            </div>
+        </div>
+    </div>
 {% endblock main %}

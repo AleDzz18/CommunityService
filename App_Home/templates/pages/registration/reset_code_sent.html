@@ -1,23 +1,23 @@
-{% extends 'layouts/base.html' %}
-{% load static %}
-
-{% block title %}Código Enviado{% endblock %}
-
-{% block content %}
-<div class="container">
-    <div class="login-box">
-        <h2>Código Enviado</h2> 
-        <div class="form-container">
-            <p class="message-text">
-                Hemos enviado un código de verificación a tu correo. Por favor, revisa tu bandeja de entrada (y la carpeta de spam). 
-            </p>
-            <p class="message-text">
-                Una vez que tengas el código, puedes <a href="{% url 'verify_reset_code' %}">verificarlo aquí</a>. 
-            </p>
-            <div class="signup-link">
-                <a href="{% url 'url_login' %}">Volver al Login</a> 
+{% extends "layouts/base.html" %}
+{% block main %}
+    <div v-scope
+         class="flex min-h-full flex-col justify-center px-6 py-12 lg:px-8">
+        <div class="flex min-h-full flex-col items-center justify-center px-6 lg:px-8 lg:min-w-2xl">
+            <div class="sm:mx-auto sm:w-full sm:max-w-sm">
+                <h2 class="text-center text-2xl/9 font-bold tracking-tight text-primary">Restablecer contraseña</h2>
+                <h3 class="text-center text-2xl/9 tracking-tight text-primary">Código Enviado</h3>
+            </div>
+            <div class="mt-10 sm:mx-auto sm:w-full sm:max-w-sm flex flex-col justify-start items-center gap-4">
+                <p class="text-center">
+                    Hemos enviado un código de verificación a tu correo. Por favor, revisa tu bandeja de entrada (y la carpeta de spam).
+                </p>
+                <p class="text-center">
+                    Una vez que tengas el código, puedes <a class="btn btn-link" href="{% url 'verify_reset_code' %}">Verificarlo aquí</a>.
+                </p>
+                <div class="divider  w-full"></div>
+                <a class="btn btn-neutral btn-outline w-full"
+                   href="{% url 'url_login' %}">Volver al Login</a>
             </div>
         </div>
     </div>
-</div>
-{% endblock content %}
+{% endblock main %}
