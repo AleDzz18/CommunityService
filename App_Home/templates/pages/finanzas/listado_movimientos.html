@@ -1,7 +1,7 @@
 {% extends "layouts/complete.html" %}
 {% block toolbaritems %}
     <script type="module" src="https://unpkg.com/cally"></script>
-    <div v-scope="{ tower: '{{ torre_seleccionada_id|default:'0' }}', date: '', startDate: '{{ filtro_form.fecha_inicio.value|default:'' }}', endDate: '{{ filtro_form.fecha_fin.value|default:'' }}', justStart: false, justEnd: false, ranges : [ { label: 'Ultimos 7 dias', days: 7 }, { label: 'Ultimos 14 dias', days: 14 }, { label: 'Ultimos 30 dias', days: 30 }, { label: 'Ultimos 3 meses', months: 3 }, { label: 'Ultimos 6 meses', months: 6 }, { label: 'Ultimo año', years: 1 } ], setDate(range){ if (range) { const endDate = new Date(); const startDate = new Date(endDate); if (range.days) { startDate.setDate(startDate.getDate() - range.days) } else if (range.months) { startDate.setMonth(startDate.getMonth() - range.months) } else if (range.years) {startDate.setFullYear(startDate.getFullYear() - range.years)} this.startDate = startDate.toISOString().slice(0, 10); this.endDate = endDate.toISOString().slice(0, 10); } else if (this.justEnd){ this.startDate = ''; this.endDate = this.date.split('/')[1]; } else if (this.justStart){ this.startDate = this.date.split('/')[0]; this.endDate = ''; } else { this.startDate = this.date.split('/')[0]; this.endDate = this.date.split('/')[1]; } this.get(); }, formatDate(){ if (!this.startDate && !this.endDate) return 'Fecha'; return `${this.startDate || 'X'} hasta ${this.endDate || 'X'}`; },setSelection(choice) { this.justStart = choice == 'start'; this.justEnd = choice == 'end'; }, get() { const data = { 'torre': this.tower, 'fecha_inicio': this.startDate, 'fecha_fin': this.endDate }; const query = new URLSearchParams(data).toString(); window.location.href = '{% url 'ver_finanzas' categoria_slug=categoria_slug %}' + '?' + query;} }"
+    <div v-scope="{ tower: '{{ torre_seleccionada_id|default:'0' }}', date: '', startDate: '{{ filtro_form.fecha_inicio.value|default:'' }}', endDate: '{{ filtro_form.fecha_fin.value|default:'' }}', justStart: false, justEnd: false, ranges : [ { label: 'Ultimos 7 dias', days: 7 }, { label: 'Ultimos 14 dias', days: 14 }, { label: 'Ultimos 30 dias', days: 30 }, { label: 'Ultimos 3 meses', months: 3 }, { label: 'Ultimos 6 meses', months: 6 }, { label: 'Ultimo año', years: 1 } ], setDate(range){ if (range) { const endDate = new Date(); const startDate = new Date(endDate); if (range.days) { startDate.setDate(startDate.getDate() - range.days) } else if (range.months) { startDate.setMonth(startDate.getMonth() - range.months) } else if (range.years) {startDate.setFullYear(startDate.getFullYear() - range.years)} this.startDate = startDate.toISOString().slice(0, 10); this.endDate = endDate.toISOString().slice(0, 10); } else if (this.justEnd){ this.startDate = ''; this.endDate = this.date.split('/')[1]; } else if (this.justStart){ this.startDate = this.date.split('/')[0]; this.endDate = ''; } else { this.startDate = this.date.split('/')[0]; this.endDate = this.date.split('/')[1]; } this.get(); }, formatDate(){ if (!this.startDate && !this.endDate) return 'Fecha'; return `${this.startDate || 'X'} hasta ${this.endDate || 'X'}`; },setSelection(choice) { this.justStart = choice == 'start'; this.justEnd = choice == 'end'; }, get() { const data = { 'torre': this.tower, 'fecha_inicio': this.startDate, 'fecha_fin': this.endDate }; const query = new URLSearchParams(data).toString(); window.location.href = '{% url 'ver_finanzas' categoria_slug=categoria_slug %}' + '?' + query;}, downloadpdf(){ const data = { 'torre': this.tower == 0? '' : this.tower, 'fecha_inicio': this.startDate, 'fecha_fin': this.endDate }; const query = new URLSearchParams(data).toString(); window.location.href = '{% url 'descargar_pdf' categoria_slug=categoria_slug %}' + '?' + query;} }"
          class="flex items-center justify-between w-full flex-wrap gap-1">
         <div>
             <select v-model="tower"
@@ -100,8 +100,7 @@
                 </svg>
                 Limpiar Filtros
             </a>
-            <a href="{% url 'descargar_pdf' categoria_slug=categoria_slug %}?{{ request.GET.urlencode }}"
-               class="btn btn-dash btn-secondary h-fit w-fit">
+            <button @click="downloadpdf()" class="btn btn-dash btn-secondary h-fit w-fit">
                 <svg xmlns="http://www.w3.org/2000/svg"
                      class="size-4"
                      viewBox="0 0 256 256">
@@ -109,7 +108,7 @@
                     <path fill="currentColor" d="M224 144v64a8 8 0 0 1-8 8H40a8 8 0 0 1-8-8v-64a8 8 0 0 1 16 0v56h160v-56a8 8 0 0 1 16 0m-101.66 5.66a8 8 0 0 0 11.32 0l40-40a8 8 0 0 0-11.32-11.32L136 124.69V32a8 8 0 0 0-16 0v92.69L93.66 98.34a8 8 0 0 0-11.32 11.32Z" />
                 </svg>
                 Descargar PDF
-            </a>
+            </button>
         </div>
     </div>
 {% endblock toolbaritems %}
