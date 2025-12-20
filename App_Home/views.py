@@ -889,9 +889,10 @@ class RequestResetCodeView(FormView):
             user = CustomUser.objects.get(email=email)
             # Generar un código de 6 dígitos
             code = "".join(random.choices(string.digits, k=6))
+            expiration_time_minutes = 15
             # Crear o actualizar PasswordResetCode
             # Establecer una fecha de expiración (ej. 15 minutos)
-            expires_at = timezone.now() + timedelta(minutes=15)
+            expires_at = timezone.now() + timedelta(minutes=expiration_time_minutes)
 
             # Eliminar códigos antiguos para este usuario si existen
             PasswordResetCode.objects.filter(user=user).delete()
@@ -904,7 +905,7 @@ class RequestResetCodeView(FormView):
             context = {
                 "user": user,
                 "code": code,
-                "expiration_time": expires_at.strftime("%H:%M"),  # Formato de hora
+                "expiration_minutes": expiration_time_minutes,  # Formato de hora
             }
             subject = "Tu código de restablecimiento de contraseña"
             email_html_message = render_to_string(
@@ -953,9 +954,9 @@ class VerifyResetCodeView(FormView):
                 # El código es válido, almacenar el user_id y el código en la sesión
                 # para usarlos en SetNewPasswordView
                 self.request.session["password_reset_user_id"] = user.id
-                self.request.session["password_reset_code"] = (
-                    code  # Opcional, pero útil para verificar de nuevo
-                )
+                self.request.session["password_reset_code"] = str(
+                    code
+                ).strip()  # Opcional, pero útil para verificar de nuevo
                 messages.success(
                     self.request,
                     "Código verificado con éxito. Ahora puedes establecer una nueva contraseña.",
@@ -979,7 +980,7 @@ class SetNewPasswordView(FormView):
         user_id = request.session.get("password_reset_user_id")
         reset_code = request.session.get("password_reset_code")
 
-        if not user_id:
+        if not user_id or not reset_code:
             messages.error(
                 request,
                 "Acceso denegado. Por favor, solicita un código de restablecimiento primero.",
@@ -988,18 +989,14 @@ class SetNewPasswordView(FormView):
 
         # Opcional: verificar el código de nuevo por si se usa la URL directamente
         try:
-            user = CustomUser.objects.get(id=user_id)
-            password_code = PasswordResetCode.objects.get(user=user, code=reset_code)
-            if not password_code.is_valid():
-                messages.error(
-                    request, "El código ha expirado. Por favor, solicita uno nuevo."
-                )
+            password_code = PasswordResetCode.objects.filter(
+                user_id=user_id, code=reset_code.strip()
+            ).first()
+            if not password_code or not password_code.is_valid():
+                messages.error(request, "El código es inválido o ha expirado.")
                 return redirect("request_reset_code")
-        except (CustomUser.DoesNotExist, PasswordResetCode.DoesNotExist):
-            messages.error(
-                request,
-                "Verificación de código inválida. Por favor, solicita uno nuevo.",
-            )
+        except Exception:
+            messages.error(request, "Hubo un error en la verificación.")
             return redirect("request_reset_code")
 
         return super().dispatch(request, *args, **kwargs)

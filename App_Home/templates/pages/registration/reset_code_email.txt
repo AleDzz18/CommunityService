@@ -1,12 +1,19 @@
-Hola {{ user.username }},
+Balcones de Paraguaná I
 
-Has solicitado un código de verificación para restablecer tu contraseña en {{ site_name }}.
+Hola, {{ user.username }}
 
-Tu código de verificación es: {{ code }}
+¿Olvidaste tu contraseña? No te preocupes, nos pasa a los mejores.
 
-Este código expirará en {{ expiration_minutes }} minutos.
+Has solicitado un código de verificación para restablecer tu acceso a nuestra plataforma. Usa el siguiente código para continuar con el proceso:
 
-Si no solicitaste este código, por favor, ignora este correo.
+{{ code }}
 
-Gracias,
-El equipo de {{ site_name }}
+Este código expirará en {{ expiration_minutes }} minutos por razones de seguridad.
+
+Si tienes alguna pregunta o necesitas asistencia adicional, no dudes en ponerte en contacto con nuestro equipo de soporte respondiendo a este correo electrónico.
+
+Gracias, 
+El equipo de Balcones de Paraguaná I
+
+-----------------------------------------------------------------------
+Si no solicitaste este cambio, por favor ignora este mensaje de forma segura; tu cuenta seguirá protegida y no se realizará ninguna acción.

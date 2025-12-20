@@ -11,9 +11,9 @@
                 <p class="text-center">
                     Hemos enviado un código de verificación a tu correo. Por favor, revisa tu bandeja de entrada (y la carpeta de spam).
                 </p>
-                <p class="text-center">
-                    Una vez que tengas el código, puedes <a class="btn btn-link" href="{% url 'verify_reset_code' %}">Verificarlo aquí</a>.
-                </p>
+                <p class="text-center">Una vez que tengas el código, puedes</p>
+                <a class="btn btn-soft btn-secondary"
+                   href="{% url 'verify_reset_code' %}">Verificarlo aquí</a>
                 <div class="divider  w-full"></div>
                 <a class="btn btn-neutral btn-outline w-full"
                    href="{% url 'url_login' %}">Volver al Login</a>

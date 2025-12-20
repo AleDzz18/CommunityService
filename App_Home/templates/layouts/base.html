@@ -16,7 +16,6 @@
         <!-- Estilos  -->
         {% tailwind_css %}
         <!-- scipts -->
-        <script src="{% static 'js/autoReload.js' %}" defer></script>
         <!-- tristemente no puedo mover esto a un modulo js pq hago uso de algunas funciones de django -->
         <script type="module">
         import { createApp, reactive } from 'https://unpkg.com/petite-vue?module'
@@ -28,7 +27,7 @@
         const sidebar = reactive({
             open: false,
             django_data: {
-                user_tower: '{{ request.user.tower.nombre }}'
+                user_tower: '{{ request.user.tower.nombre|default:'unknown' }}'
             },
             path: "{{ request.path }}",
             forceOpen() {
