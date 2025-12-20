@@ -1,138 +1,115 @@
-# CommunityService
-Community Service Project: We will develop and implement a customized Digital Management System for a local NGO. Currently, its processes are manual and inefficient. The goal is to optimize operations and maximize its social impact through a robust and easy-to-use technological solution.
+# 🏢 Sistema Administrativo - Balcones de Paraguaná 1
 
-🚀 Guía de Configuración Inicial para Colaboradores
-Para garantizar la reproducibilidad y el correcto funcionamiento del proyecto en todos los entornos, es esencial utilizar un entorno virtual de Python. Sigue los pasos a continuación para crear el entorno, activarlo e instalar todas las dependencias del proyecto.
-1. Requisitos Previos: Asegúrate de tener instalado Python 3 (la versión del proyecto es Django 5.2.7, que requiere una versión reciente de Python) y pip (el gestor de paquetes de Python) en tu sistema.
-2. Creación del Entorno Virtual: Navega a la carpeta raíz del proyecto (aledzz18-communityservice/) en tu terminal y ejecuta el siguiente comando para crear el entorno virtual. Usaremos el nombre venv por convención: python -m venv venv
-Este comando crea un directorio llamado venv que contiene una copia aislada del intérprete de Python y pip.
-3. Activación del Entorno Virtual: Una vez creado el entorno, debes activarlo. El comando varía según tu sistema operativo:
-Sistema Operativo       Comando de Activación
-Linux/macOS             source venv/bin/activate
-Windows (CMD)           venv\Scripts\activate
-Windows (PowerShell)    .\venv\Scripts\Activate.ps1
-Una vez activado, verás el nombre del entorno ((venv)) al inicio de la línea de comandos de tu terminal, indicando que todas las instalaciones de paquetes se harán dentro de este entorno aislado.
-4. Instalación de Dependencias: Con el entorno virtual activado, utiliza el archivo requirements.txt para instalar automáticamente todas las librerías de Python y Django necesarias para el proyecto: pip install -r requirements.txt
-El archivo requirements.txt contiene todas las dependencias del proyecto, incluyendo Django.
-5. Confirmación Una vez finalizada la instalación, ya tienes todas las dependencias listas para comenzar a trabajar en el proyecto CommunityService.
+![Django](https://img.shields.io/badge/Django-092E20?style=for-the-badge&logo=django&logoColor=white)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)
+![Vue.js](https://img.shields.io/badge/Petite--Vue-4FC08D?style=for-the-badge&logo=vue.js&logoColor=white)
 
-⚙️ Notas y Buenas Prácticas para Colaboradores
-6. Gestión de Dependencias (requirements.txt)
-El archivo requirements.txt es crucial para mantener la consistencia del entorno de desarrollo. Cada vez que instales o actualices una nueva librería de Python/Django para el proyecto, debes actualizar este archivo:
+Solución tecnológica integral diseñada para optimizar la gestión de finanzas, censos y beneficios sociales de la comunidad **Balcones de Paraguaná 1**. Este sistema permite a los líderes de torre y al liderazgo general llevar un control transparente y organizado de los recursos comunitarios.
 
-Asegúrate de que tu entorno virtual ((venv)) esté activo.
+Desarrollado con compromiso académico por los **estudiantes de Ingeniería en Sistemas (D2) de la UNEFA**.
 
-Ejecuta el siguiente comando para sobrescribir y actualizar la lista de dependencias con las versiones exactas que tienes instaladas:
+---
 
-Bash
+## ✨ Características Principales
 
-pip freeze > requirements.txt
-Importante: Incluye siempre el requirements.txt actualizado en tu commit cuando agregues una nueva dependencia.
+- **💰 Gestión Financiera:** Control de ingresos y egresos (condominio, basura y mantenimiento).
+- **📦 Gestión de Beneficios:** Seguimiento de entregas de bolsas CLAP, Gas y otros beneficios.
+- **📊 Censo Comunitario:** Registro detallado de familias, jefes de calle y habitantes por torre.
+- **🔐 Roles de Acceso:** Niveles de permisos diferenciados para Líder General y Líderes de Torre.
+- **📑 Reportes y Consultas:** Visualización de estados de cuenta y listados de beneficiarios en tiempo real.
 
-7. Uso y Actualización del Archivo de Digest
-El archivo digest.txt es un snapshot periódico de la estructura y contenido de tu proyecto. Su propósito es actuar como un "resumen" completo del código base, lo que permite a las Herramientas de Inteligencia Artificial (IA) (como tu asistente de código o el que estés usando) entender el contexto completo del proyecto sin tener acceso directo al repositorio privado.
+---
 
-Cómo Usar el digest.txt para Asistencia de IA:
+## 🛠️ Tecnologías Utilizadas
 
-Proporcionar Contexto: Puedes copiar el contenido de digest.txt y dárselo a la IA. De esta manera, cuando pidas ayuda con un error, una refactorización o la creación de una nueva función, la IA tendrá un conocimiento instantáneo y completo de la configuración de Django, las rutas (urls.py), las aplicaciones existentes (App_Home), etc.
+- **Backend:** [Django 5.x](https://www.djangoproject.com/)
+- **Frontend:** [Tailwind CSS](https://tailwindcss.com/) para estilos y [Petite-Vue](https://github.com/vuejs/petite-vue) para interactividad ligera.
+- **Base de Datos:** PostgreSQL (Alojada en Supabase).
+- **Despliegue:** Configurado para [Vercel](https://vercel.com/).
 
-Cómo Actualizar el digest.txt:
+---
 
-Debido a que este es un repositorio privado, la herramienta de IA no puede acceder automáticamente para generar un nuevo digest.
+## 🚀 Instalación y Ejecución Local
 
-Para actualizar el archivo digest.txt:
+Sigue estos pasos para poner en marcha el proyecto en tu máquina:
 
-Utiliza una herramienta de línea de comandos o un script (como una utilidad de árbol de directorios más cat) para generar manualmente un nuevo resumen de tu estructura de archivos y código.
+### 1. Preparación del Entorno
 
-ALEJANDRO:
-Opción A: Usando Símbolo del Sistema (CMD)
-Usa el comando set:
+```bash
+# Clonar y entrar al proyecto
+git clone [https://github.com/AleDzz18/CommunityService.git](https://github.com/AleDzz18/CommunityService.git)
+cd nombre-del-repo
 
-DOS
+# Crear y activar entorno virtual
+python -m venv venv
+# En Windows:
+venv\Scripts\activate
+# En Linux/macOS:
+source venv/bin/activate
 
-set GITHUB_TOKEN=github_pat_...
-gitingest https://github.com/username/private-repo
-Opción B: Usando PowerShell
-Usa la sintaxis $env: para variables de entorno:
+# Instalar dependencias
+pip install -r requirements.txt
 
-PowerShell
+```
 
-$env:GITHUB_TOKEN="github_pat_..."
-gitingest https://github.com/username/private-repo
+### 2. Configuración de Tailwind y Base de Datos
 
-SERIA:
+Asegúrate de tener configurado tu archivo `.env` con las credenciales de la base de datos antes de continuar.
 
-$env:GITHUB_TOKEN=""
-gitingest https://github.com/AleDzz18/CommunityService
+```bash
+# Instalar dependencias de Tailwind
+python manage.py tailwind install
 
-Sobrescribe el contenido del archivo digest.txt existente con esta nueva salida.
-
-Incluye el digest.txt actualizado en tu commit antes de subir tus cambios.
-
-### 7. Mantenimiento del archivo digest.txt (Repositorio Público)
-
-Para facilitar el análisis del proyecto por herramientas de IA y mantener una visión global del código, utilizamos `gitingest`. Al ser un repositorio público, el proceso es directo:
-
-   1. **Instalación/Actualización de la herramienta:**
-      Si no la tienes, instálala usando pip:
-      ```bash
-      pip install gitingest
-
-   2. Generar el nuevo resumen: Desde tu terminal (en cualquier carpeta), ejecuta el comando apuntando a la URL pública del repositorio:
-
-   Bash
-$env:GITHUB_TOKEN=""
-gitingest https://github.com/AleDzz18/CommunityService
-
-   3. Actualizar el archivo local:
-
-   El comando anterior generará un archivo llamado digest.txt en tu carpeta actual.
-
-   Copia ese archivo a la raíz de tu proyecto local, sobrescribiendo el digest.txt antiguo.
-
-   4. Sincronizar: Incluye el digest.txt actualizado en tu próximo commit:
-
-   Bash
-
-   git add digest.txt
-   git commit -m "Actualización de digest.txt con los últimos cambios"
-   git push
-
-8. Flujo de Trabajo y Sincronización (Commit y Push)
-Para evitar conflictos y pérdidas de trabajo en nuestro repositorio privado, sigue siempre este flujo antes de subir tu trabajo:
-
-Guarda Localmente: Asegúrate de que todos tus cambios estén guardados en tu máquina.
-
-Descarga Cambios (Pull): Antes de crear un nuevo commit o subir tu código, descarga y fusiona los últimos cambios del repositorio remoto a tu rama local. Esto se hace típicamente con un git pull.
-
-Resuelve Conflictos: Si git pull detecta conflictos, resuelve los conflictos localmente y haz un commit de la fusión.
-
-Crea el Commit: Una vez que tu código esté actualizado y fusionado con los cambios de tus compañeros, haz un commit claro y descriptivo.
-
-Sincroniza (Push): Sube tus cambios finales al repositorio con un git push.
-
-9. Documentación en el Código
-Siempre comenta tu código.
-
-Utiliza comentarios claros y concisos para explicar el por qué y el qué de bloques de código complejos, funciones o decisiones de diseño.
-
-En Django, usa docstrings en las vistas (views.py), modelos (models.py) y funciones para describir su propósito, parámetros de entrada y valores de retorno. Esto facilita la revisión del código y el mantenimiento a largo plazo.
-
-
-
-NOTA: el proyecto tiene como dependencia tailwind
-ejecutar
-
-python manage.py tailwind download_cli  
-
-y para correr el servidor con tailwind
-
-python manage.py tailwind runserver
-
-manage.py check --deploy
-build:
-
-python manage.py tailwind build
-python manage.py collectstatic
+# Ejecutar migraciones
 python manage.py makemigrations
 python manage.py migrate
+
+```
+
+### 3. Ejecución en Desarrollo (Modo Watch)
+
+Para que los cambios en los estilos y el código se reflejen instantáneamente, debes ejecutar el servidor de desarrollo de Tailwind:
+
+```bash
+# Compila Tailwind y lanza el servidor de Django simultáneamente
+python manage.py tailwind runserver
+
+```
+
+*Si prefieres ejecutar el servidor estándar de Django por separado, usa `python manage.py runserver`.*
+
+---
+
+## 🌐 Despliegue en Producción (Vercel)
+
+El proyecto incluye una configuración automatizada para **Vercel** mediante el script `build_files.sh`.
+
+### Proceso de Construcción
+
+1. Vercel detecta `vercel.json` y ejecuta `build_files.sh`.
+2. Se instalan las dependencias de Python.
+3. Se compila Tailwind CSS para producción (`tailwind build`).
+4. Se ejecutan los `collectstatic` para servir los archivos estáticos.
+
+### Configuración en el Panel de Vercel
+
+- **Build Command:** `sh build_files.sh`
+- **Output Directory:** `staticfiles`
+- **Environment Variables:** Debes cargar todas las variables de tu `.env` (DATABASE_URL, SECRET_KEY, etc.).
+
+---
+
+## 📁 Estructura del Proyecto
+
+- `App_Home/`: Gestión de perfiles, login y vistas principales.
+- `App_LiderGeneral/`: Módulo de administración global y finanzas.
+- `App_LiderTorre/`: Gestión de censos y beneficios por torre.
+- `templates/`: Estructura de componentes (Navbar, Sidebar) y layouts base.
+
+---
+
+## 👥 Equipo de Desarrollo
+
+Proyecto realizado por los estudiantes de la **UNEFA (Sección D2 - Ingeniería en Sistemas)** como aporte tecnológico a la comunidad Balcones de Paraguaná 1.
+
+---
