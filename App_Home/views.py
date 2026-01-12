@@ -1,7 +1,11 @@
 # App_Home/views.py
 
+import calendar
 import json
-from datetime import datetime, timedelta
+import random
+import string
+from Community_Service.decorators import complete_profile
+from datetime import datetime, timedelta, date
 from decimal import Decimal
 from django.contrib import messages
 from django.contrib.auth import authenticate, login as autenticar_login, logout
@@ -21,24 +25,6 @@ from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.pagesizes import letter, A4
 from reportlab.lib.units import inch
-
-from Community_Service.decorators import complete_profile
-from .forms import (
-    FormularioCreacionUsuario,
-    FormularioPerfilUsuario,
-    FormularioFiltroMovimientos,
-    SolicitudDocumentoForm,
-)
-from .models import (
-    CustomUser,
-    Tower,
-    MovimientoFinanciero,
-    CicloBeneficio,
-    EntregaBeneficio,
-    CensoMiembro,
-    SolicitudDocumento,
-)
-from decimal import Decimal
 from reportlab.pdfgen import canvas
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph
 from .forms import (
@@ -58,10 +44,8 @@ from .models import (
     CensoMiembro,
     SolicitudDocumento,
     PasswordResetCode,
+    ReportePublicado,
 )
-import random
-import string
-
 
 @complete_profile
 def vista_index(request):
@@ -258,24 +242,100 @@ def cancelar_registro(request, user_id):
 # --- ADMINISTRACIÓN DE INGRESOS Y EGRESOS (USUARIO BÁSICO) ---
 # ------------------------------------------------------------------
 
+@complete_profile
+def vista_reportes_publicos(request, categoria_slug):
+    slug = categoria_slug.lower()
+    mapa_categorias = {'basura': 'BAS', 'condominio': 'CON'}
+    
+    if slug not in mapa_categorias:
+        return redirect('url_index')
+    
+    categoria_db = mapa_categorias[slug]
+
+    # 1. CAPTURAR DATOS DEL FILTRO (Vienen del formulario en el HTML)
+    f_torre = request.GET.get('torre')
+    f_mes = request.GET.get('mes')
+    f_anio = request.GET.get('anio')
+    
+    # 2. LÓGICA DE PERMISOS (Tu lógica original se mantiene)
+    es_lider = False
+    if request.user.is_authenticated:
+        rol = getattr(request.user, 'rol', None)
+        if request.user.is_staff or rol in ['LDG', 'LDT']:
+            es_lider = True
+        if slug == 'basura' and getattr(request.user, 'es_admin_basura', False):
+            es_lider = True
+
+    # 3. FILTRADO DINÁMICO
+    reportes = ReportePublicado.objects.filter(categoria=categoria_db)
+
+    if f_torre and f_torre != '0':
+        if f_torre == 'general':
+            reportes = reportes.filter(tower__isnull=True)
+        else:
+            reportes = reportes.filter(tower_id=f_torre)
+    
+    if f_mes and f_mes != '0':
+        reportes = reportes.filter(mes=f_mes)
+        
+    if f_anio and f_anio != '0':
+        reportes = reportes.filter(anio=f_anio)
+
+    # 4. DATOS PARA LOS SELECTS (Para que aparezcan las torres, meses y años en el filtro)
+    context = {
+        'titulo': f"Reportes de {'Cuarto de Basura' if categoria_db == 'BAS' else 'Condominio'}",
+        'reportes': reportes.order_by('-anio', '-mes'),
+        'categoria_slug': slug,
+        'es_lider': es_lider,
+        
+        # Listados para llenar los select
+        'towers': Tower.objects.all(),
+        'anios_disponibles': range(2022, datetime.now().year + 1), # Ajusta el año de inicio
+        'meses_listado': [
+            (1, 'Enero'), (2, 'Febrero'), (3, 'Marzo'), (4, 'Abril'),
+            (5, 'Mayo'), (6, 'Junio'), (7, 'Julio'), (8, 'Agosto'),
+            (9, 'Septiembre'), (10, 'Octubre'), (11, 'Noviembre'), (12, 'Diciembre')
+        ],
+        
+        # Mantener los valores seleccionados en el filtro después de cargar
+        'f_torre': f_torre,
+        'f_mes': f_mes,
+        'f_anio': f_anio,
+    }
+
+    return render(request, "pages/finanzas/reportes_vecinos.html", context)
 
 @complete_profile
 def ver_ingresos_egresos(request, categoria_slug):
     """
-    Muestra la lista de movimientos financieros para Condominio o Cuarto de Basura.
-    Accesible por usuarios NO autenticados (Usuario Básico).
+    Vista de gestión para Líderes y Staff: Manejo detallado de ingresos y egresos.
+    Permite registrar movimientos, ver el saldo acumulado y aplicar filtros.
     """
-    # 1. Definir la categoría y el título basados en el slug de la URL
+    # --- CAMBIO 1: SEGURIDAD DE ACCESO (NUEVO) ---
+    # Solo líderes o staff pueden entrar a esta vista de gestión.
+    if not request.user.is_authenticated:
+        return redirect('ver_finanzas', categoria_slug=categoria_slug)
+        
+    es_autorizado = (
+        request.user.rol in ['LDG', 'LDT'] or 
+        request.user.es_admin_basura or 
+        request.user.is_staff
+    )
+    
+    if not es_autorizado:
+        messages.warning(request, "No tienes permisos para acceder al panel de gestión.")
+        return redirect('ver_finanzas', categoria_slug=categoria_slug)
+    # ---------------------------------------------
+
     if categoria_slug == "condominio":
         categoria_filtro = "CON"
-        titulo = "Administración de Ingresos y Egresos - Condominio"
-        monto_field = "monto_condominio"  # Campo de monto dinámico
+        titulo = "Gestión Detallada - Condominio" # Título más descriptivo
+        monto_field = "monto_condominio"
     elif categoria_slug == "basura":
         categoria_filtro = "BAS"
-        titulo = "Administración de Ingresos y Egresos - Cuarto de Basura"
-        monto_field = "monto_basura"  # Campo de monto dinámico
+        titulo = "Gestión Detallada - Cuarto de Basura"
+        monto_field = "monto_basura"
     else:
-        # Si la URL es inválida, se redirige al dashboard.
         return redirect("url_index")
 
     # =========================================================================
@@ -306,21 +366,23 @@ def ver_ingresos_egresos(request, categoria_slug):
                 request,
                 f"Error en los datos del movimiento. Verifique la fecha, descripción, tipo y monto. Detalle: {e}.",
             )
-            return redirect("ver_finanzas", categoria_slug=categoria_slug)
+            return redirect("ver_finanzas_gestion", categoria_slug=categoria_slug)
 
-        # 2. Restricción por Torre (Se mantiene la lógica)
-        if (
-            not request.user.is_authenticated
-            or request.user.rol != "LDT"
-            or not request.user.tower
-        ):
-            messages.error(
-                request,
-                "Operación denegada. Solo los Líderes de Torre asignados pueden registrar movimientos.",
-            )
-            return redirect("ver_finanzas", categoria_slug=categoria_slug)
+        # 2. Validación de permisos para registrar (POST)
+        if request.user.rol not in ["LDT", "LDG"] and not request.user.is_staff:
+            messages.error(request, "No tienes permisos para registrar movimientos.")
+            return redirect("ver_finanzas_gestion", categoria_slug=categoria_slug)
 
-        torre_asignada = request.user.tower
+        # Determinar a qué torre asignar el movimiento
+        if request.user.rol == "LDT":
+            if not request.user.tower:
+                messages.error(request, "Error: No tienes torre asignada.")
+                return redirect("ver_finanzas_gestion", categoria_slug=categoria_slug)
+            torre_asignada = request.user.tower
+        else:
+            # Si es LDG o Staff, debe venir una torre del formulario (o podrías asignar una por defecto)
+            torre_form_id = request.POST.get("torre_id")
+            torre_asignada = get_object_or_404(Tower, id=torre_form_id) if torre_form_id else None
 
         # 3. **Prevenir Saldo Negativo (Problema 1 - REFORZADO)**
         if tipo == "EGR":
@@ -336,7 +398,7 @@ def ver_ingresos_egresos(request, categoria_slug):
                     f"Operación denegada. Saldo insuficiente para este egreso. Saldo actual: Bs. {saldo_actual:.2f}",
                 )
                 return redirect(
-                    "ver_finanzas", categoria_slug=categoria_slug
+                    "ver_finanzas_gestion", categoria_slug=categoria_slug
                 )  # Redirección a la página actual
 
         # 4. Crear la instancia del Movimiento (aún sin guardar en DB)
@@ -375,7 +437,7 @@ def ver_ingresos_egresos(request, categoria_slug):
 
         # **Redirección Correcta (Problema 2 - Redirección)**
         # Redirecciona a la página con el slug correcto ('condominio' o 'basura')
-        return redirect("ver_finanzas", categoria_slug=categoria_slug)
+        return redirect("ver_finanzas_gestion", categoria_slug=categoria_slug)
 
     # =========================================================================
     # LÓGICA DE MANEJO DE GET (LISTADO Y FILTROS)
@@ -400,16 +462,26 @@ def ver_ingresos_egresos(request, categoria_slug):
         movimientos_query = movimientos_query.filter(tipo="EGR")
 
     # Filtro por torre
-    torre_id = request.GET.get("torre")
-    if torre_id is None:
-        user_tower_id = getattr(request.user, "tower_id", None)
-        if user_tower_id:
-            movimientos_query = movimientos_query.filter(tower__id=int(user_tower_id))
-            torre_id = str(user_tower_id)
+    es_solo_ldt = request.user.rol == 'LDT' and not (request.user.rol == 'LDG' or request.user.is_staff)
+
+    if es_solo_ldt:
+        # Forzamos que el LDT solo vea su torre asignada
+        if request.user.tower:
+            movimientos_query = movimientos_query.filter(tower=request.user.tower)
+            torre_id = str(request.user.tower.id)
+            # Opcional: Filtrar la lista de torres para que el select solo muestre la suya
+            torres = Tower.objects.filter(id=request.user.tower.id)
         else:
+            messages.error(request, "No tienes una torre asignada. Contacta al administrador.")
+            movimientos_query = MovimientoFinanciero.objects.none()
             torre_id = "0"
-    elif torre_id is not None and torre_id.isdigit() and torre_id != "0":
-        movimientos_query = movimientos_query.filter(tower__id=int(torre_id))
+    else:
+        # Lógica para Administradores y Líderes Generales
+        torre_id = request.GET.get("torre")
+        if torre_id is None or torre_id == "0":
+            torre_id = "0" # Ver todas (o lo que desees por defecto)
+        elif torre_id.isdigit():
+            movimientos_query = movimientos_query.filter(tower__id=int(torre_id))
 
     # -----------------------------------------------------------
     # AÑADIR NUEVO FILTRO POR RANGO DE FECHAS
@@ -476,6 +548,7 @@ def ver_ingresos_egresos(request, categoria_slug):
             }
         )
 
+    anio_actual = datetime.now().year
     context = {
         "titulo": titulo,
         "movimientos": movimientos_con_saldo,
@@ -484,16 +557,112 @@ def ver_ingresos_egresos(request, categoria_slug):
         "torre_seleccionada_id": torre_id,
         "categoria_slug": categoria_slug,  # Para el botón de descarga
         "filtro_form": filtro_form,  # Formulario de filtro para la plantilla
+        "es_gestion": True, # Para mostrar botones de edición/borrado en el HTML
+        "anios_disponibles": range(anio_actual - 5, anio_actual + 1), # Para el modal de publicación
+        "meses_listado": [
+            (1, "Enero"), (2, "Febrero"), (3, "Marzo"), (4, "Abril"),
+            (5, "Mayo"), (6, "Junio"), (7, "Julio"), (8, "Agosto"),
+            (9, "Septiembre"), (10, "Octubre"), (11, "Noviembre"), (12, "Diciembre")
+        ],
     }
 
     return render(request, "pages/finanzas/listado_movimientos.html", context)
 
+@login_required
+def publicar_reporte_mensual(request):
+    if request.method == "POST":
+        # Aseguramos el slug en minúsculas para que el mapa no falle
+        categoria_raw = request.POST.get('categoria_slug', 'condominio')
+        categoria_slug = categoria_raw.lower()
+        
+        try:
+            # 1. Validar datos numéricos
+            mes = int(request.POST.get('mes'))
+            anio = int(request.POST.get('anio'))
+            tower_id = request.POST.get('tower_id')
+
+            # 2. Mapeo seguro
+            mapa = {'basura': 'BAS', 'condominio': 'CON'}
+            cat_db = mapa.get(categoria_slug)
+            
+            if not cat_db:
+                raise ValueError(f"Categoría '{categoria_slug}' no es válida.")
+
+            # 3. Lógica de Torre robusta
+            torre_reporte = None
+            if request.user.rol == 'LDT':
+                torre_reporte = request.user.tower
+            elif tower_id and str(tower_id) != '0':
+                # Intentamos buscar la torre, si no existe, dará error controlado
+                torre_reporte = Tower.objects.filter(id=tower_id).first()
+
+            # 4. Guardado con update_or_create
+            # IMPORTANTE: Si tower es None, se guarda como reporte General
+            reporte, created = ReportePublicado.objects.update_or_create(
+                mes=mes, 
+                anio=anio, 
+                categoria=cat_db, 
+                tower=torre_reporte,
+                defaults={'publicado_por': request.user}
+            )
+            
+            messages.success(request, f"Reporte de {reporte.get_mes_display()} {anio} publicado con éxito.")
+            return redirect('ver_finanzas', categoria_slug=categoria_slug)
+
+        except Exception as e:
+            # Imprimimos en consola para que tú lo veas mientras programas
+            print(f"ERROR AL PUBLICAR: {str(e)}") 
+            messages.error(request, f"Error técnico: {str(e)}")
+            return redirect('ver_finanzas_gestion', categoria_slug=categoria_slug)
+    
+    return redirect('url_index')
+
+def eliminar_reporte(request, reporte_id):
+    if not request.user.is_authenticated:
+        return redirect('url_login')
+
+    try:
+        reporte = ReportePublicado.objects.get(id=reporte_id)
+        categoria_slug = "condominio" if reporte.categoria == "CON" else "basura"
+        
+        # 1. Variables de rol básicas
+        rol = getattr(request.user, 'rol', None)
+        es_ldg_o_staff = request.user.is_staff or rol == 'LDG'
+        permiso_concedido = False
+
+        # 2. Lógica diferenciada por categoría
+        if reporte.categoria == "BAS":
+            # REGLA BASURA: Solo Lideres Generales/Staff o Administradores de Basura
+            es_admin_basura = getattr(request.user, 'es_admin_basura', False)
+            if es_ldg_o_staff or es_admin_basura:
+                permiso_concedido = True
+        else:
+            # REGLA CONDOMINIO: LDG/Staff o LDT de su propia torre
+            es_lider_de_esta_torre = (rol == 'LDT' and request.user.tower == reporte.tower)
+            if es_ldg_o_staff or es_lider_de_esta_torre:
+                permiso_concedido = True
+
+        # 3. Ejecución de la eliminación
+        if permiso_concedido:
+            if reporte.archivo_pdf:
+                reporte.archivo_pdf.delete(save=False)
+            reporte.delete()
+            messages.success(request, "Reporte eliminado con éxito.")
+        else:
+            messages.error(request, "No tienes permiso para eliminar este reporte.")
+
+        return redirect('ver_finanzas', categoria_slug=categoria_slug)
+
+    except ReportePublicado.DoesNotExist:
+        messages.warning(request, "El reporte ya no existe.")
+        return redirect('url_index')
 
 def descargar_pdf(request, categoria_slug):
     """
     Genera y descarga el archivo PDF con la información financiera filtrada.
     """
-    # 1. Definir la categoría, título y campo de monto (monto_field)
+
+    # 1. Definir la categoría y configuración básica
     if categoria_slug == "condominio":
         categoria_filtro = "CON"
         titulo = "Reporte Financiero - Condominio"
@@ -503,90 +672,76 @@ def descargar_pdf(request, categoria_slug):
         titulo = "Reporte Financiero - Cuarto de Basura"
         monto_field = "monto_basura"
     else:
-        # Redireccionar si el slug es inválido
         return redirect("url_index")
 
     # 2. Obtener QuerySet Base
-    movimientos_query = (
-        MovimientoFinanciero.objects.filter(categoria=categoria_filtro)
-        .select_related("tower")
-        .order_by("fecha", "id")
-    )
+    qs = MovimientoFinanciero.objects.filter(categoria=categoria_filtro).select_related("tower").order_by("fecha", "id")
 
-    # 3. FILTROS POR TIPO Y TORRE (Lógica existente)
-    tipo_filtro = request.GET.get("tipo", "AMBOS")
+    # 3. UNIFICAR DATOS
+    datos = request.POST if request.method == "POST" else request.GET
+
+    # 4. CAPTURAR FILTROS DE FECHA (Lógica Dual)
+    f_inicio = datos.get("fecha_inicio")
+    f_fin = datos.get("fecha_fin")
+    
+    # NUEVO: Lógica para Reportes Cerrados (Viene de reportes_vecinos.html)
+    mes_rep = datos.get("mes_reporte") or datos.get("mes")
+    anio_rep = datos.get("anio_reporte") or datos.get("anio")
+
+    if mes_rep and anio_rep:
+        # Si el usuario seleccionó un mes/año específico (Reporte Cerrado)
+        f_inicio = date(int(anio_rep), int(mes_rep), 1)
+        ultimo_dia = calendar.monthrange(int(anio_rep), int(mes_rep))[1]
+        f_fin = date(int(anio_rep), int(mes_rep), ultimo_dia)
+
+    # 5. FILTRO DE TORRE (Unificado)
+    torre_id = datos.get("tower_id") or datos.get("torre") or datos.get("tower")
+    if torre_id and torre_id != '0' and str(torre_id).isdigit():
+        qs = qs.filter(tower__id=int(torre_id))
+
+    # 6. FILTRO DE TIPO
+    tipo_filtro = datos.get("tipo", "AMBOS")
     if tipo_filtro == "INGRESOS":
-        movimientos_query = movimientos_query.filter(tipo="ING")
+        qs = qs.filter(tipo="ING")
     elif tipo_filtro == "EGRESOS":
-        movimientos_query = movimientos_query.filter(tipo="EGR")
+        qs = qs.filter(tipo="EGR")
 
-    torre_id = request.GET.get("torre")
-    if torre_id and torre_id.isdigit():
-        movimientos_query = movimientos_query.filter(tower__id=int(torre_id))
+    # 7. APLICAR FILTROS DE FECHA AL QUERYSET FINAL
+    if f_inicio and f_inicio != 'null' and f_inicio != '':
+        qs = qs.filter(fecha__gte=f_inicio)
+    if f_fin and f_fin != 'null' and f_fin != '':
+        qs = qs.filter(fecha__lte=f_fin)
 
-    # 4. 🚀 APLICAR FILTRO POR RANGO DE FECHAS (NUEVO)
-    filtro_form = FormularioFiltroMovimientos(request.GET)
+    movimientos_query = qs
 
-    if filtro_form.is_valid():
-        fecha_inicio = filtro_form.cleaned_data.get("fecha_inicio")
-        fecha_fin = filtro_form.cleaned_data.get("fecha_fin")
-
-        if fecha_inicio:
-            # Filtrar movimientos donde la fecha es MAYOR O IGUAL a la fecha de inicio
-            movimientos_query = movimientos_query.filter(fecha__gte=fecha_inicio)
-
-        if fecha_fin:
-            # Filtrar movimientos donde la fecha es MENOR O IGUAL a la fecha de fin
-            movimientos_query = movimientos_query.filter(fecha__lte=fecha_fin)
-
-    # --- FIN Lógica de Filtrado ---
-
-    # 5. Configuración de la Respuesta HTTP
+    # --- INICIO GENERACIÓN PDF (ReportLab) ---
     response = HttpResponse(content_type="application/pdf")
-    response["Content-Disposition"] = (
-        f'attachment; filename="Reporte_{categoria_slug}_{timezone.now().strftime("%Y%m%d")}.pdf"'
-    )
+    response["Content-Disposition"] = f'attachment; filename="Reporte_{categoria_slug}_{timezone.now().strftime("%Y%m%d")}.pdf"'
 
-    # 6. Preparación del documento PDF con SimpleDocTemplate
-    doc = SimpleDocTemplate(
-        response,
-        pagesize=letter,
-        topMargin=inch / 2,
-        bottomMargin=inch / 2,
-        leftMargin=inch / 2,
-        rightMargin=inch / 2,
-    )
+    doc = SimpleDocTemplate(response, pagesize=letter, topMargin=inch/2, bottomMargin=inch/2, leftMargin=inch/2, rightMargin=inch/2)
     styles = getSampleStyleSheet()
     Story = []
 
-    # --- 7. Encabezado del Reporte ---
+    # Título y Encabezado
     Story.append(Paragraph(f'<font size="16"><b>{titulo}</b></font>', styles["h1"]))
-    Story.append(
-        Paragraph(
-            f'<font size="10">Generado el: {timezone.now().strftime("%d/%m/%Y a las %H:%M")}</font>',
-            styles["Normal"],
-        )
-    )
+    Story.append(Paragraph(f'<font size="10">Generado el: {timezone.now().strftime("%d/%m/%Y a las %H:%M")}</font>', styles["Normal"]))
     Story.append(Paragraph("<br/>", styles["Normal"]))
 
-    # Info de Filtros (para mostrar qué se filtró)
-    filtro_info_text = f"<b>Tipo:</b> {tipo_filtro} | <b>Torre ID:</b> {torre_id if torre_id else 'Todas'}"
+    # Info de Filtros en el PDF
+    nombre_torre_filtro = "Todas"
+    if torre_id and torre_id != '0':
+        # Intenta obtener el nombre de la torre para el encabezado del PDF
+        from .models import Tower
+        t_obj = Tower.objects.filter(id=torre_id).first()
+        if t_obj: nombre_torre_filtro = f"Torre {t_obj.nombre}"
 
-    # Detalle de Fechas
-    f_i = filtro_form.cleaned_data.get("fecha_inicio")
-    f_f = filtro_form.cleaned_data.get("fecha_fin")
+    # Formatear fechas para el encabezado del PDF
+    inicio_str = f_inicio.strftime("%d/%m/%Y") if hasattr(f_inicio, 'strftime') else (f_inicio if f_inicio else "Inicio")
+    fin_str = f_fin.strftime("%d/%m/%Y") if hasattr(f_fin, 'strftime') else (f_fin if f_fin else "Fin")
+    fecha_text = f"{inicio_str} hasta {fin_str}" if (f_inicio or f_fin) else "Todo el Historial"
 
-    fecha_text = "Todo el Historial"
-    if f_i or f_f:
-        inicio_str = f_i.strftime("%d/%m/%Y") if f_i else "Inicio"
-        fin_str = f_f.strftime("%d/%m/%Y") if f_f else "Fin"
-        fecha_text = f"{inicio_str} hasta {fin_str}"
-
-    filtro_info_text += f" | <b>Rango de Fechas:</b> {fecha_text}"
-
-    Story.append(
-        Paragraph(f'<font size="10">{filtro_info_text}</font>', styles["Normal"])
-    )
+    filtro_info_text = f"<b>Tipo:</b> {tipo_filtro} | <b>Entidad:</b> {nombre_torre_filtro} | <b>Rango:</b> {fecha_text}"
+    Story.append(Paragraph(f'<font size="10">{filtro_info_text}</font>', styles["Normal"]))
     Story.append(Paragraph("<br/>", styles["Normal"]))
 
     # --- 8. Preparación de la Tabla de Datos ---
@@ -758,7 +913,7 @@ def vista_beneficio(request, tipo_slug):
 
 
 def descargar_pdf_beneficio(request, ciclo_id):
-    """Genera el PDF de la lista de beneficiarios de un ciclo específico."""
+    """Genera el PDF de la lista de beneficiarios de un ciclo específico con Ref. de Pago."""
     ciclo = get_object_or_404(CicloBeneficio, pk=ciclo_id)
     entregas = (
         EntregaBeneficio.objects.filter(ciclo=ciclo)
@@ -787,10 +942,15 @@ def descargar_pdf_beneficio(request, ciclo_id):
     )
     Story.append(Paragraph("<br/>", styles["Normal"]))
 
-    # Tabla
-    data = [["Torre", "Apto", "Cédula", "Beneficiario", "Jefe Familia"]]
+    # --- TABLA ACTUALIZADA CON REFERENCIA ---
+    # 1. Agregamos "Ref. Pago" al encabezado de la tabla
+    data = [["Torre", "Apto", "Cédula", "Beneficiario", "Jefe", "Ref. Pago"]]
+    
     for item in entregas:
         es_jefe = "SÍ" if item.beneficiario.es_jefe_familia else "NO"
+        # 2. Obtenemos el nuevo campo referencia_pago (si es None, ponemos un guion)
+        ref = item.referencia_pago if item.referencia_pago else "-"
+        
         data.append(
             [
                 item.beneficiario.tower.nombre,
@@ -798,16 +958,26 @@ def descargar_pdf_beneficio(request, ciclo_id):
                 item.beneficiario.cedula,
                 f"{item.beneficiario.nombres} {item.beneficiario.apellidos}",
                 es_jefe,
+                ref, # <--- Nuevo dato en la fila
             ]
         )
 
-    table = Table(data)
+    # Ajustamos anchos de columna para que el nombre y la referencia tengan espacio
+    # Los valores son en puntos. El total para carta (letter) es aprox 450-500 pts útiles.
+    column_widths = [40, 50, 70, 180, 40, 80]
+    table = Table(data, colWidths=column_widths)
+    
     table.setStyle(
         TableStyle(
             [
                 ("BACKGROUND", (0, 0), (-1, 0), colors.grey),
                 ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
+                ("ALIGN", (0, 0), (-1, -1), "CENTER"), # Centrar todo para mejor lectura
+                ("ALIGN", (3, 1), (3, -1), "LEFT"),   # Alineamos nombres a la izquierda
+                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                ("FONTSIZE", (0, 0), (-1, -1), 9),    # Tamaño de fuente ligeramente menor
                 ("GRID", (0, 0), (-1, -1), 1, colors.black),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
             ]
         )
     )

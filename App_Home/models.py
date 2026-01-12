@@ -319,6 +319,62 @@ class CensoMiembro(models.Model):
         default=False, verbose_name="¿Es Jefe de Familia?"
     )
 
+    # --- NUEVOS CAMPOS DE SALUD Y SOCIAL ---
+    enfermedad_discapacidad = models.CharField(
+        max_length=255, 
+        blank=True, 
+        null=True, 
+        verbose_name="Enfermedad o Discapacidad"
+    )
+    toma_medicamento = models.BooleanField(
+        default=False, 
+        verbose_name="¿Toma Medicamento?"
+    )
+    pensionado = models.BooleanField(
+        default=False, 
+        verbose_name="¿Adulto Pensionado?"
+    )
+
+    # --- NUEVOS CAMPOS LABORALES ---
+    trabaja = models.BooleanField(
+        default=False, 
+        verbose_name="¿Trabaja actualmente?"
+    )
+    lugar_trabajo = models.CharField(
+        max_length=255, 
+        blank=True, 
+        null=True, 
+        verbose_name="Lugar de Trabajo"
+    )
+
+    # --- NUEVOS CAMPOS EDUCATIVOS ---
+    estudia = models.BooleanField(
+        default=False, 
+        verbose_name="¿Estudia actualmente?"
+    )
+    
+    NIVEL_ESTUDIO_CHOICES = [
+        ('PRI', 'Primaria'),
+        ('BAC', 'Bachiller'),
+        ('TSU', 'Técnico Superior'),
+        ('UNI', 'Universitaria'),
+        ('POS', 'Postgrado/Maestría'),
+    ]
+    nivel_estudio = models.CharField(
+        max_length=3, 
+        choices=NIVEL_ESTUDIO_CHOICES, 
+        blank=True, 
+        null=True, 
+        verbose_name="Nivel de Estudio"
+    )
+    
+    grado_instruccion = models.CharField(
+        max_length=255, 
+        blank=True, 
+        null=True, 
+        verbose_name="Grado de Instrucción / Profesión"
+    )
+
     @property
     def edad(self):
         today = date.today()
@@ -380,9 +436,15 @@ class EntregaBeneficio(models.Model):
     )
     fecha_agregado = models.DateTimeField(auto_now_add=True)
 
-    # Opcional: Para saber quién lo agregó a la lista
     agregado_por = models.ForeignKey(
         CustomUser, on_delete=models.SET_NULL, null=True, blank=True
+    )
+
+    referencia_pago = models.CharField(
+        max_length=50, 
+        blank=True, 
+        null=True, 
+        verbose_name="N° Referencia / Pago"
     )
 
     class Meta:
@@ -397,7 +459,7 @@ class EntregaBeneficio(models.Model):
         return f"{self.beneficiario} - {self.ciclo}"
 
 
-# --- NUEVO MODELO: SOLICITUDES DE DOCUMENTOS ---
+# --- SOLICITUDES DE DOCUMENTOS ---
 class SolicitudDocumento(models.Model):
     TIPOS = [
         ("CARTA_CONDUCTA", "Carta de Buena Conducta"),
@@ -429,12 +491,12 @@ class SolicitudDocumento(models.Model):
         auto_now_add=True, verbose_name="Fecha Solicitud"
     )
 
-    # -- Campos específicos para Carta de Buena Conducta (Se llenan al procesar) --
+    # -- Campos específicos para Carta de Buena Conducta --
     anios_residencia = models.CharField(
         max_length=50, blank=True, null=True, verbose_name="Años de Residencia"
     )
 
-    # -- NUEVOS CAMPOS para Carta de Mudanza --
+    # -- Carta de Mudanza --
     mudanza_anio_inicio = models.CharField(
         max_length=4, blank=True, null=True, verbose_name="Año de Inicio (Mudanza)"
     )
@@ -445,15 +507,15 @@ class SolicitudDocumento(models.Model):
         verbose_name="Fecha Fin (Ej: Octubre del 2025)",
     )
 
-    # -- NUEVOS CAMPOS para Constancia Migratoria --
+    # -- Constancia Migratoria --
     migratoria_anio_inicio = models.CharField(
         max_length=4, blank=True, null=True, verbose_name="Año de Inicio (Migratoria)"
-    )  # <-- AÑADIR ESTE
+    )
     migratoria_anio_fin = models.CharField(
         max_length=4, blank=True, null=True, verbose_name="Año de Fin (Migratoria)"
     )
 
-    # -- NUEVOS CAMPOS para Logo CLAP --
+    # -- Logo CLAP --
     logo_clap = models.BooleanField(
         default=False, verbose_name="Incluir Logo CLAP en la Carta"
     )
@@ -466,7 +528,11 @@ class SolicitudDocumento(models.Model):
         blank=True,
         verbose_name="Procesado por",
     )
-    fecha_proceso = models.DateTimeField(null=True, blank=True)
+    fecha_procesado = models.DateTimeField(
+        null=True, 
+        blank=True, 
+        verbose_name="Fecha de Procesado"
+    )
 
     def __str__(self):
         return f"{self.get_tipo_display()} - {self.beneficiario.cedula}"
@@ -474,7 +540,7 @@ class SolicitudDocumento(models.Model):
     class Meta:
         verbose_name = "Solicitud de Documento"
         verbose_name_plural = "Solicitudes de Documentos"
-        ordering = ["-fecha_solicitud"]
+        ordering = ["fecha_procesado"]
 
 
 class InventarioBasura(models.Model):
@@ -511,3 +577,37 @@ class PasswordResetCode(models.Model):
     class Meta:
         # Añadir un índice para búsquedas rápidas si es necesario, pero es opcional
         pass
+
+class ReportePublicado(models.Model):
+    CATEGORIAS = [
+        ('BAS', 'Cuarto de Basura'),
+        ('CON', 'Condominio'),
+    ]
+    
+    mes = models.IntegerField(verbose_name="Mes")
+    anio = models.IntegerField(verbose_name="Año")
+    categoria = models.CharField(max_length=3, choices=CATEGORIAS, default='BAS')
+    tower = models.ForeignKey('Tower', on_delete=models.CASCADE, null=True, blank=True, verbose_name="Torre")
+    fecha_publicacion = models.DateTimeField(auto_now_add=True)
+    publicado_por = models.ForeignKey('CustomUser', on_delete=models.SET_NULL, null=True)
+    archivo_pdf = models.FileField(upload_to='reportes_cerrados/', null=True, blank=True)
+
+    class Meta:
+        verbose_name = "Reporte Publicado"
+        verbose_name_plural = "Reportes Publicados"
+        # Esto es vital para que no se dupliquen datos en la BD
+        unique_together = ('mes', 'anio', 'categoria', 'tower') 
+        ordering = ['-anio', '-mes']
+
+    def get_mes_display(self):
+        meses = {
+            1: 'Enero', 2: 'Febrero', 3: 'Marzo', 4: 'Abril',
+            5: 'Mayo', 6: 'Junio', 7: 'Julio', 8: 'Agosto',
+            9: 'Septiembre', 10: 'Octubre', 11: 'Noviembre', 12: 'Diciembre'
+        }
+        return meses.get(self.mes, f"Mes {self.mes}")
+
+    def __str__(self):
+        # Usamos getattr por seguridad si tower llegara a ser None inesperadamente
+        torre_nombre = self.tower.nombre if self.tower else "General"
+        return f"{self.get_categoria_display()} - {torre_nombre} - {self.get_mes_display()} {self.anio}"

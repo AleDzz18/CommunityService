@@ -6,7 +6,6 @@
         <a href="{% url 'lider_general:censo_crear' %}"
            class="btn btn-soft btn-xs btn-success">
             <svg xmlns="http://www.w3.org/2000/svg" class="size-4" viewBox="0 0 24 24">
-                <!-- Icon from Material Symbols by Google - https://github.com/google/material-design-icons/blob/master/LICENSE -->
                 <path fill="currentColor" d="M18 14v-3h-3V9h3V6h2v3h3v2h-3v3zm-9-2q-1.65 0-2.825-1.175T5 8t1.175-2.825T9 4t2.825 1.175T13 8t-1.175 2.825T9 12m-8 8v-2.8q0-.85.438-1.562T2.6 14.55q1.55-.775 3.15-1.162T9 13t3.25.388t3.15 1.162q.725.375 1.163 1.088T17 17.2V20z" />
             </svg>
             Registrar Nuevo Residente
@@ -16,49 +15,38 @@
             {% for torre in torres %}<option value="{{ torre.id }}">Torre {{ torre.nombre }}</option>{% endfor %}
         </select>
         <a href="{% url 'lider_general:censo_pdf_general' %}"
-           class="btn btn-dash btn-xs btn-secondary">
-            <svg xmlns="http://www.w3.org/2000/svg"
-                 class="size-4"
-                 viewBox="0 0 256 256">
-                <!-- Icon from Phosphor by Phosphor Icons - https://github.com/phosphor-icons/core/blob/main/LICENSE -->
+            class="btn btn-dash btn-xs btn-secondary">
+            <svg xmlns="http://www.w3.org/2000/svg" class="size-4" viewBox="0 0 256 256">
                 <path fill="currentColor" d="M224 144v64a8 8 0 0 1-8 8H40a8 8 0 0 1-8-8v-64a8 8 0 0 1 16 0v56h160v-56a8 8 0 0 1 16 0m-101.66 5.66a8 8 0 0 0 11.32 0l40-40a8 8 0 0 0-11.32-11.32L136 124.69V32a8 8 0 0 0-16 0v92.69L93.66 98.34a8 8 0 0 0-11.32 11.32Z" />
             </svg>
             Descargar Censo General PDF
         </a>
     </div>
 {% endblock toolbaritems %}
+
 {% block content %}
     <div v-scope
          @vue:mounted="navbar.change('Censo General (Administración)'); navbar.toolbarOpen()"
          class="min-h-[calc(100svh-8rem)] max-w-screen overflow-hidden p-8 flex flex-col justify-stretch items-start gap-4 ">
+        
         <form method="get" class="flex justify-stretch items-start gap-2 w-full">
-            <input type="text"
-                   name="torre"
-                   id="torre"
-                   class="hidden"
-                   value="{{ torre_seleccionada|default:'' }}">
-            <input type="text"
-                   name="q"
-                   placeholder="Nombre, apellido o cédula..."
-                   value="{{ q }}"
+            <input type="text" name="torre" id="torre" class="hidden" value="{{ torre_seleccionada|default:'' }}">
+            <input type="text" name="q" placeholder="Nombre, apellido o cédula..." value="{{ q }}"
                    class="input w-full flex-1 rounded-md bg-white px-3 py-1.5 text-base text-neutral outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-accent sm:text-sm/6" />
             <button type="submit" class="btn btn-neutral">
                 <svg xmlns="http://www.w3.org/2000/svg" class="size-6" viewBox="0 0 24 24">
-                    <!-- Icon from Material Symbols by Google - https://github.com/google/material-design-icons/blob/master/LICENSE -->
                     <path fill="currentColor" d="M9.5 16q-2.725 0-4.612-1.888T3 9.5t1.888-4.612T9.5 3t4.613 1.888T16 9.5q0 1.1-.35 2.075T14.7 13.3l5.6 5.6q.275.275.275.7t-.275.7t-.7.275t-.7-.275l-5.6-5.6q-.75.6-1.725.95T9.5 16m0-2q1.875 0 3.188-1.312T14 9.5t-1.312-3.187T9.5 5T6.313 6.313T5 9.5t1.313 3.188T9.5 14" />
                 </svg>
             </button>
             {% if q %}
-                <a href="{% url 'lider_general:censo_lista' %}"
-                   class="btn btn-outline btn-accent"
-                   title="Limpiar">
+                <a href="{% url 'lider_general:censo_lista' %}" class="btn btn-outline btn-accent" title="Limpiar">
                     <svg xmlns="http://www.w3.org/2000/svg" class="size-6" viewBox="0 0 24 24">
-                        <!-- Icon from Material Symbols by Google - https://github.com/google/material-design-icons/blob/master/LICENSE -->
                         <path fill="currentColor" d="m7 17.7l1.4 1.425q.15.15.35.15t.35-.15t.15-.363t-.15-.362L7.7 17l1.425-1.425q.15-.15.15-.35t-.15-.35t-.35-.15t-.35.15L7 16.3l-1.425-1.425q-.15-.15-.35-.15t-.35.15t-.15.35t.15.35L6.3 17l-1.425 1.425q-.15.15-.15.35t.15.35t.35.15t.35-.15zM7 22q-2.075 0-3.537-1.463T2 17t1.463-3.537T7 12t3.538 1.463T12 17t-1.463 3.538T7 22m7.2-7.4q-.3-.325-.638-.663T12.9 13.3q.95-.6 1.525-1.6T15 9.5q0-1.875-1.312-3.187T10.5 5T7.313 6.313T6 9.5q0 .15.013.288t.037.287q-.45.05-.987.2t-.963.35q-.05-.275-.075-.55T4 9.5q0-2.725 1.888-4.612T10.5 3t4.613 1.888T17 9.5q0 1.075-.337 2.038t-.938 1.762l5.575 5.6q.275.275.288.688t-.288.712q-.275.275-.7.275t-.7-.275z" />
                     </svg>
                 </a>
             {% endif %}
         </form>
+
         <div class="overflow-x-auto w-full max-h-[calc(100svh-12rem)] rounded-box border border-base-content/5 bg-base-100">
             <table class="table table-sm lg:table-md table-pin-rows table-zebra text-center lg:text-start">
                 <thead class="text-wrap lg:text-nowrap ">
@@ -67,7 +55,7 @@
                         <th>Apto</th>
                         <th>Nombre Completo</th>
                         <th>Cédula</th>
-                        <th>Edad</th>
+                        <th>F. Nacimiento</th> <th>Salud / Social</th> <th>Ocupación</th> <th>Edad</th>
                         <th>Teléfono</th>
                         <th>Rol Familiar</th>
                         <th>Acciones</th>
@@ -77,11 +65,34 @@
                     {% for m in miembros %}
                         <tr>
                             <td>{{ m.tower.nombre }}</td>
-                            <td>
-                                <span>{{ m.apartamento_completo }}</span>
-                            </td>
+                            <td><span>{{ m.apartamento_completo }}</span></td>
                             <td>{{ m.nombres }} {{ m.apellidos }}</td>
                             <td>{{ m.cedula }}</td>
+                            
+                            <td class="text-xs">{{ m.fecha_nacimiento|date:"d/m/Y"|default:"-" }}</td>
+                            
+                            <td class="text-xs">
+                                <div class="flex flex-col gap-0.5">
+                                    <span class="font-medium">{{ m.enfermedad_discapacidad|default:"Sano" }}</span>
+                                    <div class="flex flex-wrap justify-center lg:justify-start gap-1">
+                                        {% if m.toma_medicamento %}
+                                            <span class="text-[10px] text-accent font-bold">● Medicado</span>
+                                        {% endif %}
+                                        {% if m.pensionado %}
+                                            <span class="text-[10px] text-info font-bold text-blue-600">● Pensionado</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </td>
+                            
+                            <td class="text-xs">
+                                <div class="flex flex-col gap-0.5">
+                                    {% if m.trabaja %}<span class="text-success italic font-medium">Trabaja</span>{% endif %}
+                                    {% if m.estudia %}<span class="text-secondary italic font-medium">Estudia</span>{% endif %}
+                                    {% if not m.trabaja and not m.estudia %}<span class="opacity-30">-</span>{% endif %}
+                                </div>
+                            </td>
+                            
                             <td>{{ m.edad }} años</td>
                             <td>{{ m.telefono|default:"N/A" }}</td>
                             <td>
@@ -92,19 +103,13 @@
                                 {% endif %}
                             </td>
                             <td class="text-end flex flex-wrap gap-2 justify-end">
-                                <a href="{% url 'lider_general:censo_editar' m.pk %}"
-                                   class="btn btn-sm btn-neutral"
-                                   title="Editar">
+                                <a href="{% url 'lider_general:censo_editar' m.pk %}" class="btn btn-sm btn-neutral" title="Editar">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="size-4" viewBox="0 0 24 24">
-                                        <!-- Icon from Material Symbols by Google - https://github.com/google/material-design-icons/blob/master/LICENSE -->
                                         <path fill="currentColor" d="M5 19h1.425L16.2 9.225L14.775 7.8L5 17.575zm-2 2v-4.25L16.2 3.575q.3-.275.663-.425t.762-.15t.775.15t.65.45L20.425 5q.3.275.438.65T21 6.4q0 .4-.137.763t-.438.662L7.25 21zM19 6.4L17.6 5zm-3.525 2.125l-.7-.725L16.2 9.225z" />
                                     </svg>
                                 </a>
-                                <a href="{% url 'lider_general:censo_eliminar' m.pk %}"
-                                   class="btn btn-sm btn-soft btn-error  "
-                                   title="Eliminar">
+                                <a href="{% url 'lider_general:censo_eliminar' m.pk %}" class="btn btn-sm btn-soft btn-error" title="Eliminar">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="size-4" viewBox="0 0 24 24">
-                                        <!-- Icon from Material Symbols by Google - https://github.com/google/material-design-icons/blob/master/LICENSE -->
                                         <path fill="currentColor" d="m9.4 16.5l2.6-2.6l2.6 2.6l1.4-1.4l-2.6-2.6L16 9.9l-1.4-1.4l-2.6 2.6l-2.6-2.6L8 9.9l2.6 2.6L8 15.1zM7 21q-.825 0-1.412-.587T5 19V6H4V4h5V3h6v1h5v2h-1v13q0 .825-.587 1.413T17 21zM17 6H7v13h10zM7 6v13z" />
                                     </svg>
                                 </a>
@@ -112,7 +117,7 @@
                         </tr>
                     {% empty %}
                         <tr>
-                            <td colspan="7" class="text-center py-4">No hay personas registradas en el censo con los filtros actuales.</td>
+                            <td colspan="11" class="text-center py-4">No hay personas registradas en el censo con los filtros actuales.</td>
                         </tr>
                     {% endfor %}
                 </tbody>

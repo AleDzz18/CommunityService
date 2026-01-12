@@ -69,8 +69,7 @@ from io import BytesIO
 from django.db.models import Sum, Q
 
 
-# --- MIXINS DE PERMISOS (Definirlos al principio) ---
-
+# --- MIXINS DE PERMISOS ---
 
 class LiderGeneralRequiredMixin(AccessMixin):
     """Verifica que el usuario actual tenga el rol de Lider General."""
@@ -85,8 +84,8 @@ class LiderGeneralRequiredMixin(AccessMixin):
             messages.error(
                 request, "No tienes permiso para acceder a esta sección administrativa."
             )
-            # Redirigir al dashboard si no tiene el rol
-            return redirect("url_dashboard")
+            # Redirigir al index si no tiene el rol
+            return redirect("url_index")
 
         return super().dispatch(request, *args, **kwargs)
 
@@ -105,7 +104,6 @@ class LiderGeneralOrAdminBasuraRequiredMixin(UserPassesTestMixin):
 # ******************************************************************
 # 1. GESTIÓN DE USUARIOS
 # ******************************************************************
-
 
 class ListaUsuariosView(LoginRequiredMixin, LiderGeneralRequiredMixin, ListView):
     model = CustomUser
@@ -157,7 +155,6 @@ class EliminarUsuarioView(LoginRequiredMixin, LiderGeneralRequiredMixin, DeleteV
 # 2. GESTIÓN FINANCIERA (CONDOMINIO Y BASURA)
 # ******************************************************************
 
-
 # Condominio (Requiere ser LDG)
 class RegistrarIngresoCondominioGeneralView(
     LiderGeneralRequiredMixin, BaseMovimientoCreateView
@@ -197,9 +194,7 @@ class RegistrarEgresoBasuraGeneralView(
     MONTO_FIELD = "monto_basura"
 
 
-class EstadoSolvenciaBasuraView(
-    LoginRequiredMixin, LiderGeneralOrAdminBasuraRequiredMixin, TemplateView
-):
+class EstadoSolvenciaBasuraView(TemplateView):
     template_name = "lider_general/estado_solvencia_basura.html"
 
     def get_context_data(self, **kwargs):
@@ -237,7 +232,6 @@ class EstadoSolvenciaBasuraView(
                 or 0
             )
 
-            # --- NUEVA LÓGICA COMBINADA ---
             if monto_minimo > 0:
                 # Si el usuario definió un monto, debe llegar a esa cifra
                 es_solvente = total_acumulado >= monto_minimo
@@ -272,11 +266,9 @@ class EstadoSolvenciaBasuraView(
         )
         return context
 
-
 # ******************************************************************
 # 3. GESTIÓN DE CENSO GLOBAL
 # ******************************************************************
-
 
 class CensoGeneralListView(LiderGeneralRequiredMixin, ListView):
     model = CensoMiembro
@@ -286,11 +278,11 @@ class CensoGeneralListView(LiderGeneralRequiredMixin, ListView):
 
     def get_queryset(self):
         qs = super().get_queryset().select_related("tower")
-        # 2. Capturar parámetros del GET
+        # Capturar parámetros del GET
         q = self.request.GET.get("q")
         torre_id = self.request.GET.get("torre")
 
-        # 3. Filtrado unificado (Nombre, Apellido o Cédula)
+        # Filtrado unificado (Nombre, Apellido o Cédula)
         if q:
             qs = qs.filter(
                 Q(nombres__icontains=q)
@@ -298,7 +290,7 @@ class CensoGeneralListView(LiderGeneralRequiredMixin, ListView):
                 | Q(cedula__icontains=q)
             )
 
-        # 4. Filtro por Torre (Existente)
+        # Filtro por Torre (Existente)
         if torre_id and torre_id.isdigit():
             qs = qs.filter(tower_id=int(torre_id))
 
@@ -331,9 +323,7 @@ class CensoGeneralDeleteView(LiderGeneralRequiredMixin, DeleteView):
     template_name = "lider_general/censo_confirm_delete.html"
     success_url = reverse_lazy("lider_general:censo_lista")
 
-
 # --- GESTIÓN DE CICLOS (CREAR / ELIMINAR) ---
-
 
 class CrearCicloView(LoginRequiredMixin, View):
     """Crea una nueva lista mensual y cierra la anterior si existe."""
@@ -375,7 +365,7 @@ class EliminarCicloView(LoginRequiredMixin, View):
         ciclo.delete()
 
         messages.warning(request, "Lista eliminada.")
-        return redirect("url_dashboard")
+        return redirect("url_index")
 
 
 # --- AGREGAR PERSONAS GLOBALMENTE ---
@@ -470,9 +460,14 @@ class AgregarBeneficiarioGeneralView(
         miembros_seleccionados = CensoMiembro.objects.filter(id__in=miembros_ids)
 
         for miembro in miembros_seleccionados:
+            ref_pago = request.POST.get(f"referencia_{miembro.id}", "")
+
             objetos_a_crear.append(
                 EntregaBeneficio(
-                    ciclo=ciclo_activo, beneficiario=miembro, agregado_por=request.user
+                    ciclo=ciclo_activo, 
+                    beneficiario=miembro, 
+                    agregado_por=request.user,
+                    referencia_pago=ref_pago 
                 )
             )
 
@@ -494,11 +489,9 @@ class AgregarBeneficiarioGeneralView(
         # 6. Redirigir a la lista principal de beneficios
         return redirect("ver_beneficio", tipo_slug=tipo_slug)
 
-
 # ******************************************************************
 # 4. GESTIÓN DE SOLICITUDES DE DOCUMENTOS
 # ******************************************************************
-
 
 class ListaSolicitudesView(LoginRequiredMixin, LiderGeneralRequiredMixin, ListView):
     """Muestra todas las solicitudes pendientes."""
@@ -512,7 +505,6 @@ class ListaSolicitudesView(LoginRequiredMixin, LiderGeneralRequiredMixin, ListVi
         return SolicitudDocumento.objects.filter(estado="PENDIENTE").order_by(
             "fecha_solicitud"
         )
-
 
 class ProcesarSolicitudView(LoginRequiredMixin, UserPassesTestMixin, View):
 
@@ -558,7 +550,7 @@ class ProcesarSolicitudView(LoginRequiredMixin, UserPassesTestMixin, View):
             solicitud_procesada = form.save(commit=False)
             solicitud_procesada.estado = "PROCESADO"
             solicitud_procesada.procesado_por = request.user
-            solicitud_procesada.fecha_proceso = timezone.now()
+            solicitud_procesada.fecha_procesado = timezone.now()
             solicitud_procesada.save()
 
             # --- LÓGICA DE GENERACIÓN DE PDF ---
@@ -605,7 +597,7 @@ class ProcesarSolicitudView(LoginRequiredMixin, UserPassesTestMixin, View):
             {"form": form, "solicitud": solicitud},
         )
 
-    # --- GENERADOR 1: CARTA DE BUENA CONDUCTA (RESTAURADO) ---
+    # --- GENERADOR 1: CARTA DE BUENA CONDUCTA ---
     def generar_pdf_conducta(self, solicitud):
         response = HttpResponse(content_type="application/pdf")
         filename = f"Carta_Conducta_{solicitud.beneficiario.cedula}.pdf"
@@ -631,7 +623,7 @@ class ProcesarSolicitudView(LoginRequiredMixin, UserPassesTestMixin, View):
             alignment=TA_CENTER,
             spaceAfter=20,
         )
-        # --- MODIFICACIÓN 1: Nuevo estilo para el título subrayado ---
+        # --- Nuevo estilo para el título subrayado ---
         estilo_titulo_documento = ParagraphStyle(
             "TituloDocumento",
             parent=styles["Normal"],
@@ -645,7 +637,6 @@ class ProcesarSolicitudView(LoginRequiredMixin, UserPassesTestMixin, View):
             underlineColor=black,
             underlineOffset=-2,  # Ajusta la posición del subrayado
         )
-        # --- FIN MODIFICACIÓN 1 ---
 
         estilo_cuerpo = ParagraphStyle(
             "Cuerpo",
@@ -662,7 +653,7 @@ class ProcesarSolicitudView(LoginRequiredMixin, UserPassesTestMixin, View):
             leading=14,
             alignment=TA_CENTER,
         )
-        # --- MODIFICACIÓN 3: Estilo para las líneas de firma ---
+        # --- Estilo para las líneas de firma ---
         estilo_linea_firma = ParagraphStyle(
             "LineaFirma",
             parent=styles["Normal"],
@@ -672,9 +663,8 @@ class ProcesarSolicitudView(LoginRequiredMixin, UserPassesTestMixin, View):
             spaceBefore=10,
             spaceAfter=0,  # Ajusta espaciado
         )
-        # --- FIN MODIFICACIÓN 3 ---
 
-        # --- MODIFICACIÓN 1: Insertar la imagen del CLAP ---
+        # --- Insertar la imagen del CLAP ---
         if solicitud.logo_clap == True:
             try:
                 # Opción más robusta si la imagen está en App_Home/static/img/clap_logo.png
@@ -686,7 +676,7 @@ class ProcesarSolicitudView(LoginRequiredMixin, UserPassesTestMixin, View):
 
                 img = Image(
                     image_path, width=350, height=75
-                )  # Ajusta width/height según necesites
+                )  # Ajusta width/height
                 Story.append(img)
                 Story.append(Spacer(1, 12))
             except FileNotFoundError:
@@ -707,14 +697,12 @@ class ProcesarSolicitudView(LoginRequiredMixin, UserPassesTestMixin, View):
         Story.append(Paragraph(header_text, estilo_titulo))
         Story.append(Spacer(1, 12))
 
-        # --- MODIFICACIÓN 2: Usar el nuevo estilo para el título del documento ---
         Story.append(
             Paragraph("<u>CARTA DE BUENA CONDUCTA</u>", estilo_titulo_documento)
         )
         Story.append(Spacer(1, 12))
-        # --- FIN MODIFICACIÓN 2 ---
 
-        # --- CUERPO DEL TEXTO (igual que antes) ---
+        # --- CUERPO DEL TEXTO ---
         nombre = f"{solicitud.beneficiario.nombres} {solicitud.beneficiario.apellidos}"
         cedula = solicitud.beneficiario.cedula
         anios = solicitud.anios_residencia
@@ -737,7 +725,7 @@ class ProcesarSolicitudView(LoginRequiredMixin, UserPassesTestMixin, View):
         Story.append(Paragraph(texto_principal, estilo_cuerpo))
         Story.append(Spacer(1, 12))
 
-        # --- FECHA (igual que antes) ---
+        # --- FECHA ---
         fecha_actual = date.today()
         meses = [
             "Enero",
@@ -758,7 +746,7 @@ class ProcesarSolicitudView(LoginRequiredMixin, UserPassesTestMixin, View):
         Story.append(Paragraph(fecha_texto, estilo_cuerpo))
         Story.append(Spacer(1, 40))
 
-        # --- MODIFICACIÓN 3: Firmas con líneas ---
+        # --- Firmas con líneas ---
         Story.append(Paragraph("Atentamente", estilo_firmas))
         Story.append(Spacer(1, 30))
 
@@ -780,9 +768,6 @@ class ProcesarSolicitudView(LoginRequiredMixin, UserPassesTestMixin, View):
         lc_cedula = (
             lider_calle.cedula if lider_calle and lider_calle.cedula else "V-XX.XXX.XXX"
         )
-
-        # Usamos Paragraphs para las líneas y nombres, y Spacer para los espacios.
-        # Esto es más flexible que Table para solo dos elementos si no necesitas alineación compleja de celdas.
 
         # Líneas de firma
         Story.append(
@@ -823,7 +808,7 @@ class ProcesarSolicitudView(LoginRequiredMixin, UserPassesTestMixin, View):
         doc.build(Story)
         return response
 
-    # NUEVO: Generador de PDF para Carta de Mudanza
+    # Generador de PDF para Carta de Mudanza
     def generar_pdf_mudanza(self, solicitud):
         """Genera el PDF basado en el formato 'Carta de Mudanza.pdf'"""
         response = HttpResponse(content_type="application/pdf")
@@ -901,7 +886,7 @@ class ProcesarSolicitudView(LoginRequiredMixin, UserPassesTestMixin, View):
                     "La imagen del logo CLAP no fue encontrada. Se usó texto en su lugar.",
                 )
 
-        # ENCABEZADO (Tomando texto de los PDFs)
+        # ENCABEZADO
         header_text = """
         República Bolivariana de Venezuela<br/>
         Ministerio del Poder Popular para las Comunas y Protección Social<br/>
@@ -1198,7 +1183,7 @@ class ProcesarSolicitudView(LoginRequiredMixin, UserPassesTestMixin, View):
         Story = []
         styles = getSampleStyleSheet()
 
-        # Estilos (Usando los mismos que en los otros generadores)
+        # Estilos
         estilo_titulo = ParagraphStyle(
             "Titulo",
             parent=styles["Normal"],
@@ -1268,7 +1253,7 @@ class ProcesarSolicitudView(LoginRequiredMixin, UserPassesTestMixin, View):
                     "La imagen del logo CLAP no fue encontrada. Se usó texto en su lugar.",
                 )
 
-        # ENCABEZADO (Adaptado de la plantilla)
+        # ENCABEZADO
         header_text = """
         República Bolivariana de Venezuela<br/>
         Ministerio del Poder Popular para las Comunas y Protección Social<br/>
@@ -1284,7 +1269,6 @@ class ProcesarSolicitudView(LoginRequiredMixin, UserPassesTestMixin, View):
         Story.append(Spacer(1, 12))
 
         # CUERPO DEL DOCUMENTO
-        # La Constancia Migratoria del ejemplo (CONSTANCIA MIGRATORIA.pdf) no incluye Piso/Apartamento, solo la Torre.
 
         texto = f"""
         Por medio de la presente nosotros integrantes del El Comité de Abastecimiento y
@@ -1321,7 +1305,7 @@ class ProcesarSolicitudView(LoginRequiredMixin, UserPassesTestMixin, View):
 
         # --- SECCIÓN DE FIRMAS ---
 
-        # Datos del Jefe de Comunidad (HARDCODEADO según tu plantilla)
+        # Datos del Jefe de Comunidad
         jefe_nombre = f"{self.request.user.first_name} {self.request.user.last_name}"
         jefe_cedula = (
             self.request.user.cedula if self.request.user.cedula else "V-XX.XXX.XXX"
@@ -1351,158 +1335,109 @@ class LiderGeneralRequiredMixin(UserPassesTestMixin):
 
 
 class CensoPDFGeneralView(LoginRequiredMixin, LiderGeneralRequiredMixin, View):
-    """Genera un PDF con el listado completo del Censo Comunitario (Mejorado)."""
+    """Genera un PDF horizontal con fecha de nacimiento, detalle de salud y leyenda."""
 
     def get(self, request, *args, **kwargs):
-        # 1. Obtener los datos
         miembros = (
             CensoMiembro.objects.select_related("tower")
             .all()
             .order_by("tower__nombre", "piso", "apartamento_letra")
         )
 
-        # 2. Configuración del PDF
         buffer = BytesIO()
-        # Ajustamos los márgenes (topMargin) para aprovechar mejor la hoja
+        from reportlab.lib.pagesizes import landscape
+        
         doc = SimpleDocTemplate(
             buffer,
-            pagesize=A4,
+            pagesize=landscape(A4),
             title="Censo Comunitario General",
-            topMargin=30,
-            bottomMargin=30,
-            leftMargin=30,
-            rightMargin=30,
+            topMargin=20, bottomMargin=20, leftMargin=15, rightMargin=15,
         )
 
         Story = []
         styles = getSampleStyleSheet()
 
-        # Estilos personalizados
-        estilo_titulo = ParagraphStyle(
-            "TituloPDF",
-            parent=styles["Normal"],
-            alignment=TA_CENTER,
-            fontSize=18,
-            fontName="Helvetica-Bold",
-            spaceAfter=5,
-        )
-        estilo_subtitulo = ParagraphStyle(
-            "SubtituloPDF",
-            parent=styles["Normal"],
-            alignment=TA_CENTER,
-            fontSize=12,
-            textColor=colors.grey,
-            spaceAfter=15,
-        )
-        estilo_fecha = ParagraphStyle(
-            "FechaPDF",
-            parent=styles["Normal"],
-            alignment=TA_RIGHT,
-            fontSize=9,
-            spaceAfter=20,
-        )
-
-        # Encabezado
-        Story.append(Paragraph("Censo Comunitario General", estilo_titulo))
-        Story.append(Paragraph("Balcones de Paraguaná I", estilo_subtitulo))
-        Story.append(
-            Paragraph(
-                f"Generado el: {timezone.now().strftime('%d/%m/%Y %I:%M %p')}",
-                estilo_fecha,
-            )
-        )
-
-        # Eliminamos los Spacers gigantes que bajaban la tabla
-        Story.append(Spacer(1, 10))
-
-        # 3. Datos de la tabla
-        data = []
-        # Encabezados
+        # --- Encabezados Actualizados (Añadido F. Nac) ---
         headers = [
-            "Torre",
-            "Ubicación",
-            "Cédula",
-            "Nombre Completo",
-            "Jefe Fam.",
-            "Teléfono",
+            "Torre/Apto", "Cédula", "Nombre Completo", "F. Nac", "Edad", "Jefe", 
+            "Teléfono", "Tr.", "Es.", "Me.", "Pe.", "Enfermedad/Discapacidad"
         ]
-        data.append(headers)
+        data = [headers]
 
         for m in miembros:
-            piso_apto = f"{m.apartamento_completo}"  # Usa la propiedad del modelo
             nombre_completo = f"{m.nombres} {m.apellidos}"
+            if len(nombre_completo) > 20:
+                nombre_completo = nombre_completo[:18] + ".."
 
-            # Cortar nombres muy largos si es necesario para que no rompa la tabla
-            if len(nombre_completo) > 25:
-                nombre_completo = nombre_completo[:22] + "..."
+            # Formatear Fecha de Nacimiento
+            f_nac = m.fecha_nacimiento.strftime('%d/%m/%Y') if m.fecha_nacimiento else "-"
 
-            data.append(
-                [
-                    m.tower.nombre,
-                    piso_apto,
-                    m.cedula,
-                    nombre_completo,
-                    "SÍ" if m.es_jefe_familia else "NO",
-                    m.telefono if m.telefono else "-",
-                ]
-            )
+            # Texto de la enfermedad o discapacidad
+            info_salud = m.enfermedad_discapacidad if m.enfermedad_discapacidad else "-"
+            if len(info_salud) > 35:
+                info_salud = info_salud[:32] + "..."
 
-        # 4. Configuración de la Tabla
-        # Ancho disponible en A4 (aprox 535 puntos con márgenes de 30)
-        # Ajustamos columnas: Torre(40), Ubic(50), Ced(70), Nombre(200), Jefe(50), Tel(80) = ~490
-        col_widths = [40, 60, 75, 210, 50, 90]
+            data.append([
+                f"{m.tower.nombre}-{m.apartamento_completo}",
+                m.cedula,
+                nombre_completo,
+                f_nac,                                 # Nueva Columna
+                str(m.edad) if hasattr(m, 'edad') else "-",
+                "SÍ" if m.es_jefe_familia else "NO",
+                m.telefono if m.telefono else "-",
+                "S" if m.trabaja else "N",
+                "S" if m.estudia else "N",
+                "S" if m.toma_medicamento else "N", 
+                "S" if m.pensionado else "N",
+                info_salud,
+            ])
 
-        table = PDFTable(data, colWidths=col_widths)
+        # --- Distribución de Anchos (A4 Landscape total ~842 pts) ---
+        # Ajustado para incluir F. Nac (60 pts) reduciendo un poco salud y nombre
+        col_widths = [55, 60, 110, 60, 25, 25, 75, 22, 22, 22, 22, 240]
 
-        # Estilo visual profesional
-        table.setStyle(
-            TableStyle(
-                [
-                    # Encabezado
-                    (
-                        "BACKGROUND",
-                        (0, 0),
-                        (-1, 0),
-                        colors.HexColor("#003049"),
-                    ),  # Azul oscuro
-                    ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-                    ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-                    ("VALIGN", (0, 0), (-1, 0), "MIDDLE"),
-                    ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-                    ("FONTSIZE", (0, 0), (-1, 0), 10),
-                    # Cuerpo
-                    ("FONTNAME", (0, 1), (-1, -1), "Helvetica"),
-                    ("FONTSIZE", (0, 1), (-1, -1), 9),
-                    ("VALIGN", (0, 1), (-1, -1), "MIDDLE"),
-                    ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),  # Cuadrícula fina
-                    # Filas alternas (Efecto Pijama) para facilitar lectura
-                    (
-                        "ROWBACKGROUNDS",
-                        (0, 1),
-                        (-1, -1),
-                        [colors.whitesmoke, colors.white],
-                    ),
-                ]
-            )
-        )
+        table = PDFTable(data, colWidths=col_widths, repeatRows=1)
 
+        table.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#003049")),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+            ("ALIGN", (-1, 1), (-1, -1), "LEFT"), # Salud a la izquierda
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("FONTSIZE", (0, 0), (-1, 0), 8),
+            ("FONTNAME", (0, 1), (-1, -1), "Helvetica"),
+            ("FONTSIZE", (0, 1), (-1, -1), 7),
+            ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.whitesmoke, colors.white]),
+        ]))
+
+        Story.append(Paragraph("Censo Comunitario General", styles["Title"]))
+        Story.append(Paragraph("Detalle de Habitantes - Balcones de Paraguaná I", styles["Normal"]))
+        Story.append(Spacer(1, 15))
+        
         Story.append(table)
-        Story.append(Spacer(1, 20))
-        Story.append(Paragraph(f"Total de Registros: {len(miembros)}", estilo_fecha))
+        
+        Story.append(Spacer(1, 10))
+        
+        # --- Nueva Leyenda ---
+        estilo_leyenda = ParagraphStyle('Leyenda', parent=styles['Normal'], fontSize=8)
+        leyenda_texto = (
+            "<b>Leyenda:</b> <b>Tr:</b> Trabaja | <b>Es:</b> Estudia | "
+            "<b>Me:</b> Toma Medicamentos | <b>Pe:</b> Pensionado | "
+            "<b>S:</b> SÍ | <b>N:</b> NO"
+        )
+        Story.append(Paragraph(leyenda_texto, estilo_leyenda))
+        Story.append(Paragraph(f"Total de personas registradas: {len(miembros)}", estilo_leyenda))
 
-        # 5. Generar
         doc.build(Story)
         response = HttpResponse(content_type="application/pdf")
-        response["Content-Disposition"] = (
-            f'attachment; filename="Censo_General_{timezone.now().strftime("%Y%m%d")}.pdf"'
-        )
+        response["Content-Disposition"] = f'attachment; filename="Censo_Detallado_{timezone.now().strftime("%Y%m%d")}.pdf"'
         response.write(buffer.getvalue())
         buffer.close()
         return response
 
-
 # --- GESTIÓN DE INVENTARIO CUARTO DE BASURA ---
-
 
 class InventarioBasuraListView(ListView):
     """
@@ -1529,7 +1464,6 @@ class InventarioBasuraListView(ListView):
             )
 
         return context
-
 
 class InventarioBasuraCreateView(
     LoginRequiredMixin, LiderGeneralOrAdminBasuraRequiredMixin, CreateView
@@ -1567,3 +1501,42 @@ class InventarioBasuraDeleteView(
     def form_valid(self, form):
         messages.success(self.request, "Ítem eliminado del inventario.")
         return super().form_valid(form)
+
+class VistaCorrelativoDocumentos(LoginRequiredMixin, TemplateView):
+    template_name = "lider_general/correlativo_documentos.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        hoy = timezone.now()
+
+        # Capturamos filtros
+        fecha_especifica = self.request.GET.get('fecha_filtro')
+        mes = self.request.GET.get('mes')
+        anio = self.request.GET.get('anio', hoy.year)
+
+        # IMPORTANTE: Ordenamos por fecha_procesado para que el correlativo sea real
+        documentos = SolicitudDocumento.objects.filter(
+            estado__in=['PROCESADO', 'ENTREGADO']
+        ).order_by('fecha_procesado') 
+
+        # Aplicamos filtros sobre el nuevo campo fecha_procesado
+        if fecha_especifica:
+            documentos = documentos.filter(fecha_procesado__date=fecha_especifica)
+        elif mes and mes != "todas":
+            documentos = documentos.filter(fecha_procesado__month=int(mes), fecha_procesado__year=int(anio))
+        else:
+            documentos = documentos.filter(fecha_procesado__year=int(anio))
+
+        # Lista de meses para el filtro
+        meses = [(i, m) for i, m in enumerate(["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"], 1)]
+
+        context.update({
+            'documentos': documentos,
+            'total_documentos': documentos.count(),
+            'mes_seleccionado': int(mes) if mes and mes != "todas" else None,
+            'anio_seleccionado': int(anio),
+            'fecha_filtro': fecha_especifica,
+            'anios_disponibles': range(2024, hoy.year + 2),
+            'lista_meses': meses,
+        })
+        return context

@@ -36,18 +36,53 @@
                         <div class="mt-2">
                             <select name="{{ form.tipo_documento.html_name }}"
                                     id="{{ form.tipo_documento.id_for_label }}"
-                                    value="{{ form.tipo_documento.value|default:'' }}"
-                                    class="select block rounded-md w-48 bg-white px-3 py-1.5 text-base text-primary outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-accent sm:text-sm/6 {% if form.tipo_documento.errors %}input-error{% endif %}">
+                                    class="select block rounded-md w-full bg-white px-3 py-1.5 text-base text-primary outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-accent sm:text-sm/6 {% if form.tipo_documento.errors %}input-error{% endif %}"
+                                    onchange="actualizarDescripcion(this)">
                                 <option disabled {% if not form.tipo_documento.value %}selected{% endif %}>Selecciona</option>
                                 {% for value, label in form.tipo_documento.field.choices %}
                                     <option value='{{ value }}'>{{ label }}</option>
                                 {% endfor %}
                             </select>
                         </div>
+
+                        <div id="info-box" class="mt-4 alert alert-info shadow-sm hidden border-l-4 border-info transition-all">
+                            <div class="flex flex-col gap-1">
+                                <div class="flex items-center gap-2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                    <span class="font-bold text-xs uppercase">Descripción:</span>
+                                </div>
+                                <p id="descripcion-texto" class="text-sm italic"></p>
+                            </div>
+                        </div>
+
                         {% if form.tipo_documento.errors %}
                             <div class=" label text-error text-sm">{{ form.tipo_documento.errors }}</div>
                         {% endif %}
                     </div>
+
+                    <script>
+                        function actualizarDescripcion(select) {
+                            const infoBox = document.getElementById('info-box');
+                            const texto = document.getElementById('descripcion-texto');
+                            const valor = select.value;
+
+                            // Diccionario de textos
+                            const descripciones = {
+                                'CARTA_CONDUCTA': 'Certifica que el ciudadano mantiene un comportamiento ejemplar en la comunidad. Útil para empleos o trámites legales.',
+                                'CARTA_MUDANZA': 'Autoriza el traslado legal de bienes y enseres domésticos. Necesaria para controles viales y acceso a nuevas residencias.',
+                                'CONSTANCIA_RESIDENCIA': 'Valida la dirección de domicilio del ciudadano. Es indispensable para trámites bancarios, servicios públicos y el SAIME.',
+                                'CONSTANCIA_MIGRATORIA': 'Certifica el tiempo de permanencia o residencia de un ciudadano. Requerida para trámites de extranjería y visas.'
+                            };
+
+                            if (descripciones[valor]) {
+                                texto.innerText = descripciones[valor];
+                                infoBox.classList.remove('hidden');
+                            } else {
+                                infoBox.classList.add('hidden');
+                            }
+                        }
+                    </script>
+
                     <div class="flex flex-col items-stretch gap-2 mt-4">
                         <button type="submit"
                                 :disabled="formHandler.loading"

@@ -50,4 +50,9 @@ urlpatterns = [
     # GESTIÓN DE SOLICITUDES DE DOCUMENTOS
     path('solicitudes/', views.ListaSolicitudesView.as_view(), name='lista_solicitudes'),
     path('solicitudes/procesar/<int:pk>/', views.ProcesarSolicitudView.as_view(), name='procesar_solicitud'),
+    path(
+        "documentos/correlativo/",
+        views.VistaCorrelativoDocumentos.as_view(),
+        name="correlativo_documentos",
+    ),
 ]

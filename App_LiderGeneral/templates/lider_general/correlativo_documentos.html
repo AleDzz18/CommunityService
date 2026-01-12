@@ -1,0 +1,74 @@
+{% extends "layouts/complete.html" %}
+
+{% block toolbaritems %}
+    <form method="get" class="flex flex-wrap gap-2 items-center p-2">
+        <input type="date" name="fecha_filtro" value="{{ fecha_filtro }}" 
+               class="input input-bordered input-sm" onchange="this.form.submit()">
+        
+        <select name="mes" class="select select-bordered select-sm" onchange="this.form.submit()">
+            <option value="todas">Todos los meses</option>
+            {% for numero, nombre in lista_meses %}
+                <option value="{{ numero }}" {% if mes_seleccionado == numero %}selected{% endif %}>{{ nombre }}</option>
+            {% endfor %}
+        </select>
+
+        <select name="anio" class="select select-bordered select-sm" onchange="this.form.submit()">
+            {% for y in anios_disponibles %}
+                <option value="{{ y }}" {% if anio_seleccionado == y %}selected{% endif %}>{{ y }}</option>
+            {% endfor %}
+        </select>
+        
+        <a href="{% url 'lider_general:correlativo_documentos' %}" class="btn btn-ghost btn-sm">Limpiar</a>
+    </form>
+{% endblock toolbaritems %}
+
+{% block content %}
+<div v-scope @vue:mounted="navbar.change('Correlativo de Documentos'); navbar.toolbarShow = true" class="p-8 w-full flex flex-col gap-6"">
+    
+    <div class="flex justify-between items-center bg-base-100 p-4 rounded-box shadow-sm border border-base-200">
+        <div class="stats bg-transparent">
+            <div class="stat p-0">
+                <div class="stat-title text-xs uppercase font-bold">Docs Emitidos</div>
+                <div class="stat-value text-primary text-2xl">{{ total_documentos }}</div>
+            </div>
+        </div>
+        <a href="{% url 'lider_general:lista_solicitudes' %}" class="btn btn-sm btn-outline">
+            Volver a Gestión
+        </a>
+    </div>
+
+    <div class="overflow-x-auto w-full rounded-box border border-base-content/5 bg-base-100 shadow-xl">
+        <table class="table table-zebra w-full text-center">
+            <thead class="bg-base-200 text-base-content">
+                <tr>
+                    <th># Correlativo</th>
+                    <th>Vecino / Torre</th>
+                    <th>Tipo de Documento</th>
+                    <th>Fecha Emisión</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for doc in documentos %}
+                <tr>
+                    <td class="font-bold">
+                        <span class="badge badge-lg badge-primary font-mono">
+                            {{ forloop.counter|stringformat:"03d" }}
+                        </span>
+                    </td>
+                    <td>
+                        <div class="font-bold text-sm">{{ doc.beneficiario.nombres }}</div>
+                        <div class="text-xs opacity-50">{{ doc.beneficiario.tower.nombre }} - {{ doc.beneficiario.apartamento_completo }}</div>
+                    </td>
+                    <td class="text-sm">{{ doc.get_tipo_display }}</td>
+                    <td class="text-sm">{{ doc.fecha_solicitud|date:"d/m/Y" }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" class="py-20 opacity-40">No hay documentos que coincidan con la búsqueda.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock content %}

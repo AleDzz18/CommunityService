@@ -4,6 +4,12 @@
          @vue:mounted="navbar.change('Solicitudes de Documentos')"
          class="min-h-[calc(100svh-8rem)] max-w-screen overflow-hidden p-8 flex flex-col justify-stretch items-start gap-8">
         <a href="{% url 'url_index' %}" class="btn btn-neutral w-full ">Volver al inicio</a>
+        <a href="{% url 'lider_general:correlativo_documentos' %}" class="btn btn-primary flex-1">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            Ver Correlativo Documentos
+        </a>
         <div class="overflow-x-auto w-full max-h-[calc(100svh-12rem)] rounded-box border border-base-content/5 bg-base-100">
             <table class="table table-sm lg:table-md table-pin-rows table-zebra text-center lg:text-start">
                 <thead class="text-wrap lg:text-nowrap ">

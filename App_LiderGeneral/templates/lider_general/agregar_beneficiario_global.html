@@ -81,6 +81,7 @@
                                 <th>Cédula</th>
                                 <th>Apto</th>
                                 <th>Jefe Fam.</th>
+                                <th>Ref. Pago</th>
                                 <th>#</th>
                             </tr>
                         </thead>
@@ -107,6 +108,13 @@
                                         {% else %}
                                             <span class="badge badge-soft badge-warning">No</span>
                                         {% endif %}
+                                    </td>
+                                    <td>
+                                        <input type="text" 
+                                               name="referencia_{{ miembro.id }}" 
+                                               placeholder="Ej: 1234" 
+                                               class="input input-xs input-bordered w-32" 
+                                               @click.stop> 
                                     </td>
                                     <td>{{ forloop.counter }}</td>
                                 </tr>

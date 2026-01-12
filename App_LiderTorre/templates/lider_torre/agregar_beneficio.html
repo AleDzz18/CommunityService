@@ -64,6 +64,7 @@
                                     <th>Jefe de Familia</th>
                                     <th>Apartamento</th>
                                     <th>Miembros (Excl. Jefe)</th>
+                                    <th>Ref. Pago</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -83,6 +84,13 @@
                                         <td>{{ miembro.nombres }} {{ miembro.apellidos }}</td>
                                         <td>{{ miembro.apartamento_completo }}</td>
                                         <td>{{ miembro.miembros_contados }}</td>
+                                        <td>
+                                            <input type="text" 
+                                                   name="referencia_{{ miembro.id }}" 
+                                                   placeholder="Ref..." 
+                                                   class="input input-xs input-bordered w-28"
+                                                   @click.stop>
+                                        </td>
                                     </tr>
                                 {% empty %}
                                     <tr>

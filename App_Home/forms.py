@@ -201,7 +201,6 @@ class FormularioFiltroMovimientos(forms.Form):
 
 class CensoMiembroForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
-        # 1. Extraemos el dato 'torre_usuario' que nos manda la vista
         self.torre_usuario = kwargs.pop("torre_usuario", None)
         super().__init__(*args, **kwargs)
         self.fields["tower"].empty_label = None
@@ -209,21 +208,16 @@ class CensoMiembroForm(forms.ModelForm):
     class Meta:
         model = CensoMiembro
         fields = [
-            "nombres",
-            "apellidos",
-            "cedula",
-            "fecha_nacimiento",
-            "genero",
-            "telefono",
-            "tower",
-            "piso",
-            "apartamento_letra",
+            "nombres", "apellidos", "cedula", "fecha_nacimiento", 
+            "genero", "telefono", "tower", "piso", "apartamento_letra", 
             "es_jefe_familia",
+            # --- NUEVOS CAMPOS ---
+            "enfermedad_discapacidad", "toma_medicamento", "pensionado",
+            "trabaja", "lugar_trabajo", "estudia", "nivel_estudio", "grado_instruccion"
         ]
+        
         widgets = {
-            "fecha_nacimiento": forms.DateInput(
-                attrs={"type": "date", "class": "form-control"}
-            ),
+            "fecha_nacimiento": forms.DateInput(attrs={"type": "date", "class": "form-control"}),
             "nombres": forms.TextInput(attrs={"class": "form-control"}),
             "apellidos": forms.TextInput(attrs={"class": "form-control"}),
             "cedula": forms.TextInput(attrs={"class": "form-control"}),
@@ -232,28 +226,33 @@ class CensoMiembroForm(forms.ModelForm):
             "tower": forms.Select(attrs={"class": "form-select"}),
             "piso": forms.Select(attrs={"class": "form-select"}),
             "apartamento_letra": forms.Select(attrs={"class": "form-select"}),
-            # Clase especial para el switch
             "es_jefe_familia": forms.CheckboxInput(attrs={"class": "form-check-input"}),
+            
+            # --- WIDGETS PARA LOS NUEVOS CAMPOS ---
+            "enfermedad_discapacidad": forms.TextInput(attrs={"class": "form-control", "placeholder": "Especifique si aplica"}),
+            "toma_medicamento": forms.CheckboxInput(attrs={"class": "form-check-input"}),
+            "pensionado": forms.CheckboxInput(attrs={"class": "form-check-input"}),
+            
+            # Estos llevan v-model para que Vue.js detecte el cambio y muestre/oculte otros campos
+            "trabaja": forms.CheckboxInput(attrs={"class": "form-check-input", "v-model": "trabaja"}),
+            "lugar_trabajo": forms.TextInput(attrs={"class": "form-control", "placeholder": "Lugar de trabajo"}),
+            
+            "estudia": forms.CheckboxInput(attrs={"class": "form-check-input", "v-model": "estudia"}),
+            "nivel_estudio": forms.Select(attrs={"class": "form-select"}),
+            "grado_instruccion": forms.TextInput(attrs={"class": "form-control", "placeholder": "Ej: 5to Semestre, TSU, etc."}),
         }
 
     def clean(self):
         cleaned_data = super().clean()
-
         es_jefe = cleaned_data.get("es_jefe_familia")
         piso = cleaned_data.get("piso")
         letra = cleaned_data.get("apartamento_letra")
 
-        # 2. DETERMINAR LA TORRE CORRECTA
-        # Si viene del formulario (Lider General), usamos esa.
-        # Si no viene (Lider Torre), usamos la que inyectamos en __init__.
         torre_final = cleaned_data.get("tower")
         if not torre_final and self.torre_usuario:
             torre_final = self.torre_usuario
 
-        # 3. VALIDACIÓN DE JEFE DE FAMILIA ÚNICO
         if es_jefe and torre_final and piso and letra:
-            # Buscamos si YA existe alguien en esa Torre + Piso + Letra que sea Jefe
-            # .exclude(pk=self.instance.pk) es VITAL: evita que el sistema se bloquee al editar al mismo usuario.
             existe_otro_jefe = (
                 CensoMiembro.objects.filter(
                     tower=torre_final,
@@ -266,7 +265,6 @@ class CensoMiembroForm(forms.ModelForm):
             )
 
             if existe_otro_jefe:
-                # Esto lanzará el error rojo en la pantalla e impedirá guardar
                 msg = f"Error: Ya existe un Jefe de Familia registrado en la {torre_final}, Apto {piso}-{letra}."
                 self.add_error("es_jefe_familia", msg)
                 raise ValidationError(msg)
@@ -286,7 +284,11 @@ class SolicitudDocumentoForm(forms.Form):
     tipo_documento = forms.ChoiceField(
         choices=SolicitudDocumento.TIPOS,
         label="Tipo de Documento",
-        widget=forms.Select(attrs={"class": "form-select"}),
+        widget=forms.Select(attrs={
+            "class": "form-select",
+            "id": "tipo_doc_select",
+            "onchange": "actualizarDescripcion(this)"
+            }),
     )
 
     def clean_cedula(self):

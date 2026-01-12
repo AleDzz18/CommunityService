@@ -162,6 +162,7 @@
                             <th>Cédula</th>
                             <th>Beneficiario</th>
                             <th>Rol Familiar</th>
+                            <th>Ref. Pago</th>
                             <th>Agregado Por</th>
                         </tr>
                     </thead>
@@ -179,6 +180,13 @@
                                         <span class="badge badge-soft badge-secondary">Jefe</span>
                                     {% else %}
                                         <span>Miembro</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if entrega.referencia_pago %}
+                                        <span class="font-mono font-bold text-xs">{{ entrega.referencia_pago }}</span>
+                                    {% else %}
+                                        <span class="text-gray-400 italic text-xs">-</span>
                                     {% endif %}
                                 </td>
                                 <td>

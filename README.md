@@ -58,7 +58,7 @@ Asegúrate de tener configurado tu archivo `.env` con las credenciales de la bas
 
 ```bash
 # Instalar dependencias de Tailwind
-python manage.py tailwind install
+python manage.py tailwind download_cli
 
 # Ejecutar migraciones
 python manage.py makemigrations

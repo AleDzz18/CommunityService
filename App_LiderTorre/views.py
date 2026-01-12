@@ -461,9 +461,14 @@ class AgregarVecinosTorreView(LoginRequiredMixin, LiderTorreRequiredMixin, ListV
         )
 
         for miembro in miembros_seleccionados:
+            ref_pago = request.POST.get(f"referencia_{miembro.id}", "")
+
             objetos_a_crear.append(
                 EntregaBeneficio(
-                    ciclo=ciclo_activo, beneficiario=miembro, agregado_por=request.user
+                    ciclo=ciclo_activo, 
+                    beneficiario=miembro, 
+                    agregado_por=request.user,
+                    referencia_pago=ref_pago  # <--- Guardamos la referencia
                 )
             )
 
@@ -527,136 +532,106 @@ class ProcesarAgregarTorreView(LoginRequiredMixin, View):
         return redirect("lider_torre:agregar_vecinos", tipo_slug=slug)
 
 
-class CensoPDFTorreView(
-    LoginRequiredMixin, View
-):  # O LiderTorreRequiredMixin si lo usas
-    """Genera un PDF con el censo específico de la torre del líder."""
+class CensoPDFTorreView(LoginRequiredMixin, View):
+    """Genera un PDF horizontal para Líder de Torre siguiendo exactamente el modelo General."""
 
     def get(self, request, *args, **kwargs):
-        # 1. Obtener los datos FILTRADOS por la torre del usuario
+        # 1. Obtener los datos filtrados por la torre del usuario
         torre_usuario = request.user.tower
         miembros = CensoMiembro.objects.filter(tower=torre_usuario).order_by(
             "piso", "apartamento_letra"
         )
 
-        # 2. Configuración del PDF
         buffer = BytesIO()
+        from reportlab.lib.pagesizes import landscape
+        
+        # Misma configuración de página y márgenes que el General
         doc = SimpleDocTemplate(
             buffer,
-            pagesize=A4,
+            pagesize=landscape(A4),
             title=f"Censo Torre {torre_usuario.nombre}",
-            topMargin=30,
-            bottomMargin=30,
-            leftMargin=30,
-            rightMargin=30,
+            topMargin=20, bottomMargin=20, leftMargin=15, rightMargin=15,
         )
 
         Story = []
         styles = getSampleStyleSheet()
 
-        estilo_titulo = ParagraphStyle(
-            "TituloPDF",
-            parent=styles["Normal"],
-            alignment=TA_CENTER,
-            fontSize=18,
-            fontName="Helvetica-Bold",
-            spaceAfter=5,
-        )
-        estilo_subtitulo = ParagraphStyle(
-            "SubtituloPDF",
-            parent=styles["Normal"],
-            alignment=TA_CENTER,
-            fontSize=12,
-            textColor=colors.grey,
-            spaceAfter=15,
-        )
-        estilo_fecha = ParagraphStyle(
-            "FechaPDF",
-            parent=styles["Normal"],
-            alignment=TA_RIGHT,
-            fontSize=9,
-            spaceAfter=20,
-        )
-
-        # Encabezado
-        Story.append(
-            Paragraph(
-                f"Censo Comunitario - Torre {torre_usuario.nombre}", estilo_titulo
-            )
-        )
-        Story.append(Paragraph("Balcones de Paraguaná I", estilo_subtitulo))
-        Story.append(
-            Paragraph(
-                f"Generado el: {timezone.now().strftime('%d/%m/%Y %I:%M %p')}",
-                estilo_fecha,
-            )
-        )
-
-        Story.append(Spacer(1, 10))
-
-        # 3. Datos de la tabla (Quitamos columna Torre, agregamos Email si cabe)
-        data = []
-        headers = ["Apto", "Cédula", "Nombre Completo", "Jefe Fam.", "Teléfono"]
-        data.append(headers)
+        # --- Encabezados Idénticos (Se mantiene la columna Apto con el mismo ancho) ---
+        # Nota: He dejado "Apto" en lugar de "Torre/Apto" porque aquí todos son de la misma torre
+        headers = [
+            "Apto", "Cédula", "Nombre Completo", "F. Nac", "Edad", "Jefe", 
+            "Teléfono", "Tr.", "Es.", "Me.", "Pe.", "Enfermedad/Discapacidad"
+        ]
+        data = [headers]
 
         for m in miembros:
             nombre_completo = f"{m.nombres} {m.apellidos}"
-            if (
-                len(nombre_completo) > 30
-            ):  # Un poco más de espacio al quitar la columna Torre
-                nombre_completo = nombre_completo[:27] + "..."
+            if len(nombre_completo) > 20:
+                nombre_completo = nombre_completo[:18] + ".."
 
-            data.append(
-                [
-                    m.apartamento_completo,  # Ejemplo: P1-A
-                    m.cedula,
-                    nombre_completo,
-                    "SÍ" if m.es_jefe_familia else "NO",
-                    m.telefono if m.telefono else "-",
-                ]
-            )
+            # Formatear Fecha de Nacimiento
+            f_nac = m.fecha_nacimiento.strftime('%d/%m/%Y') if m.fecha_nacimiento else "-"
 
-        # 4. Configuración de la Tabla
-        # Ancho disponible ~535.
-        # Ajustamos columnas: Apto(60), Ced(80), Nombre(235), Jefe(60), Tel(100)
-        col_widths = [60, 80, 235, 60, 100]
+            # Texto de la enfermedad o discapacidad
+            info_salud = m.enfermedad_discapacidad if m.enfermedad_discapacidad else "-"
+            if len(info_salud) > 35:
+                info_salud = info_salud[:32] + "..."
 
-        table = PDFTable(data, colWidths=col_widths)
+            data.append([
+                m.apartamento_completo,                 # Solo el apto (Ej: P1-A)
+                m.cedula,
+                nombre_completo,
+                f_nac,
+                str(m.edad) if hasattr(m, 'edad') else "-",
+                "SÍ" if m.es_jefe_familia else "NO",
+                m.telefono if m.telefono else "-",
+                "S" if m.trabaja else "N",
+                "S" if m.estudia else "N",
+                "S" if m.toma_medicamento else "N", 
+                "S" if m.pensionado else "N",
+                info_salud,
+            ])
 
-        # Estilo (Mismo tema visual)
-        table.setStyle(
-            TableStyle(
-                [
-                    (
-                        "BACKGROUND",
-                        (0, 0),
-                        (-1, 0),
-                        colors.HexColor("#2a9d8f"),
-                    ),  # Un verde azulado para diferenciar Torre
-                    ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-                    ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-                    ("VALIGN", (0, 0), (-1, 0), "MIDDLE"),
-                    ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-                    ("FONTSIZE", (0, 0), (-1, 0), 10),
-                    ("FONTNAME", (0, 1), (-1, -1), "Helvetica"),
-                    ("FONTSIZE", (0, 1), (-1, -1), 9),
-                    ("VALIGN", (0, 1), (-1, -1), "MIDDLE"),
-                    ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
-                    (
-                        "ROWBACKGROUNDS",
-                        (0, 1),
-                        (-1, -1),
-                        [colors.whitesmoke, colors.white],
-                    ),
-                ]
-            )
-        )
+        # --- Distribución de Anchos Exacta al modelo General ---
+        # [Apto:55, Ced:60, Nom:110, FNac:60, Ed:25, Jef:25, Tel:75, Tr:22, Es:22, Me:22, Pe:22, Salud:240]
+        col_widths = [55, 60, 110, 60, 25, 25, 75, 22, 22, 22, 22, 240]
 
+        table = PDFTable(data, colWidths=col_widths, repeatRows=1)
+
+        table.setStyle(TableStyle([
+            # Color distintivo para Líder de Torre (#2a9d8f) pero misma estructura
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#2a9d8f")), 
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+            ("ALIGN", (-1, 1), (-1, -1), "LEFT"), 
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("FONTSIZE", (0, 0), (-1, 0), 8),
+            ("FONTNAME", (0, 1), (-1, -1), "Helvetica"),
+            ("FONTSIZE", (0, 1), (-1, -1), 7),
+            ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.whitesmoke, colors.white]),
+        ]))
+
+        # --- Títulos ---
+        Story.append(Paragraph(f"Censo Comunitario - Torre {torre_usuario.nombre}", styles["Title"]))
+        Story.append(Paragraph("Detalle de Habitantes - Balcones de Paraguaná I", styles["Normal"]))
+        Story.append(Spacer(1, 15))
+        
         Story.append(table)
-        Story.append(Spacer(1, 20))
-        Story.append(Paragraph(f"Total de Vecinos: {len(miembros)}", estilo_fecha))
+        
+        Story.append(Spacer(1, 10))
+        
+        # --- Leyenda Idéntica ---
+        estilo_leyenda = ParagraphStyle('Leyenda', parent=styles['Normal'], fontSize=8)
+        leyenda_texto = (
+            "<b>Leyenda:</b> <b>Tr:</b> Trabaja | <b>Es:</b> Estudia | "
+            "<b>Me:</b> Toma Medicamentos | <b>Pe:</b> Pensionado | "
+            "<b>S:</b> SÍ | <b>N:</b> NO"
+        )
+        Story.append(Paragraph(leyenda_texto, estilo_leyenda))
+        Story.append(Paragraph(f"Total de personas registradas en esta torre: {len(miembros)}", estilo_leyenda))
 
-        # 5. Generar
         doc.build(Story)
         response = HttpResponse(content_type="application/pdf")
         filename = f"Censo_Torre_{torre_usuario.nombre}_{timezone.now().strftime('%Y%m%d')}.pdf"

@@ -6,7 +6,9 @@
             '{{ form.fecha_nacimiento.value|date:'Y-m-d' }}'
         {% else %}
             '{{ form.fecha_nacimiento.value|default:'' }}'
-        {% endif %}
+        {% endif %},
+        trabaja: {% if form.trabaja.value %}true{% else %}false{% endif %},
+        estudia: {% if form.estudia.value %}true{% else %}false{% endif %}
         }" @vue:mounted="navbar.change({% if form.instance.pk %} 'Editar Datos' {% else %} 'Registrar' {% endif %} + ' - Admin General')" class="min-h-svh flex flex-col justify-start items-stretch px-6 py-8 gap-4">
         <div class="card w-full card-border bg-base-100 card-md shadow-sm static">
             <div class="card-body [&>form_div.label]:text-wrap [&>form_input,select]:w-full">
@@ -194,6 +196,97 @@
                             {% endif %}
                         </div>
                     </div>
+                    <div class="divider"></div>
+                    <h3 class="text-lg text-primary mb-2">Información de Salud</h3>
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 w-full">
+                        <div>
+                            <label for="{{ form.enfermedad_discapacidad.id_for_label }}"
+                                   class="block text-sm/6 font-medium text-primary">{{ form.enfermedad_discapacidad.label }}</label>
+                            <div class="mt-2">
+                                <input type="text"
+                                       name="{{ form.enfermedad_discapacidad.html_name }}"
+                                       id="{{ form.enfermedad_discapacidad.id_for_label }}"
+                                       value="{{ form.enfermedad_discapacidad.value|default:'' }}"
+                                       placeholder="Ninguna / Descripción"
+                                       class="block rounded-md w-full bg-white px-3 py-1.5 text-base text-primary outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-accent sm:text-sm/6 {% if form.enfermedad_discapacidad.errors %}input-error{% endif %}" />
+                            </div>
+                            {% if form.enfermedad_discapacidad.errors %}<div class="label text-error text-sm">{{ form.enfermedad_discapacidad.errors }}</div>{% endif %}
+                        </div>
+                        <div class="flex flex-col sm:flex-row gap-4 items-center justify-around bg-base-200/50 rounded-lg p-2 mt-6">
+                            <label class="label cursor-pointer gap-3">
+                                <input type="checkbox" name="{{ form.toma_medicamento.html_name }}" 
+                                       class="checkbox checkbox-primary" {% if form.toma_medicamento.value %}checked{% endif %}>
+                                <span class="label-text font-bold text-primary">¿Toma Medicamento?</span>
+                            </label>
+                            <label class="label cursor-pointer gap-3">
+                                <input type="checkbox" name="{{ form.pensionado.html_name }}" 
+                                       class="checkbox checkbox-primary" {% if form.pensionado.value %}checked{% endif %}>
+                                <span class="label-text font-bold text-primary">¿Es Pensionado?</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="divider"></div>
+                    <div class="p-4 border border-base-300 rounded-xl bg-base-50/30">
+                        <h3 class="text-lg text-primary mb-2">Situación Laboral</h3>
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 w-full">
+                            <div class="flex items-center">
+                                <label class="label cursor-pointer justify-start gap-4">
+                                    <input type="checkbox" 
+                                           v-model="trabaja"
+                                           name="{{ form.trabaja.html_name }}"
+                                           class="checkbox checkbox-lg checkbox-accent"
+                                           {% if form.trabaja.value %}checked{% endif %}>
+                                    <span class="label-text font-bold text-lg text-primary">¿Trabaja actualmente?</span>
+                                </label>
+                            </div>
+                            <div v-show="trabaja" class="animate-in fade-in slide-in-from-top-1">
+                                <label for="{{ form.lugar_trabajo.id_for_label }}"
+                                       class="block text-sm/6 font-medium text-primary">{{ form.lugar_trabajo.label }}</label>
+                                <div class="mt-2">
+                                    <input type="text"
+                                           name="{{ form.lugar_trabajo.html_name }}"
+                                           id="{{ form.lugar_trabajo.id_for_label }}"
+                                           value="{{ form.lugar_trabajo.value|default:'' }}"
+                                           class="block rounded-md w-full bg-white px-3 py-1.5 text-base text-primary outline-1 -outline-offset-1 outline-gray-300 focus:outline-2 focus:outline-accent sm:text-sm/6" />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="divider"></div>
+                    <div class="p-4 border border-base-300 rounded-xl bg-base-50/30">
+                        <div class="flex items-center mb-4">
+                            <label class="label cursor-pointer justify-start gap-4">
+                                <input type="checkbox" 
+                                       v-model="estudia"
+                                       name="{{ form.estudia.html_name }}"
+                                       class="checkbox checkbox-lg checkbox-secondary"
+                                       {% if form.estudia.value %}checked{% endif %}>
+                                <span class="label-text font-bold text-lg text-primary">¿Estudia actualmente?</span>
+                            </label>
+                        </div>
+                        <div v-show="estudia" class="grid grid-cols-1 lg:grid-cols-2 gap-4 w-full animate-in fade-in slide-in-from-top-1">
+                            <div>
+                                <label class="block text-sm/6 font-medium text-primary">{{ form.nivel_estudio.label }}</label>
+                                <select name="{{ form.nivel_estudio.html_name }}" 
+                                        class="select select-bordered w-full mt-2 bg-white">
+                                    {% for val, lbl in form.nivel_estudio.field.choices %}
+                                        <option value="{{ val }}" {% if form.nivel_estudio.value == val %}selected{% endif %}>{{ lbl }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm/6 font-medium text-primary">{{ form.grado_instruccion.label }}</label>
+                                <div class="mt-2">
+                                    <input type="text"
+                                           name="{{ form.grado_instruccion.html_name }}"
+                                           value="{{ form.grado_instruccion.value|default:'' }}"
+                                           placeholder="Ej: 5to Semestre / Ingeniero"
+                                           class="block rounded-md w-full bg-white px-3 py-1.5 text-base text-primary outline-1 -outline-offset-1 outline-gray-300 focus:outline-2 focus:outline-accent sm:text-sm/6" />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="divider"></div>
                     <div class="flex gap-4">
                         <button type="submit"
                                 :disabled="formHandler.loading"
