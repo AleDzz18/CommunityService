@@ -1,5 +1,6 @@
 # App_Home/forms.py
 
+import re
 from django.contrib.auth.forms import UserCreationForm, PasswordResetForm
 from django import forms
 from django.core.exceptions import ValidationError
@@ -292,13 +293,29 @@ class SolicitudDocumentoForm(forms.Form):
     )
 
     def clean_cedula(self):
-        cedula = self.cleaned_data.get("cedula")
-        # Verificar si la cédula existe en el Censo
-        if not CensoMiembro.objects.filter(cedula=cedula).exists():
+        # 1. Obtenemos el valor tal cual lo escribió el usuario
+        cedula_raw = self.cleaned_data.get("cedula")
+        
+        # 2. Limpieza total: Quitamos puntos, letras, guiones o espacios
+        # Si el usuario escribió "V-11111111" o "11.111.111", esto nos deja "11111111"
+        cedula_limpia = re.sub(r'[^\d]', '', str(cedula_raw))
+        
+        if not cedula_limpia:
+            raise ValidationError("Por favor, ingrese un número de cédula válido.")
+
+        # 3. Formateamos al estilo de la base de datos (puntos de miles)
+        # Esto convierte "11111111" en "11.111.111"
+        cedula_formateada = f"{int(cedula_limpia):,}".replace(",", ".")
+
+        # 4. Buscamos en la base de datos con el valor ya formateado
+        if not CensoMiembro.objects.filter(cedula=cedula_formateada).exists():
             raise ValidationError(
                 "Esta cédula no se encuentra registrada en el Censo. Por favor contacte a su Líder de Torre."
             )
-        return cedula
+        
+        # 5. IMPORTANTE: Devolvemos la cédula formateada 
+        # para que el resto de tu vista use el dato correcto
+        return cedula_formateada
 
 
 # --- Clase para el restablecimiento de contraseña (CORREGIDA) ---

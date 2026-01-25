@@ -1,5 +1,6 @@
 # App_Home/models.py
 
+import re
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.utils import timezone
@@ -221,6 +222,24 @@ class CustomUser(AbstractUser):
         default=False, verbose_name="Administrador de Bombonas"
     )
 
+    def save(self, *args, **kwargs):
+        # Lógica para formatear la cédula automáticamente
+        if self.cedula:
+            # 1. Limpiar: Elimina cualquier caracter que no sea número (puntos, espacios, letras)
+            # Ejemplo: Si entra "V-11.111.111", queda "11111111"
+            cedula_limpia = re.sub(r'[^\d]', '', str(self.cedula))
+            
+            if cedula_limpia:
+                # 2. Convertir a entero (quita ceros a la izquierda si existen)
+                valor_int = int(cedula_limpia)
+                
+                # 3. Formatear con puntos de miles
+                # f"{valor_int:,}" crea "11,111,111" -> .replace cambia la coma por punto
+                self.cedula = f"{valor_int:,}".replace(",", ".")
+        
+        # Guardar cambios
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return self.username
 
@@ -391,6 +410,18 @@ class CensoMiembro(models.Model):
     def apartamento_completo(self):
         return f"{self.piso}-{self.apartamento_letra}"
 
+    def save(self, *args, **kwargs):
+        if self.cedula:
+            # 1. Limpieza: Dejar solo números
+            cedula_limpia = re.sub(r'[^\d]', '', str(self.cedula))
+            
+            if cedula_limpia:
+                # 2. Conversión a entero y formateo
+                valor_int = int(cedula_limpia)
+                self.cedula = f"{valor_int:,}".replace(",", ".")
+        
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return f"{self.nombres} {self.apellidos} ({self.tower} - {self.apartamento_completo})"
 
@@ -533,6 +564,11 @@ class SolicitudDocumento(models.Model):
         blank=True, 
         verbose_name="Fecha de Procesado"
     )
+
+    def save(self, *args, **kwargs):
+        if self.estado == "PROCESADO" and not self.fecha_procesado:
+            self.fecha_procesado = timezone.now()
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.get_tipo_display()} - {self.beneficiario.cedula}"

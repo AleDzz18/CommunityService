@@ -1335,8 +1335,6 @@ class LiderGeneralRequiredMixin(UserPassesTestMixin):
 
 
 class CensoPDFGeneralView(LoginRequiredMixin, LiderGeneralRequiredMixin, View):
-    """Genera un PDF horizontal con fecha de nacimiento, detalle de salud y leyenda."""
-
     def get(self, request, *args, **kwargs):
         miembros = (
             CensoMiembro.objects.select_related("tower")
@@ -1345,94 +1343,135 @@ class CensoPDFGeneralView(LoginRequiredMixin, LiderGeneralRequiredMixin, View):
         )
 
         buffer = BytesIO()
-        from reportlab.lib.pagesizes import landscape
-        
+        from reportlab.lib.pagesizes import landscape, A4
+        from reportlab.platypus import SimpleDocTemplate, Table, Paragraph, Spacer, TableStyle
+        from reportlab.lib import colors
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+
         doc = SimpleDocTemplate(
             buffer,
             pagesize=landscape(A4),
             title="Censo Comunitario General",
-            topMargin=20, bottomMargin=20, leftMargin=15, rightMargin=15,
+            topMargin=10, bottomMargin=10, leftMargin=10, rightMargin=10,
         )
 
         Story = []
         styles = getSampleStyleSheet()
+        
+        # --- ESTILOS ---
+        style_cell = ParagraphStyle(
+            'style_cell',
+            parent=styles['Normal'],
+            fontSize=6.5,
+            leading=7,
+            alignment=1, # Centrado
+            wordWrap='CJK',
+        )
+        
+        style_header = ParagraphStyle(
+            'style_header',
+            parent=styles['Normal'],
+            fontSize=7,
+            textColor=colors.white,
+            fontName='Helvetica-Bold',
+            alignment=1,
+        )
 
-        # --- Encabezados Actualizados (Añadido F. Nac) ---
+        # --- Encabezados Reordenados ---
+        # Educación y Trabajo ahora están a la derecha de "Pe"
         headers = [
-            "Torre/Apto", "Cédula", "Nombre Completo", "F. Nac", "Edad", "Jefe", 
-            "Teléfono", "Tr.", "Es.", "Me.", "Pe.", "Enfermedad/Discapacidad"
+            Paragraph("Torre/Apto", style_header),
+            Paragraph("Cédula", style_header),
+            Paragraph("Nombre Completo", style_header),
+            Paragraph("Sex", style_header),
+            Paragraph("F. Nac", style_header),
+            Paragraph("Edad", style_header), # Ancho ajustado abajo
+            Paragraph("Teléfono", style_header),
+            Paragraph("Jefe", style_header), # Ancho ajustado abajo
+            Paragraph("Tr", style_header),
+            Paragraph("Es", style_header),
+            Paragraph("Me", style_header),
+            Paragraph("Pe", style_header),
+            Paragraph("Nivel Est.", style_header),
+            Paragraph("Instrucción", style_header),
+            Paragraph("Lugar Trab.", style_header),
+            Paragraph("Salud / Observaciones", style_header)
         ]
         data = [headers]
 
         for m in miembros:
-            nombre_completo = f"{m.nombres} {m.apellidos}"
-            if len(nombre_completo) > 20:
-                nombre_completo = nombre_completo[:18] + ".."
-
-            # Formatear Fecha de Nacimiento
             f_nac = m.fecha_nacimiento.strftime('%d/%m/%Y') if m.fecha_nacimiento else "-"
-
-            # Texto de la enfermedad o discapacidad
-            info_salud = m.enfermedad_discapacidad if m.enfermedad_discapacidad else "-"
-            if len(info_salud) > 35:
-                info_salud = info_salud[:32] + "..."
-
+            
             data.append([
-                f"{m.tower.nombre}-{m.apartamento_completo}",
-                m.cedula,
-                nombre_completo,
-                f_nac,                                 # Nueva Columna
-                str(m.edad) if hasattr(m, 'edad') else "-",
-                "SÍ" if m.es_jefe_familia else "NO",
-                m.telefono if m.telefono else "-",
-                "S" if m.trabaja else "N",
-                "S" if m.estudia else "N",
-                "S" if m.toma_medicamento else "N", 
-                "S" if m.pensionado else "N",
-                info_salud,
+                Paragraph(f"{m.tower.nombre}-{m.apartamento_completo}", style_cell),
+                Paragraph(m.cedula, style_cell),
+                Paragraph(f"{m.nombres} {m.apellidos}", style_cell),
+                Paragraph(m.genero or "-", style_cell),
+                Paragraph(f_nac, style_cell),
+                Paragraph(str(m.edad), style_cell),
+                Paragraph(m.telefono if m.telefono else "-", style_cell),
+                Paragraph("S" if m.es_jefe_familia else "N", style_cell),
+                Paragraph("S" if m.trabaja else "N", style_cell),
+                Paragraph("S" if m.estudia else "N", style_cell),
+                Paragraph("S" if m.toma_medicamento else "N", style_cell),
+                Paragraph("S" if m.pensionado else "N", style_cell),
+                Paragraph(m.get_nivel_estudio_display() if m.nivel_estudio else "-", style_cell),
+                Paragraph(m.grado_instruccion if m.grado_instruccion else "-", style_cell),
+                Paragraph(m.lugar_trabajo if m.lugar_trabajo else "-", style_cell),
+                Paragraph(m.enfermedad_discapacidad if m.enfermedad_discapacidad else "-", style_cell),
             ])
 
-        # --- Distribución de Anchos (A4 Landscape total ~842 pts) ---
-        # Ajustado para incluir F. Nac (60 pts) reduciendo un poco salud y nombre
-        col_widths = [55, 60, 110, 60, 25, 25, 75, 22, 22, 22, 22, 240]
+        # --- Distribución de Anchos (Total ~822 pts) ---
+        # Aumenté Edad a 25 y Jefe a 25 para evitar el salto de línea en la cabecera
+        col_widths = [
+            45, # Torre
+            58, # Cédula
+            95, # Nombre
+            18, # Sex
+            48, # F. Nac
+            25, # Edad (Suficiente para la palabra "Edad")
+            62, # Teléfono
+            25, # Jefe (Suficiente para la palabra "Jefe")
+            15, # Tr
+            15, # Es
+            15, # Me
+            15, # Pe
+            55, # Nivel Est
+            80, # Instrucción
+            80, # Lugar Trab
+            171 # Salud (Aprovechando el resto del espacio)
+        ]
 
-        table = PDFTable(data, colWidths=col_widths, repeatRows=1)
+        table = Table(data, colWidths=col_widths, repeatRows=1)
 
         table.setStyle(TableStyle([
             ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#003049")),
-            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
             ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-            ("ALIGN", (-1, 1), (-1, -1), "LEFT"), # Salud a la izquierda
             ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-            ("FONTSIZE", (0, 0), (-1, 0), 8),
-            ("FONTNAME", (0, 1), (-1, -1), "Helvetica"),
-            ("FONTSIZE", (0, 1), (-1, -1), 7),
-            ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+            ("GRID", (0, 0), (-1, -1), 0.3, colors.grey),
             ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.whitesmoke, colors.white]),
+            ("LEFTPADDING", (0, 0), (-1, -1), 1),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 1),
+            ("TOPPADDING", (0, 0), (-1, -1), 2),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
         ]))
 
         Story.append(Paragraph("Censo Comunitario General", styles["Title"]))
-        Story.append(Paragraph("Detalle de Habitantes - Balcones de Paraguaná I", styles["Normal"]))
-        Story.append(Spacer(1, 15))
-        
+        Story.append(Spacer(1, 10))
         Story.append(table)
         
-        Story.append(Spacer(1, 10))
-        
-        # --- Nueva Leyenda ---
-        estilo_leyenda = ParagraphStyle('Leyenda', parent=styles['Normal'], fontSize=8)
+        # Leyenda
+        estilo_leyenda = ParagraphStyle('Leyenda', parent=styles['Normal'], fontSize=7)
         leyenda_texto = (
-            "<b>Leyenda:</b> <b>Tr:</b> Trabaja | <b>Es:</b> Estudia | "
-            "<b>Me:</b> Toma Medicamentos | <b>Pe:</b> Pensionado | "
-            "<b>S:</b> SÍ | <b>N:</b> NO"
+            "<b>Leyenda:</b> <b>Tr:</b> Trabaja | <b>Es:</b> Estudia | <b>Me:</b> Medicamentos | <b>Pe:</b> Pensionado | <b>S:</b> SÍ | <b>N:</b> NO"
         )
+        Story.append(Spacer(1, 10))
         Story.append(Paragraph(leyenda_texto, estilo_leyenda))
         Story.append(Paragraph(f"Total de personas registradas: {len(miembros)}", estilo_leyenda))
 
         doc.build(Story)
         response = HttpResponse(content_type="application/pdf")
-        response["Content-Disposition"] = f'attachment; filename="Censo_Detallado_{timezone.now().strftime("%Y%m%d")}.pdf"'
+        response["Content-Disposition"] = f'attachment; filename="Censo_{timezone.now().strftime("%Y%m%d")}.pdf"'
         response.write(buffer.getvalue())
         buffer.close()
         return response
