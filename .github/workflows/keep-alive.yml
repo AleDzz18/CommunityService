@@ -1,0 +1,26 @@
+name: "*****base Anti-Pause Agent 😋😋"
+
+on:
+  schedule:
+    # Ejecutar cada 8 horas (00:00, 08:00, 16:00 UTC)
+    # Esto da 21 oportunidades semanales, el script filtrará para dejarlo en ~3-14.
+    - cron: '0 */8 * * *' 
+  workflow_dispatch: # Permite probarlo manualmente desde el botón de GitHub
+
+jobs:
+  simulate_traffic:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Run Stealth Script
+        run: python scripts/keeper.py
