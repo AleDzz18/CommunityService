@@ -12,11 +12,16 @@ pip install -r requirements.txt
 # 3. Construir Tailwind
 # Nota: django-tailwind buscará npm, que ya está en Vercel
 echo "Construyendo Tailwind..."
+python manage.py tailwind download_cli
 python manage.py tailwind install --no-input
 python manage.py tailwind build --no-input
 
 # 4. Recolectar estáticos
 echo "Recolectando estáticos..."
 python manage.py collectstatic --noinput --clear
+
+# 5. asegurar migraciones de database
+python manage.py makemigrations
+python manage.py migrate
 
 echo "Build Finalizado."
