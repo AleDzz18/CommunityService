@@ -1,74 +1,85 @@
 {% extends "layouts/complete.html" %}
-
 {% block toolbaritems %}
-    <form method="get" class="flex flex-wrap gap-2 items-center p-2">
-        <input type="date" name="fecha_filtro" value="{{ fecha_filtro }}" 
-               class="input input-bordered input-sm" onchange="this.form.submit()">
-        
-        <select name="mes" class="select select-bordered select-sm" onchange="this.form.submit()">
-            <option value="todas">Todos los meses</option>
-            {% for numero, nombre in lista_meses %}
-                <option value="{{ numero }}" {% if mes_seleccionado == numero %}selected{% endif %}>{{ nombre }}</option>
-            {% endfor %}
-        </select>
-
-        <select name="anio" class="select select-bordered select-sm" onchange="this.form.submit()">
-            {% for y in anios_disponibles %}
-                <option value="{{ y }}" {% if anio_seleccionado == y %}selected{% endif %}>{{ y }}</option>
-            {% endfor %}
-        </select>
-        
-        <a href="{% url 'lider_general:correlativo_documentos' %}" class="btn btn-ghost btn-sm">Limpiar</a>
+    <form method="get"
+          class="flex items-center justify-between w-full flex-wrap gap-1">
+        <div class="flex flex-wrap items-center gap-1">
+            <input type="date"
+                   name="fecha_filtro"
+                   value="{{ fecha_filtro }}"
+                   class="input input-sm w-fit max-lg:before:content-['Fecha'] "
+                   onchange="this.form.submit()">
+            <select name="mes"
+                    class="select select-sm w-fit"
+                    onchange="this.form.submit()">
+                <option value="todas">Todos los meses</option>
+                {% for numero, nombre in lista_meses %}
+                    <option value="{{ numero }}"
+                            {% if mes_seleccionado == numero %}selected{% endif %}>{{ nombre }}</option>
+                {% endfor %}
+            </select>
+            <select name="anio"
+                    class="select select-sm w-fit"
+                    onchange="this.form.submit()">
+                {% for y in anios_disponibles %}
+                    <option value="{{ y }}" {% if anio_seleccionado == y %}selected{% endif %}>{{ y }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="flex flex-wrap items-center gap-1">
+            <a href="{% url 'lider_general:correlativo_documentos' %}"
+               class="btn btn-soft btn-sm">
+                <svg xmlns="http://www.w3.org/2000/svg"
+                     class="size-4"
+                     viewBox="0 0 256 256">
+                    <!-- Icon from Phosphor by Phosphor Icons - https://github.com/phosphor-icons/core/blob/main/LICENSE -->
+                    <path fill="currentColor" d="M224 128a96 96 0 0 1-94.71 96H128a95.38 95.38 0 0 1-65.9-26.2a8 8 0 0 1 11-11.63a80 80 0 1 0-1.67-114.78a3 3 0 0 1-.26.25l-10.54 9.65l17 17A8 8 0 0 1 72 112H24a8 8 0 0 1-8-8V56a8 8 0 0 1 13.66-5.7L49.31 70l10.94-10A96 96 0 0 1 224 128" />
+                </svg>
+                Limpiar Filtros
+            </a>
+        </div>
     </form>
 {% endblock toolbaritems %}
-
 {% block content %}
-<div v-scope @vue:mounted="navbar.change('Correlativo de Documentos'); navbar.toolbarShow = true" class="p-8 w-full flex flex-col gap-6"">
-    
-    <div class="flex justify-between items-center bg-base-100 p-4 rounded-box shadow-sm border border-base-200">
-        <div class="stats bg-transparent">
-            <div class="stat p-0">
-                <div class="stat-title text-xs uppercase font-bold">Docs Emitidos</div>
-                <div class="stat-value text-primary text-2xl">{{ total_documentos }}</div>
+    <div v-scope
+         @vue:mounted="navbar.change('Correlativo de Documentos'); navbar.toolbarOpen()"
+         class="min-h-[calc(100svh-8rem)] max-w-screen overflow-hidden p-8 flex flex-col justify-stretch items-start gap-4">
+        <a href="{% url 'lider_general:lista_solicitudes' %}"
+           class="btn btn-neutral w-full ">Volver al inicio</a>
+        <div class="stats shadow w-full">
+            <div class="stat">
+                <div class="stat-title">Documentos emitidos</div>
+                <div class="stat-value">{{ total_documentos }}</div>
             </div>
         </div>
-        <a href="{% url 'lider_general:lista_solicitudes' %}" class="btn btn-sm btn-outline">
-            Volver a Gestión
-        </a>
+        <div class="overflow-x-auto w-full max-h-[calc(100svh-12rem)] rounded-box border border-base-content/5 bg-base-100">
+            <table class="table table-sm lg:table-md table-pin-rows table-zebra text-center">
+                <thead class="bg-base-200 text-base-content">
+                    <tr>
+                        <th>Num. Correlativo</th>
+                        <th>Nombre</th>
+                        <th>Apartamento</th>
+                        <th>Tipo de Documento</th>
+                        <th>Fecha Emisión</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for doc in documentos %}
+                        <tr>
+                            <td>
+                                <span class="badge  badge-primary badge-outline font-mono">{{ forloop.counter|stringformat:"03d" }}</span>
+                            </td>
+                            <td>{{ doc.beneficiario.nombres }}</td>
+                            <td>{{ doc.beneficiario.tower.nombre }} - {{ doc.beneficiario.apartamento_completo }}</td>
+                            <td>{{ doc.get_tipo_display }}</td>
+                            <td>{{ doc.fecha_solicitud|date:"d/m/Y" }}</td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="5" class="py-20 opacity-40">No hay documentos que coincidan con la búsqueda.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
     </div>
-
-    <div class="overflow-x-auto w-full rounded-box border border-base-content/5 bg-base-100 shadow-xl">
-        <table class="table table-zebra w-full text-center">
-            <thead class="bg-base-200 text-base-content">
-                <tr>
-                    <th># Correlativo</th>
-                    <th>Vecino / Torre</th>
-                    <th>Tipo de Documento</th>
-                    <th>Fecha Emisión</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for doc in documentos %}
-                <tr>
-                    <td class="font-bold">
-                        <span class="badge badge-lg badge-primary font-mono">
-                            {{ forloop.counter|stringformat:"03d" }}
-                        </span>
-                    </td>
-                    <td>
-                        <div class="font-bold text-sm">{{ doc.beneficiario.nombres }}</div>
-                        <div class="text-xs opacity-50">{{ doc.beneficiario.tower.nombre }} - {{ doc.beneficiario.apartamento_completo }}</div>
-                    </td>
-                    <td class="text-sm">{{ doc.get_tipo_display }}</td>
-                    <td class="text-sm">{{ doc.fecha_solicitud|date:"d/m/Y" }}</td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="5" class="py-20 opacity-40">No hay documentos que coincidan con la búsqueda.</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-</div>
 {% endblock content %}

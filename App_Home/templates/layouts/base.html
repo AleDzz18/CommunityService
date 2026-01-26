@@ -27,7 +27,7 @@
         const sidebar = reactive({
             open: false,
             django_data: {
-                user_tower: '{{ request.user.tower.nombre|default:'unknown' }}'
+                user_tower: "{{ request.user.tower.nombre|default:'unknown' }}"
             },
             path: "{{ request.path }}",
             forceOpen() {

@@ -26,6 +26,7 @@
     --container-sm: 24rem;
     --container-md: 28rem;
     --container-lg: 32rem;
+    --container-xl: 36rem;
     --container-2xl: 42rem;
     --text-xs: 0.75rem;
     --text-xs--line-height: calc(1 / 0.75);
@@ -3336,6 +3337,9 @@
   .max-w-40 {
     max-width: calc(var(--spacing) * 40);
   }
+  .max-w-48 {
+    max-width: calc(var(--spacing) * 48);
+  }
   .max-w-\[50vw\] {
     max-width: 50vw;
   }
@@ -3509,6 +3513,9 @@
   }
   .justify-stretch {
     justify-content: stretch;
+  }
+  .gap-0 {
+    gap: calc(var(--spacing) * 0);
   }
   .gap-0\.5 {
     gap: calc(var(--spacing) * 0.5);
@@ -4636,6 +4643,12 @@
       color: var(--color-gray-400);
     }
   }
+  .before\:content-\[\'Fecha\'\] {
+    &::before {
+      --tw-content: 'Fecha';
+      content: var(--tw-content);
+    }
+  }
   .hover\:bg-primary {
     &:hover {
       @media (hover: hover) {
@@ -4711,6 +4724,24 @@
               }
             }
           }
+        }
+      }
+    }
+  }
+  .max-lg\:before\:content-\[\'Fecha\'\] {
+    @media (width < 64rem) {
+      &::before {
+        --tw-content: 'Fecha';
+        content: var(--tw-content);
+      }
+    }
+  }
+  .max-lg\:valid\:before\:content-\[\'\'\] {
+    @media (width < 64rem) {
+      &:valid {
+        &::before {
+          --tw-content: '';
+          content: var(--tw-content);
         }
       }
     }
@@ -5008,6 +5039,16 @@
       width: 100%;
     }
   }
+  .lg\:w-sm {
+    @media (width >= 64rem) {
+      width: var(--container-sm);
+    }
+  }
+  .lg\:w-xl {
+    @media (width >= 64rem) {
+      width: var(--container-xl);
+    }
+  }
   .lg\:max-w-2xs {
     @media (width >= 64rem) {
       max-width: var(--container-2xs);
@@ -5016,6 +5057,21 @@
   .lg\:max-w-\[1536px\] {
     @media (width >= 64rem) {
       max-width: 1536px;
+    }
+  }
+  .lg\:max-w-md {
+    @media (width >= 64rem) {
+      max-width: var(--container-md);
+    }
+  }
+  .lg\:max-w-sm {
+    @media (width >= 64rem) {
+      max-width: var(--container-sm);
+    }
+  }
+  .lg\:max-w-xs {
+    @media (width >= 64rem) {
+      max-width: var(--container-xs);
     }
   }
   .lg\:min-w-2xl {
@@ -5893,6 +5949,11 @@
   syntax: "*";
   inherits: false;
 }
+@property --tw-content {
+  syntax: "*";
+  initial-value: "";
+  inherits: false;
+}
 @property --tw-leading {
   syntax: "*";
   inherits: false;
@@ -5966,6 +6027,7 @@
       --tw-backdrop-sepia: initial;
       --tw-duration: initial;
       --tw-ease: initial;
+      --tw-content: "";
       --tw-leading: initial;
     }
   }

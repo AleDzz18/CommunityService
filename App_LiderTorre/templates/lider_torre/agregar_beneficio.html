@@ -6,7 +6,8 @@
         <a href="{% url 'ver_beneficio' tipo_slug=tipo_slug %}"
            class="btn btn-neutral w-full ">Volver a la lista</a>
         <div class="alert alert-outline alert-info w-full text-lg">
-            <span>Aquí puedes seleccionar a los jefes de familia de tu torre que <b>aún no han sido incluidos</b> en el ciclo actual de {{ titulo }}</span>
+            <span>Aquí puedes seleccionar a los jefes de familia de tu torre que <b>aún no han sido incluidos</b> en el
+            ciclo actual de {{ titulo }}</span>
         </div>
         <form method="get" class="flex justify-stretch items-start gap-2 w-full">
             <input type="text"
@@ -43,7 +44,10 @@
             <div class="fab">
                 <button type="submit"
                         class="btn btn-lg btn-success"
-                        :disabled="!atLeastOneChecked">Agregar seleccionados</button>
+                        :disabled="!atLeastOneChecked">
+                    Agregar
+                    seleccionados
+                </button>
             </div>
             <div class="card w-full bg-base-100 shadow-sm">
                 <div class="card-title flex justify-start items-center px-8 mt-4">
@@ -85,16 +89,16 @@
                                         <td>{{ miembro.apartamento_completo }}</td>
                                         <td>{{ miembro.miembros_contados }}</td>
                                         <td>
-                                            <input type="text" 
-                                                   name="referencia_{{ miembro.id }}" 
-                                                   placeholder="Ref..." 
+                                            <input type="text"
+                                                   name="referencia_{{ miembro.id }}"
+                                                   placeholder="Ref..."
                                                    class="input input-xs input-bordered w-28"
                                                    @click.stop>
                                         </td>
                                     </tr>
                                 {% empty %}
                                     <tr>
-                                        <td colspan="5" class="text-center py-4 ">
+                                        <td colspan="6" class="text-center py-4 ">
                                             <p>¡Todos los jefes de familia de tu torre ya están en la lista de {{ titulo }}!</p>
                                         </td>
                                     </tr>

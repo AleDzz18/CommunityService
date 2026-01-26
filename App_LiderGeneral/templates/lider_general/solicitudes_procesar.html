@@ -52,10 +52,14 @@
                                 <div class="mt-2">
                                     <select name="{{ field.html_name }}"
                                             id="{{ field.id_for_label }}"
-                                            value="{{ field.value|default:'' }}"
                                             class="select block rounded-md w-48 bg-white px-3 py-1.5 text-base text-primary outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-accent sm:text-sm/6 {% if field.errors %}input-error{% endif %}">
                                         <option disabled {% if not field.value %}selected{% endif %}>Selecciona</option>
-                                        {% for value, label in field.field.choices %}<option value='{{ value }}'>{{ label }}</option>{% endfor %}
+                                        {% for value, label in field.field.choices %}
+                                            <option value='{{ value }}'
+                                                    {% if field.value.value == value %}selected{% endif %}>
+                                                {{ label }}
+                                            </option>
+                                        {% endfor %}
                                     </select>
                                 </div>
                                 {% if field.errors %}<div class=" label text-error text-sm">{{ field.errors }}</div>{% endif %}
@@ -93,11 +97,11 @@
     <div class="mt-2">
         <select name="{{ form.tipo_documento.html_name }}"
                 id="{{ form.tipo_documento.id_for_label }}"
-                value="{{ form.tipo_documento.value|default:'' }}"
                 class="select block rounded-md w-48 bg-white px-3 py-1.5 text-base text-primary outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-accent sm:text-sm/6 {% if form.tipo_documento.errors %}input-error{% endif %}">
             <option disabled {% if not form.tipo_documento.value %}selected{% endif %}>Selecciona</option>
             {% for value, label in form.tipo_documento.field.choices %}
-                <option value='{{ value }}'>{{ label }}</option>
+                <option value='{{ value }}'
+                        {% if form.tipo_documento.value == value %}selected{% endif %}>{{ label }}</option>
             {% endfor %}
         </select>
     </div>

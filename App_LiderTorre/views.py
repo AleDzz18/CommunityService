@@ -71,7 +71,9 @@ class BaseMovimientoCreateView(LoginRequiredMixin, LiderTorreRequiredMixin, Crea
         categoria_slug = (
             "condominio" if "Condominio" in self.CATEGORIA_MOVIMIENTO else "basura"
         )
-        return reverse_lazy("ver_finanzas", kwargs={"categoria_slug": categoria_slug})
+        return reverse_lazy(
+            "ver_finanzas_gestion", kwargs={"categoria_slug": categoria_slug}
+        )
 
     def form_invalid(self, form):
         """Muestra los errores del formulario en la consola para debugging y asegura mensaje al usuario."""
@@ -465,10 +467,10 @@ class AgregarVecinosTorreView(LoginRequiredMixin, LiderTorreRequiredMixin, ListV
 
             objetos_a_crear.append(
                 EntregaBeneficio(
-                    ciclo=ciclo_activo, 
-                    beneficiario=miembro, 
+                    ciclo=ciclo_activo,
+                    beneficiario=miembro,
                     agregado_por=request.user,
-                    referencia_pago=ref_pago  # <--- Guardamos la referencia
+                    referencia_pago=ref_pago,  # <--- Guardamos la referencia
                 )
             )
 
@@ -547,28 +549,31 @@ class CensoPDFTorreView(LoginRequiredMixin, View):
             buffer,
             pagesize=landscape(A4),
             title=f"Censo Torre {torre_usuario.nombre}",
-            topMargin=10, bottomMargin=10, leftMargin=10, rightMargin=10,
+            topMargin=10,
+            bottomMargin=10,
+            leftMargin=10,
+            rightMargin=10,
         )
 
         Story = []
         styles = getSampleStyleSheet()
-        
+
         # --- ESTILOS OPTIMIZADOS ---
         style_cell = ParagraphStyle(
-            'style_cell',
-            parent=styles['Normal'],
+            "style_cell",
+            parent=styles["Normal"],
             fontSize=6.5,
             leading=7,
-            alignment=1, # Centrado
-            wordWrap='CJK',
+            alignment=1,  # Centrado
+            wordWrap="CJK",
         )
-        
+
         style_header = ParagraphStyle(
-            'style_header',
-            parent=styles['Normal'],
+            "style_header",
+            parent=styles["Normal"],
             fontSize=7,
             textColor=colors.white,
-            fontName='Helvetica-Bold',
+            fontName="Helvetica-Bold",
             alignment=1,
         )
 
@@ -589,31 +594,43 @@ class CensoPDFTorreView(LoginRequiredMixin, View):
             Paragraph("Nivel Est.", style_header),
             Paragraph("Instrucción", style_header),
             Paragraph("Lugar Trab.", style_header),
-            Paragraph("Salud / Observaciones", style_header)
+            Paragraph("Salud / Observaciones", style_header),
         ]
         data = [headers]
 
         for m in miembros:
-            f_nac = m.fecha_nacimiento.strftime('%d/%m/%Y') if m.fecha_nacimiento else "-"
-            
-            data.append([
-                Paragraph(m.apartamento_completo, style_cell),
-                Paragraph(m.cedula, style_cell),
-                Paragraph(f"{m.nombres} {m.apellidos}", style_cell),
-                Paragraph(m.genero or "-", style_cell),
-                Paragraph(f_nac, style_cell),
-                Paragraph(str(m.edad), style_cell),
-                Paragraph(m.telefono if m.telefono else "-", style_cell),
-                Paragraph("S" if m.es_jefe_familia else "N", style_cell),
-                Paragraph("S" if m.trabaja else "N", style_cell),
-                Paragraph("S" if m.estudia else "N", style_cell),
-                Paragraph("S" if m.toma_medicamento else "N", style_cell),
-                Paragraph("S" if m.pensionado else "N", style_cell),
-                Paragraph(m.get_nivel_estudio_display() if m.nivel_estudio else "-", style_cell),
-                Paragraph(m.grado_instruccion if m.grado_instruccion else "-", style_cell),
-                Paragraph(m.lugar_trabajo if m.lugar_trabajo else "-", style_cell),
-                Paragraph(m.enfermedad_discapacidad if m.enfermedad_discapacidad else "-", style_cell),
-            ])
+            f_nac = (
+                m.fecha_nacimiento.strftime("%d/%m/%Y") if m.fecha_nacimiento else "-"
+            )
+
+            data.append(
+                [
+                    Paragraph(m.apartamento_completo, style_cell),
+                    Paragraph(m.cedula, style_cell),
+                    Paragraph(f"{m.nombres} {m.apellidos}", style_cell),
+                    Paragraph(m.genero or "-", style_cell),
+                    Paragraph(f_nac, style_cell),
+                    Paragraph(str(m.edad), style_cell),
+                    Paragraph(m.telefono if m.telefono else "-", style_cell),
+                    Paragraph("S" if m.es_jefe_familia else "N", style_cell),
+                    Paragraph("S" if m.trabaja else "N", style_cell),
+                    Paragraph("S" if m.estudia else "N", style_cell),
+                    Paragraph("S" if m.toma_medicamento else "N", style_cell),
+                    Paragraph("S" if m.pensionado else "N", style_cell),
+                    Paragraph(
+                        m.get_nivel_estudio_display() if m.nivel_estudio else "-",
+                        style_cell,
+                    ),
+                    Paragraph(
+                        m.grado_instruccion if m.grado_instruccion else "-", style_cell
+                    ),
+                    Paragraph(m.lugar_trabajo if m.lugar_trabajo else "-", style_cell),
+                    Paragraph(
+                        m.enfermedad_discapacidad if m.enfermedad_discapacidad else "-",
+                        style_cell,
+                    ),
+                ]
+            )
 
         # --- DISTRIBUCIÓN DE ANCHOS (Total ~822 pts) ---
         # Mantenemos los 25 pts en Edad y Jefe para que no se corten
@@ -621,37 +638,57 @@ class CensoPDFTorreView(LoginRequiredMixin, View):
 
         table = PDFTable(data, colWidths=col_widths, repeatRows=1)
 
-        table.setStyle(TableStyle([
-            # COLOR DISTINTIVO PARA LÍDER DE TORRE: #2a9d8f
-            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#2a9d8f")), 
-            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-            ("GRID", (0, 0), (-1, -1), 0.3, colors.grey),
-            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.whitesmoke, colors.white]),
-            ("LEFTPADDING", (0, 0), (-1, -1), 1),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 1),
-            ("TOPPADDING", (0, 0), (-1, -1), 2),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
-        ]))
+        table.setStyle(
+            TableStyle(
+                [
+                    # COLOR DISTINTIVO PARA LÍDER DE TORRE: #2a9d8f
+                    ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#2a9d8f")),
+                    ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                    ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                    ("GRID", (0, 0), (-1, -1), 0.3, colors.grey),
+                    (
+                        "ROWBACKGROUNDS",
+                        (0, 1),
+                        (-1, -1),
+                        [colors.whitesmoke, colors.white],
+                    ),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 1),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 1),
+                    ("TOPPADDING", (0, 0), (-1, -1), 2),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+                ]
+            )
+        )
 
         # --- CONSTRUCCIÓN DEL DOCUMENTO ---
-        Story.append(Paragraph(f"Censo Comunitario - Torre {torre_usuario.nombre}", styles["Title"]))
-        Story.append(Paragraph("Detalle de Habitantes - Balcones de Paraguaná I", styles["Normal"]))
+        Story.append(
+            Paragraph(
+                f"Censo Comunitario - Torre {torre_usuario.nombre}", styles["Title"]
+            )
+        )
+        Story.append(
+            Paragraph(
+                "Detalle de Habitantes - Balcones de Paraguaná I", styles["Normal"]
+            )
+        )
         Story.append(Spacer(1, 10))
-        
+
         Story.append(table)
         Story.append(Spacer(1, 10))
-        
+
         # --- LEYENDA ---
-        estilo_leyenda = ParagraphStyle('Leyenda', parent=styles['Normal'], fontSize=7)
-        leyenda_texto = (
-            "<b>Leyenda:</b> <b>Tr:</b> Trabaja | <b>Es:</b> Estudia | <b>Me:</b> Medicamentos | <b>Pe:</b> Pensionado | <b>S:</b> SÍ | <b>N:</b> NO"
-        )
+        estilo_leyenda = ParagraphStyle("Leyenda", parent=styles["Normal"], fontSize=7)
+        leyenda_texto = "<b>Leyenda:</b> <b>Tr:</b> Trabaja | <b>Es:</b> Estudia | <b>Me:</b> Medicamentos | <b>Pe:</b> Pensionado | <b>S:</b> SÍ | <b>N:</b> NO"
         Story.append(Paragraph(leyenda_texto, estilo_leyenda))
-        Story.append(Paragraph(f"Total de personas en Torre {torre_usuario.nombre}: {len(miembros)}", estilo_leyenda))
+        Story.append(
+            Paragraph(
+                f"Total de personas en Torre {torre_usuario.nombre}: {len(miembros)}",
+                estilo_leyenda,
+            )
+        )
 
         doc.build(Story)
-        
+
         response = HttpResponse(content_type="application/pdf")
         filename = f"Censo_Torre_{torre_usuario.nombre}_{timezone.now().strftime('%Y%m%d')}.pdf"
         response["Content-Disposition"] = f'attachment; filename="{filename}"'
@@ -668,7 +705,7 @@ class EditarMovimientoView(LoginRequiredMixin, LiderTorreRequiredMixin, UpdateVi
         # Retorna al listado de finanzas de la categoría editada
         categoria = self.object.categoria
         slug = "condominio" if categoria == "CON" else "basura"
-        return reverse_lazy("ver_finanzas", kwargs={"categoria_slug": slug})
+        return reverse_lazy("ver_finanzas_gestion", kwargs={"categoria_slug": slug})
 
     def dispatch(self, request, *args, **kwargs):
         obj = self.get_object()

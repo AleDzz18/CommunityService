@@ -6,9 +6,19 @@
             '{{ form.fecha_nacimiento.value|date:'Y-m-d' }}'
         {% else %}
             '{{ form.fecha_nacimiento.value|default:'' }}'
-        {% endif %},
-        trabaja: {% if form.trabaja.value %}true{% else %}false{% endif %},
-        estudia: {% if form.estudia.value %}true{% else %}false{% endif %}
+        {% endif %}
+        , trabaja:
+        {% if form.trabaja.value %}
+            true
+        {% else %}
+            false
+        {% endif %}
+        , estudia:
+        {% if form.estudia.value %}
+            true
+        {% else %}
+            false
+        {% endif %}
         }" @vue:mounted="navbar.change({% if form.instance.pk %} 'Editar Datos' {% else %} 'Registrar' {% endif %} + ' - Admin General')" class="min-h-svh flex flex-col justify-start items-stretch px-6 py-8 gap-4">
         <div class="card w-full card-border bg-base-100 card-md shadow-sm static">
             <div class="card-body [&>form_div.label]:text-wrap [&>form_input,select]:w-full">
@@ -28,7 +38,12 @@
                                         value="{{ form.tower.value|default:'' }}"
                                         class="select block rounded-md w-48 bg-white px-3 py-1.5 text-base text-primary outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-accent sm:text-sm/6 {% if form.tower.errors %}input-error{% endif %}">
                                     <option disabled {% if not form.tower.value %}selected{% endif %}>Selecciona</option>
-                                    {% for value, label in form.tower.field.choices %}<option value='{{ value }}'>{{ label }}</option>{% endfor %}
+                                    {% for value, label in form.tower.field.choices %}
+                                        <option value='{{ value }}'
+                                                {% if form.tower.value == value %}selected{% endif %}>
+                                            {{ label }}
+                                        </option>
+                                    {% endfor %}
                                 </select>
                             </div>
                             {% if form.tower.errors %}<div class=" label text-error text-sm">{{ form.tower.errors }}</div>{% endif %}
@@ -39,10 +54,14 @@
                             <div class="mt-2">
                                 <select name="{{ form.piso.html_name }}"
                                         id="{{ form.piso.id_for_label }}"
-                                        value="{{ form.piso.value|default:'' }}"
                                         class="select block rounded-md w-48 bg-white px-3 py-1.5 text-base text-primary outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-accent sm:text-sm/6 {% if form.piso.errors %}input-error{% endif %}">
                                     <option disabled {% if not form.piso.value %}selected{% endif %}>Selecciona</option>
-                                    {% for value, label in form.piso.field.choices %}<option value='{{ value }}'>{{ label }}</option>{% endfor %}
+                                    {% for value, label in form.piso.field.choices %}
+                                        <option value='{{ value }}'
+                                                {% if form.piso.value == value %}selected{% endif %}>
+                                            {{ label }}
+                                        </option>
+                                    {% endfor %}
                                 </select>
                             </div>
                             {% if form.piso.errors %}<div class=" label text-error text-sm">{{ form.piso.errors }}</div>{% endif %}
@@ -55,11 +74,13 @@
                             <div class="mt-2">
                                 <select name="{{ form.apartamento_letra.html_name }}"
                                         id="{{ form.apartamento_letra.id_for_label }}"
-                                        value="{{ form.apartamento_letra.value|default:'' }}"
                                         class="select block rounded-md w-48 bg-white px-3 py-1.5 text-base text-primary outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-accent sm:text-sm/6 {% if form.apartamento_letra.errors %}input-error{% endif %}">
-                                    <option disabled {% if not form.piso.value %}selected{% endif %}>Selecciona</option>
+                                    <option disabled {% if not form.apartamento_letra.value %}selected{% endif %}>Selecciona</option>
                                     {% for value, label in form.apartamento_letra.field.choices %}
-                                        <option value='{{ value }}'>{{ label }}</option>
+                                        <option value='{{ value }}'
+                                                {% if form.apartamento_letra.value == value %}selected{% endif %}>
+                                            {{ label }}
+                                        </option>
                                     {% endfor %}
                                 </select>
                             </div>
@@ -157,10 +178,14 @@
                             <div class="mt-2">
                                 <select name="{{ form.genero.html_name }}"
                                         id="{{ form.genero.id_for_label }}"
-                                        value="{{ form.genero.value|default:'' }}"
                                         class="select block rounded-md w-48 bg-white px-3 py-1.5 text-base text-primary outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-accent sm:text-sm/6 {% if form.genero.errors %}input-error{% endif %}">
-                                    <option disabled {% if not form.piso.value %}selected{% endif %}>Selecciona</option>
-                                    {% for value, label in form.genero.field.choices %}<option value='{{ value }}'>{{ label }}</option>{% endfor %}
+                                    <option disabled {% if not form.genero.value %}selected{% endif %}>Selecciona</option>
+                                    {% for value, label in form.genero.field.choices %}
+                                        <option value='{{ value }}'
+                                                {% if form.genero.value == value %}selected{% endif %}>
+                                            {{ label }}
+                                        </option>
+                                    {% endfor %}
                                 </select>
                             </div>
                             {% if form.genero.errors %}<div class=" label text-error text-sm">{{ form.genero.errors }}</div>{% endif %}
@@ -197,93 +222,138 @@
                         </div>
                     </div>
                     <div class="divider"></div>
-                    <h3 class="text-lg text-primary mb-2">Información de Salud</h3>
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 w-full">
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 w-full items-end">
                         <div>
                             <label for="{{ form.enfermedad_discapacidad.id_for_label }}"
-                                   class="block text-sm/6 font-medium text-primary">{{ form.enfermedad_discapacidad.label }}</label>
+                                   class="block text-sm/6 font-medium text-primary">
+                                {{ form.enfermedad_discapacidad.label }}
+                            </label>
                             <div class="mt-2">
                                 <input type="text"
                                        name="{{ form.enfermedad_discapacidad.html_name }}"
                                        id="{{ form.enfermedad_discapacidad.id_for_label }}"
                                        value="{{ form.enfermedad_discapacidad.value|default:'' }}"
-                                       placeholder="Ninguna / Descripción"
-                                       class="block rounded-md w-full bg-white px-3 py-1.5 text-base text-primary outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-accent sm:text-sm/6 {% if form.enfermedad_discapacidad.errors %}input-error{% endif %}" />
+                                       placeholder="Dejar vacio para ninguna / Descripción"
+                                       class="block rounded-md w-48 bg-white px-3 py-1.5 text-base text-primary outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-accent sm:text-sm/6 {% if form.enfermedad_discapacidad.errors %}input-error{% endif %}" />
                             </div>
-                            {% if form.enfermedad_discapacidad.errors %}<div class="label text-error text-sm">{{ form.enfermedad_discapacidad.errors }}</div>{% endif %}
+                            {% if form.enfermedad_discapacidad.errors %}
+                                <div class="label text-error text-sm">{{ form.enfermedad_discapacidad.errors }}</div>
+                            {% endif %}
                         </div>
-                        <div class="flex flex-col sm:flex-row gap-4 items-center justify-around bg-base-200/50 rounded-lg p-2 mt-6">
-                            <label class="label cursor-pointer gap-3">
-                                <input type="checkbox" name="{{ form.toma_medicamento.html_name }}" 
-                                       class="checkbox checkbox-primary" {% if form.toma_medicamento.value %}checked{% endif %}>
-                                <span class="label-text font-bold text-primary">¿Toma Medicamento?</span>
+                        <div class="max-w-48">
+                            <label class="label ">
+                                <input type="checkbox"
+                                       {% if form.toma_medicamento.value %}checked{% endif %}
+                                       class="checkbox checkbox-lg checkbox-primary [&&]:w-(--size) "
+                                       name="{{ form.toma_medicamento.html_name }}"
+                                       id="{{ form.toma_medicamento.id_for_label }}" />
+                                <span>
+                                    <b class="text-primary">¿Toma Medicamento?</b>
+                                </span>
                             </label>
-                            <label class="label cursor-pointer gap-3">
-                                <input type="checkbox" name="{{ form.pensionado.html_name }}" 
-                                       class="checkbox checkbox-primary" {% if form.pensionado.value %}checked{% endif %}>
-                                <span class="label-text font-bold text-primary">¿Es Pensionado?</span>
+                            {% if form.toma_medicamento.errors %}
+                                <div class="label text-error text-sm">{{ form.toma_medicamento.errors }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="max-w-48">
+                            <label class="label ">
+                                <input type="checkbox"
+                                       {% if form.pensionado.value %}checked{% endif %}
+                                       class="checkbox checkbox-lg checkbox-primary [&&]:w-(--size) "
+                                       name="{{ form.pensionado.html_name }}"
+                                       id="{{ form.pensionado.id_for_label }}" />
+                                <span>
+                                    <b class="text-primary">¿Es Pensionado?</b>
+                                </span>
                             </label>
+                            {% if form.pensionado.errors %}<div class="label text-error text-sm">{{ form.pensionado.errors }}</div>{% endif %}
                         </div>
                     </div>
                     <div class="divider"></div>
-                    <div class="p-4 border border-base-300 rounded-xl bg-base-50/30">
-                        <h3 class="text-lg text-primary mb-2">Situación Laboral</h3>
-                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 w-full">
-                            <div class="flex items-center">
-                                <label class="label cursor-pointer justify-start gap-4">
-                                    <input type="checkbox" 
-                                           v-model="trabaja"
-                                           name="{{ form.trabaja.html_name }}"
-                                           class="checkbox checkbox-lg checkbox-accent"
-                                           {% if form.trabaja.value %}checked{% endif %}>
-                                    <span class="label-text font-bold text-lg text-primary">¿Trabaja actualmente?</span>
-                                </label>
-                            </div>
-                            <div v-show="trabaja" class="animate-in fade-in slide-in-from-top-1">
-                                <label for="{{ form.lugar_trabajo.id_for_label }}"
-                                       class="block text-sm/6 font-medium text-primary">{{ form.lugar_trabajo.label }}</label>
-                                <div class="mt-2">
-                                    <input type="text"
-                                           name="{{ form.lugar_trabajo.html_name }}"
-                                           id="{{ form.lugar_trabajo.id_for_label }}"
-                                           value="{{ form.lugar_trabajo.value|default:'' }}"
-                                           class="block rounded-md w-full bg-white px-3 py-1.5 text-base text-primary outline-1 -outline-offset-1 outline-gray-300 focus:outline-2 focus:outline-accent sm:text-sm/6" />
-                                </div>
-                            </div>
+                    <h3 class="text-lg text-primary mb-2">Ocupación</h3>
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 w-full items-end">
+                        <div class="max-w-48">
+                            <label class="label ">
+                                <input type="checkbox"
+                                       v-model="trabaja"
+                                       {% if form.trabaja.value %}checked{% endif %}
+                                       class="checkbox checkbox-lg checkbox-primary [&&]:w-(--size) "
+                                       name="{{ form.trabaja.html_name }}"
+                                       id="{{ form.trabaja.id_for_label }}" />
+                                <span>
+                                    <b class="text-primary">¿Trabaja actualmente?</b>
+                                </span>
+                            </label>
+                            {% if form.trabaja.errors %}<div class="label text-error text-sm">{{ form.trabaja.errors }}</div>{% endif %}
                         </div>
-                    </div>
-                    <div class="divider"></div>
-                    <div class="p-4 border border-base-300 rounded-xl bg-base-50/30">
-                        <div class="flex items-center mb-4">
-                            <label class="label cursor-pointer justify-start gap-4">
-                                <input type="checkbox" 
+                        <div v-show="trabaja">
+                            <label for="{{ form.lugar_trabajo.id_for_label }}"
+                                   class="block text-sm/6 font-medium text-primary">
+                                {{ form.lugar_trabajo.label }}
+                            </label>
+                            <div class="mt-2">
+                                <input type="text"
+                                       name="{{ form.lugar_trabajo.html_name }}"
+                                       id="{{ form.lugar_trabajo.id_for_label }}"
+                                       value="{{ form.lugar_trabajo.value|default:'' }}"
+                                       placeholder="Descripción"
+                                       class="block rounded-md w-48 bg-white px-3 py-1.5 text-base text-primary outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-accent sm:text-sm/6 {% if form.lugar_trabajo.errors %}input-error{% endif %}" />
+                            </div>
+                            {% if form.lugar_trabajo.errors %}
+                                <div class="label text-error text-sm">{{ form.lugar_trabajo.errors }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="max-w-48">
+                            <label class="label">
+                                <input type="checkbox"
                                        v-model="estudia"
+                                       {% if form.estudia.value %}checked{% endif %}
+                                       class="checkbox checkbox-lg checkbox-primary [&&]:w-(--size) "
                                        name="{{ form.estudia.html_name }}"
-                                       class="checkbox checkbox-lg checkbox-secondary"
-                                       {% if form.estudia.value %}checked{% endif %}>
-                                <span class="label-text font-bold text-lg text-primary">¿Estudia actualmente?</span>
+                                       id="{{ form.estudia.id_for_label }}" />
+                                <span>
+                                    <b class="text-primary">¿Estudia actualmente?</b>
+                                </span>
                             </label>
+                            {% if form.estudia.errors %}<div class="label text-error text-sm">{{ form.estudia.errors }}</div>{% endif %}
                         </div>
-                        <div v-show="estudia" class="grid grid-cols-1 lg:grid-cols-2 gap-4 w-full animate-in fade-in slide-in-from-top-1">
-                            <div>
-                                <label class="block text-sm/6 font-medium text-primary">{{ form.nivel_estudio.label }}</label>
-                                <select name="{{ form.nivel_estudio.html_name }}" 
-                                        class="select select-bordered w-full mt-2 bg-white">
-                                    {% for val, lbl in form.nivel_estudio.field.choices %}
-                                        <option value="{{ val }}" {% if form.nivel_estudio.value == val %}selected{% endif %}>{{ lbl }}</option>
+                        <div v-show="estudia">
+                            <label for="{{ form.nivel_estudio.id_for_label }}"
+                                   class="block text-sm/6 font-medium text-primary">
+                                {{ form.nivel_estudio.label }}
+                            </label>
+                            <div class="mt-2">
+                                <select name="{{ form.nivel_estudio.html_name }}"
+                                        id="{{ form.nivel_estudio.id_for_label }}"
+                                        class="select block rounded-md w-48 bg-white px-3 py-1.5 text-base text-primary outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-accent sm:text-sm/6 {% if form.nivel_estudio.errors %}input-error{% endif %}">
+                                    {% for value, label in form.nivel_estudio.field.choices %}
+                                        <option value='{{ value }}'
+                                                {% if form.nivel_estudio.value == value %}selected{% endif %}>
+                                            {{ label }}
+                                        </option>
                                     {% endfor %}
                                 </select>
                             </div>
-                            <div>
-                                <label class="block text-sm/6 font-medium text-primary">{{ form.grado_instruccion.label }}</label>
-                                <div class="mt-2">
-                                    <input type="text"
-                                           name="{{ form.grado_instruccion.html_name }}"
-                                           value="{{ form.grado_instruccion.value|default:'' }}"
-                                           placeholder="Ej: 5to Semestre / Ingeniero"
-                                           class="block rounded-md w-full bg-white px-3 py-1.5 text-base text-primary outline-1 -outline-offset-1 outline-gray-300 focus:outline-2 focus:outline-accent sm:text-sm/6" />
-                                </div>
+                            {% if form.nivel_estudio.errors %}
+                                <div class=" label text-error text-sm">{{ form.nivel_estudio.errors }}</div>
+                            {% endif %}
+                        </div>
+                        <div v-show="estudia">
+                            <label for="{{ form.grado_instruccion.id_for_label }}"
+                                   class="block text-sm/6 font-medium text-primary">
+                                {{ form.grado_instruccion.label }}
+                            </label>
+                            <div class="mt-2">
+                                <input type="text"
+                                       name="{{ form.grado_instruccion.html_name }}"
+                                       id="{{ form.grado_instruccion.id_for_label }}"
+                                       value="{{ form.grado_instruccion.value|default:'' }}"
+                                       placeholder="Ej: 5to Semestre / Ingeniero"
+                                       class="block rounded-md w-48 bg-white px-3 py-1.5 text-base text-primary outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-accent sm:text-sm/6 {% if form.grado_instruccion.errors %}input-error{% endif %}" />
                             </div>
+                            {% if form.grado_instruccion.errors %}
+                                <div class="label text-error text-sm">{{ form.grado_instruccion.errors }}</div>
+                            {% endif %}
                         </div>
                     </div>
                     <div class="divider"></div>

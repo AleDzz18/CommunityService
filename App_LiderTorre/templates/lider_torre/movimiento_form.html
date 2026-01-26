@@ -14,8 +14,16 @@
                                 <label for="{{ form.tower.id_for_label }}"
                                        class="block text-sm/6 font-medium text-primary">{{ form.tower.label }}</label>
                                 <div class="mt-2">
-                                    <select name="{{ form.tower.html_name }}" id="{{ form.tower.id_for_label }}" value="{{ form.tower.value|default:'' }}" required class="select block rounded-md w-48 bg-white px-3 py-1.5 text-base text-primary outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-accent sm:text-sm/6 {% if form.tower.errors %}input-error{% endif %}"">
-                                        {% for value, label in form.tower.field.choices %}<option value='{{ value }}'>{{ label }}</option>{% endfor %}
+                                    <select name="{{ form.tower.html_name }}"
+                                            id="{{ form.tower.id_for_label }}"
+                                            required
+                                            class="select block rounded-md w-48 bg-white px-3 py-1.5 text-base text-primary outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-accent sm:text-sm/6 {% if form.tower.errors %}input-error{% endif %}">
+                                        {% for value, label in form.tower.field.choices %}
+                                            <option value='{{ value }}'
+                                                    {% if form.tower.value == value %}selected{% endif %}>
+                                                {{ label }}
+                                            </option>
+                                        {% endfor %}
                                     </select>
                                 </div>
                                 {% if form.tower.errors %}<div class=" label text-error text-sm">{{ form.tower.errors }}</div>{% endif %}
@@ -120,7 +128,7 @@
                                     Registrar Movimiento
                                 {% endif %}
                             </button>
-                            <a href="{% if 'condominio' in request.path or categoria_slug == 'condominio' %} {% url 'ver_finanzas' categoria_slug='condominio' %} {% elif 'basura' in request.path or categoria_slug == 'basura' %} {% url 'ver_finanzas' categoria_slug='basura' %} {% else %} {% url 'url_index' %} {% endif %}"
+                            <a href="{% if 'condominio' in request.path or categoria_slug == 'condominio' %} {% url 'ver_finanzas_gestion' categoria_slug='condominio' %} {% elif 'basura' in request.path or categoria_slug == 'basura' %} {% url 'ver_finanzas_gestion' categoria_slug='basura' %} {% else %} {% url 'url_index' %} {% endif %}"
                                :class="{'pointer-events-none btn-disabled cursor-not-allowed': formHandler.loading}"
                                class="btn btn-dash btn-secondary me-2 w-full">Cancelar</a>
                         </div>
