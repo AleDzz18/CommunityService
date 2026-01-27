@@ -1,9 +1,13 @@
 {% extends "layouts/complete.html" %}
 {% block content %}
     <script type="module" src="https://unpkg.com/cally"></script>
-    <div v-scope="{datepicker: false, date: '', desc:''}"
-         @vue:mounted="navbar.change('Transacción')"
-         class="min-h-[calc(100svh-4rem)] max-w-screen p-8 flex flex-col justify-center items-center ">
+    <div v-scope="{datepicker: false, date:
+        {% if form.fecha.value|date:'Y-m-d' %}
+            '{{ form.fecha.value|date:'Y-m-d' }}'
+        {% else %}
+            '{{ form.fecha.value|default:'' }}'
+        {% endif %}
+        , desc:''}" @vue:mounted="navbar.change('Transacción')" class="min-h-[calc(100svh-4rem)] max-w-screen p-8 flex flex-col justify-center items-center ">
         <div class="card card-border bg-base-100 ">
             <div class="card-body [&>form_div.label]:text-wrap">
                 <form method="post" @submit.prevent="formHandler.handleSubmit($el)">
