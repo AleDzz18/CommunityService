@@ -35,6 +35,7 @@ ALLOWED_HOSTS = [
     "127.0.0.1",
     "192.168.0.102",
     ".vercel.app",
+    "192.168.136.231",
     "balconesdeparaguana1.com",  # proximamente
 ]
 
