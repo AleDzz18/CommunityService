@@ -1,11 +1,10 @@
-name: "*****base Anti-Pause Agent 😋😋"
+name: "Supabase Anti-Pause Agent 😋😋"
 
 on:
   schedule:
-    # Ejecutar cada 8 horas (00:00, 08:00, 16:00 UTC)
-    # Esto da 21 oportunidades semanales, el script filtrará para dejarlo en ~3-14.
-    - cron: '0 */8 * * *' 
-  workflow_dispatch: # Permite probarlo manualmente desde el botón de GitHub
+    # Ejecutar cada 12 horas (00:00 y 12:00 UTC)
+    - cron: '0 */12 * * *' 
+  workflow_dispatch: # Permite probarlo manualmente desde GitHub
 
 jobs:
   simulate_traffic:
@@ -23,4 +22,7 @@ jobs:
         run: pip install requests
 
       - name: Run Stealth Script
+        env:
+          # Forzamos esta URL como el "botón de encendido" principal
+          TARGET_URL: 'https://balconesdeparaguana1.vercel.app/login/'
         run: python scripts/keeper.py
